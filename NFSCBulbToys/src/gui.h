@@ -2,7 +2,7 @@
 #include <d3d9.h>
 
 namespace gui {
-	inline bool menuOpen = true;
+	inline bool menuOpen = false;
 
 	inline bool menuSetup = false;
 

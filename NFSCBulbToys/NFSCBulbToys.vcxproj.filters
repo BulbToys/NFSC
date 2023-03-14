@@ -20,6 +20,7 @@
     <ClInclude Include="src\gui.h" />
     <ClInclude Include="src\hooks.h" />
     <ClInclude Include="src\shared.h" />
+    <ClInclude Include="src\nfsc.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ext\imgui\imgui.cpp" />
@@ -37,5 +38,6 @@
     <ClCompile Include="src\dllmain.cpp" />
     <ClCompile Include="src\gui.cpp" />
     <ClCompile Include="src\hooks.cpp" />
+    <ClCompile Include="src\nfsc.cpp" />
   </ItemGroup>
 </Project>
