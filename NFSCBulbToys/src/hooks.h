@@ -3,6 +3,7 @@
 
 namespace hooks {
 	bool Setup() noexcept;
+	bool SetupPart2() noexcept;
 	void Destroy() noexcept;
 
 	constexpr void* VirtualFunction(void* thisptr, size_t index) noexcept {

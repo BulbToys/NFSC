@@ -14,17 +14,51 @@ bool hooks::Setup() noexcept {
 		return false;
 	}
 
+	nfsc::device = ReadMemory<IDirect3DDevice9*>(0xAB0ABC);
+	if (nfsc::device)
+		SetupPart2();
+	else {
+		if (MH_CreateHook(
+			DxInitOriginal,
+			&DirectX_Init,
+			reinterpret_cast<void**>(&DxInitOriginal)
+		)) {
+			Error("Unable to hook DirectX_Init().");
+			return false;
+		}
+
+		if (MH_EnableHook(MH_ALL_HOOKS)) {
+			Error("Unable to enable DirectX_Init() hook.");
+			return false;
+		}
+	}
+
+	return true;
+}
+
+bool hooks::SetupPart2() noexcept {
+	gui::SetupMenu(nfsc::device);
+
 	if (MH_CreateHook(
-		DxInitOriginal,
-		&DirectX_Init,
-		reinterpret_cast<void**>(&DxInitOriginal)
+		VirtualFunction(nfsc::device, 42),
+		&EndScene,
+		reinterpret_cast<void**>(&EndSceneOriginal)
 	)) {
-		Error("Unable to hook DirectX_Init().");
+		Error("Unable to hook EndScene().");
+		return false;
+	}
+
+	if (MH_CreateHook(
+		VirtualFunction(nfsc::device, 16),
+		&Reset,
+		reinterpret_cast<void**>(&ResetOriginal)
+	)) {
+		Error("Unable to hook Reset().");
 		return false;
 	}
 
 	if (MH_EnableHook(MH_ALL_HOOKS)) {
-		Error("Unable to enable DirectX_Init() hook.");
+		Error("Unable to enable EndScene() and Reset() hooks.");
 		return false;
 	}
 
@@ -44,33 +78,11 @@ HRESULT __cdecl hooks::DirectX_Init() noexcept {
 	}
 
 	nfsc::device = ReadMemory<IDirect3DDevice9*>(0xAB0ABC);
-	gui::SetupMenu(nfsc::device);
 
 	MH_DisableHook(MH_ALL_HOOKS);
 	MH_RemoveHook(MH_ALL_HOOKS);
 
-	if (MH_CreateHook(
-		VirtualFunction(nfsc::device, 42),
-		&EndScene,
-		reinterpret_cast<void**>(&EndSceneOriginal)
-	)) {
-		Error("Unable to hook EndScene().");
-		exitMainLoop = true;
-	}
-
-	if (MH_CreateHook(
-		VirtualFunction(nfsc::device, 16),
-		&Reset,
-		reinterpret_cast<void**>(&ResetOriginal)
-	)) {
-		Error("Unable to hook Reset().");
-		exitMainLoop = true;
-	}
-
-	if (MH_EnableHook(MH_ALL_HOOKS)) {
-		Error("Unable to enable EndScene() and Reset() hooks.");
-		exitMainLoop = true;
-	}
+	exitMainLoop = !SetupPart2();
 
 	return result;
 }
