@@ -3,19 +3,28 @@
 
 #include <thread>
 #include <cstdint>
+#include <string>
 
 #include "hooks.h"
 #include "gui.h"
 #include "shared.h"
 
-inline void Error(const char* message) noexcept {
+void Error(const char* message, ...) noexcept {
+	char buffer[1024];
+	va_list va;
+	va_start(va, message);
+	vsprintf_s(buffer, 1024, message, va);
 	MessageBoxA(NULL, message, PROJECT_NAME, MB_ICONERROR);
 }
 
+inline void Sleep(int ms) noexcept {
+	std::this_thread::sleep_for(std::chrono::milliseconds(ms));
+}
+
 void Setup(const HMODULE instance) noexcept {
-	if (gui::Setup() && hooks::Setup())
-		while (!GetAsyncKeyState(PANIC_KEY))
-			std::this_thread::sleep_for(std::chrono::milliseconds(200));
+	if (hooks::Setup())
+		while (!exitMainLoop)
+			Sleep(200);
 
 	hooks::Destroy();
 	gui::Destroy();

@@ -9,6 +9,10 @@ namespace hooks {
 		return (*static_cast<void***>(thisptr))[index];
 	}
 
+	using DxInitFn = HRESULT(__cdecl*)();
+	inline DxInitFn DxInitOriginal = reinterpret_cast<DxInitFn>(0x710220);
+	HRESULT __cdecl DirectX_Init() noexcept;
+
 	using EndSceneFn = long(__thiscall*)(void*, IDirect3DDevice9*) noexcept;
 	inline EndSceneFn EndSceneOriginal = nullptr;
 	long __stdcall EndScene(IDirect3DDevice9* device) noexcept;
