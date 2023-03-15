@@ -49,11 +49,7 @@ void hooks::Destroy() noexcept {
 }
 
 long __stdcall hooks::EndScene(IDirect3DDevice9* device) noexcept {
-	static const auto returnAddress = _ReturnAddress();
 	const auto result = EndSceneOriginal(device, device);
-
-	if (_ReturnAddress() == returnAddress)
-		return result;
 
 	if (!gui::menuSetup)
 		gui::SetupMenu(device);
