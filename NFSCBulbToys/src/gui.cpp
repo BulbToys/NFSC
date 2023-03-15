@@ -107,6 +107,7 @@ void gui::Render() noexcept {
 	nfsc::gameState = ReadMemory<int>(0xA99BBC);
 
 	if (ImGui::Begin(PROJECT_NAME, &menuOpen)) {
+		// Autodrive
 		static bool autodrive = false;
 		if (ImGui::Checkbox("AutoDrive", &autodrive) && nfsc::gameState == 6) {
 			if (autodrive)
@@ -115,10 +116,21 @@ void gui::Render() noexcept {
 				nfsc::Game_ClearAIControl(1);
 		}
 
+		// Autodrive type
 		static const char* goals[] = {"AIGoalRacer", "AIGoalTraffic"};
 		static int autodrive_type = 0;
 		if (ImGui::ListBox("AutoDrive type", &autodrive_type, goals, IM_ARRAYSIZE(goals)))
 			WriteMemory<const char*>(0x4194F9, goals[autodrive_type]);
+
+		// UnlockAll
+		static bool unlockall = false;
+		if (ImGui::Checkbox("UnlockAll", &unlockall))
+			WriteMemory<unsigned char>(0xA9E6C0, unlockall ? 0x01 : 0x00);
+
+		// DebugCar
+		static bool debugcar = false;
+		if (ImGui::Checkbox("DebugCar", &debugcar))
+			WriteMemory<unsigned char>(0xA9E680, debugcar ? 0x01 : 0x00);
 
 		ImGui::End();
 	}
