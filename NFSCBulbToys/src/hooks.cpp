@@ -1,8 +1,6 @@
 #include "hooks.h"
 #include "shared.h"
 
-#include <intrin.h>
-
 #include "../ext/minhook/minhook.h"
 
 #include "../ext/imgui/imgui.h"
