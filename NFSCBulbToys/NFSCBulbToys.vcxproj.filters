@@ -38,6 +38,5 @@
     <ClCompile Include="src\dllmain.cpp" />
     <ClCompile Include="src\gui.cpp" />
     <ClCompile Include="src\hooks.cpp" />
-    <ClCompile Include="src\nfsc.cpp" />
   </ItemGroup>
 </Project>

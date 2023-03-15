@@ -6,7 +6,6 @@
 
 #include "hooks.h"
 #include "gui.h"
-#include "nfsc.h"
 #include "shared.h"
 
 inline void Error(const char* message) noexcept {
@@ -18,8 +17,6 @@ void SetupGameFunctionAddresses() {
 }
 
 void Setup(const HMODULE instance) noexcept {
-	nfsc::Setup();
-
 	if (gui::Setup() && hooks::Setup())
 		while (!GetAsyncKeyState(PANIC_KEY))
 			std::this_thread::sleep_for(std::chrono::milliseconds(200));
@@ -32,12 +29,7 @@ void Setup(const HMODULE instance) noexcept {
 
 BOOL APIENTRY DllMain(HMODULE instance, DWORD reason, LPVOID) {
 	if (reason == DLL_PROCESS_ATTACH) {
-		basePtr = reinterpret_cast<uintptr_t>(GetModuleHandleA(NULL));
-		auto dos = reinterpret_cast<IMAGE_DOS_HEADER*>(basePtr);
-		auto nt = reinterpret_cast<IMAGE_NT_HEADERS*>(basePtr + dos->e_lfanew);
-
-		// Check if .exe file is compatible - Thanks to thelink2012 and MWisBest
-		if ((basePtr + nt->OptionalHeader.AddressOfEntryPoint + (0x400000 - basePtr)) == 0x87E926) {
+		if (!strcmp(reinterpret_cast<char*>(0x9F94B0), "This is test, This is Test. This is test, This is Test.")) {
 			DisableThreadLibraryCalls(instance);
 
 			const auto thread = CreateThread(

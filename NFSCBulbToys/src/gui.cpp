@@ -226,7 +226,7 @@ void gui::Render() noexcept {
 	ImGui_ImplWin32_NewFrame();
 	ImGui::NewFrame();
 
-	nfsc::gameState = ReadMemory<int>(0x699BBC);
+	nfsc::gameState = ReadMemory<int>(0xA99BBC);
 
 	if (ImGui::Begin(PROJECT_NAME, &menuOpen)) {
 		static bool autodrive = false;
@@ -240,7 +240,7 @@ void gui::Render() noexcept {
 		static const char* goals[] = {"AIGoalRacer", "AIGoalTraffic"};
 		static int autodrive_type = 0;
 		if (ImGui::ListBox("AutoDrive type", &autodrive_type, goals, IM_ARRAYSIZE(goals)))
-			WriteMemory<const char*>(0x0194F9, goals[autodrive_type]);
+			WriteMemory<const char*>(0x4194F9, goals[autodrive_type]);
 
 		ImGui::End();
 	}
