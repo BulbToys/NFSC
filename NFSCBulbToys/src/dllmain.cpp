@@ -12,10 +12,6 @@ inline void Error(const char* message) noexcept {
 	MessageBoxA(NULL, message, PROJECT_NAME, MB_ICONERROR);
 }
 
-void SetupGameFunctionAddresses() {
-
-}
-
 void Setup(const HMODULE instance) noexcept {
 	if (gui::Setup() && hooks::Setup())
 		while (!GetAsyncKeyState(PANIC_KEY))
