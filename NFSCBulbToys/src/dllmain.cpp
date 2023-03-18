@@ -26,7 +26,7 @@ inline void Sleep(int ms)
 void Setup(const HMODULE instance)
 {
 	if (hooks::Setup())
-	{		
+	{
 		while (!exitMainLoop)
 		{
 			Sleep(200);

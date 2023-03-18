@@ -8,6 +8,7 @@ namespace gui
 	inline HWND window = nullptr;
 	inline WNDPROC originalWindowProcess = nullptr;
 
+	void SetupStyle();
 	void SetupMenu(LPDIRECT3DDEVICE9 device);
 	void Destroy();
 	void Render();
