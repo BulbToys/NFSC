@@ -124,7 +124,7 @@ void gui::Render()
 
 		// Traffic crash speed
 		float crashspeed = ReadMemory<float>(0x9C1790);
-		if (ImGui::SliderFloat("Traffic crash speed", &crashspeed, 0.0, 1000.0))
+		if (ImGui::SliderFloat("Traffic crash speed", &crashspeed, 1.0, 1000.0))
 		{
 			WriteMemory<float>(0x9C1790, crashspeed);
 		}

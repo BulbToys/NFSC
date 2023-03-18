@@ -65,8 +65,13 @@ bool hooks::SetupPart2(IDirect3DDevice9* device)
 	gui::SetupMenu(device);
 
 	// Non-critical hooks go here
-	MH_CreateHook(reinterpret_cast<LPVOID>(0x5BD3D0), &HandleStateChangeHook, reinterpret_cast<void**>(&HandleStateChange));
-	MH_EnableHook(reinterpret_cast<LPVOID>(0x5BD3D0));
+
+	if (MH_CreateHook(reinterpret_cast<LPVOID>(0x5BD3D0), &HandleStateChangeHook, reinterpret_cast<void**>(&HandleStateChange)) == MH_OK &&
+		MH_EnableHook(reinterpret_cast<LPVOID>(0x5BD3D0)) == MH_OK)
+	{
+		// Prevent pushing splash screen: DEMO_SPLASH.fng -> \0
+		WriteMemory<unsigned char>(0x9CB4E4, 0x00);
+	}
 	
 	return true;
 }
