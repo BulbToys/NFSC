@@ -6,21 +6,12 @@
 #include "../ext/imgui/imgui_impl_win32.h"
 #include "../ext/imgui/imgui_impl_dx9.h"
 
-extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(
-	HWND window,
-	UINT message,
-	WPARAM wideParam,
-	LPARAM longParam
-);
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND window, UINT message, WPARAM wideParam, LPARAM longParam);
 
-LRESULT CALLBACK WindowProcess(
-	HWND window,
-	UINT message,
-	WPARAM wideParam,
-	LPARAM longParam
-);
+LRESULT CALLBACK WindowProcess(HWND window, UINT message, WPARAM wideParam, LPARAM longParam);
 
-void gui::SetupMenu(LPDIRECT3DDEVICE9 device) noexcept {
+void gui::SetupMenu(LPDIRECT3DDEVICE9 device)
+{
 	auto params = D3DDEVICE_CREATION_PARAMETERS{};
 	device->GetCreationParameters(&params);
 
@@ -91,7 +82,8 @@ void gui::SetupMenu(LPDIRECT3DDEVICE9 device) noexcept {
 	ImGui_ImplDX9_Init(device);
 }
 
-void gui::Destroy() noexcept {
+void gui::Destroy()
+{
 	ImGui_ImplDX9_Shutdown();
 	ImGui_ImplWin32_Shutdown();
 	ImGui::DestroyContext();
@@ -99,38 +91,59 @@ void gui::Destroy() noexcept {
 	SetWindowLongPtr(window, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(originalWindowProcess));
 }
 
-void gui::Render() noexcept {
+void gui::Render()
+{
 	ImGui_ImplDX9_NewFrame();
 	ImGui_ImplWin32_NewFrame();
 	ImGui::NewFrame();
 
 	nfsc::gameState = ReadMemory<int>(0xA99BBC);
 
-	if (ImGui::Begin(PROJECT_NAME, &menuOpen)) {
-		// Autodrive
+	if (ImGui::Begin(PROJECT_NAME, &menuOpen))
+	{
+		// AutoDrive
 		static bool autodrive = false;
 		if (ImGui::Checkbox("AutoDrive", &autodrive) && nfsc::gameState == 6) {
 			if (autodrive)
+			{
 				nfsc::Game_ForceAIControl(1);
+			}
 			else
+			{
 				nfsc::Game_ClearAIControl(1);
+			}
 		}
 
-		// Autodrive type
-		static const char* goals[] = {"AIGoalRacer", "AIGoalTraffic"};
+		// AutoDrive type
+		static const char* goals[] = { "AIGoalRacer", "AIGoalTraffic" };
 		static int autodrive_type = 0;
 		if (ImGui::ListBox("AutoDrive type", &autodrive_type, goals, IM_ARRAYSIZE(goals)))
+		{
 			WriteMemory<const char*>(0x4194F9, goals[autodrive_type]);
+		}
+
+		// Traffic crash speed
+		static float crashspeed = ReadMemory<float>(0x9C1790);
+		if (ImGui::SliderFloat("Traffic crash speed", &crashspeed, 0.0, 1000.0))
+		{
+			WriteMemory<float>(0x9C1790, crashspeed);
+		}
 
 		// UnlockAll
-		static bool unlockall = false;
+		static bool unlockall = ReadMemory<unsigned char>(0xA9E6C0) == 0x00 ? false : true;
 		if (ImGui::Checkbox("UnlockAll", &unlockall))
+		{
 			WriteMemory<unsigned char>(0xA9E6C0, unlockall ? 0x01 : 0x00);
+		}
 
 		// DebugCar
-		static bool debugcar = false;
+		static bool debugcar = ReadMemory<unsigned char>(0xA9E680) == 0x00 ? false : true;
 		if (ImGui::Checkbox("DebugCar", &debugcar))
+		{
 			WriteMemory<unsigned char>(0xA9E680, debugcar ? 0x01 : 0x00);
+		}
+
+		// NOTE: SkipMovies is NOT hotswappable, guaranteed crash upon game exit in CleanupTextures!
 
 		ImGui::End();
 	}
@@ -140,27 +153,17 @@ void gui::Render() noexcept {
 	ImGui_ImplDX9_RenderDrawData(ImGui::GetDrawData());
 }
 
-LRESULT CALLBACK WindowProcess(
-	HWND window,
-	UINT message,
-	WPARAM wideParam,
-	LPARAM longParam
-) {
+LRESULT CALLBACK WindowProcess(HWND window, UINT message, WPARAM wideParam, LPARAM longParam)
+{
 	if (GetAsyncKeyState(MENU_KEY) & 1)
+	{
 		gui::menuOpen = !gui::menuOpen;
+	}
 
-	if (gui::menuOpen && ImGui_ImplWin32_WndProcHandler(
-		window,
-		message,
-		wideParam,
-		longParam
-	)) return 1L;
+	if (gui::menuOpen && ImGui_ImplWin32_WndProcHandler(window, message, wideParam, longParam))
+	{
+		return 1L;
+	}
 
-	return CallWindowProc(
-		gui::originalWindowProcess,
-		window,
-		message,
-		wideParam,
-		longParam
-	);
+	return CallWindowProc(gui::originalWindowProcess, window, message, wideParam, longParam);
 }

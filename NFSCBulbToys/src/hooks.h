@@ -1,24 +1,26 @@
 #pragma once
-#include "gui.h"
+#include <d3d9.h>
 
-namespace hooks {
-	bool Setup() noexcept;
-	bool SetupPart2() noexcept;
-	void Destroy() noexcept;
+namespace hooks
+{
+	bool Setup();
+	bool SetupPart2(IDirect3DDevice9* device);
+	void Destroy();
 
-	constexpr void* VirtualFunction(void* thisptr, size_t index) noexcept {
+	constexpr void* VirtualFunction(void* thisptr, size_t index)
+	{
 		return (*static_cast<void***>(thisptr))[index];
 	}
 
-	using DxInitFn = HRESULT(__cdecl*)();
-	inline DxInitFn DxInitOriginal = reinterpret_cast<DxInitFn>(0x710220);
-	HRESULT __cdecl DirectX_Init() noexcept;
+	HRESULT __cdecl DxInitHook();
+	static inline decltype(&DxInitHook) DxInit;
 
-	using EndSceneFn = long(__thiscall*)(void*, IDirect3DDevice9*) noexcept;
-	inline EndSceneFn EndSceneOriginal = nullptr;
-	long __stdcall EndScene(IDirect3DDevice9* device) noexcept;
+	long __stdcall EndSceneHook(IDirect3DDevice9* device);
+	static inline decltype(&EndSceneHook) EndScene;
 
-	using ResetFn = HRESULT(__thiscall*)(void*, IDirect3DDevice9*, D3DPRESENT_PARAMETERS*) noexcept;
-	inline ResetFn ResetOriginal = nullptr;
-	HRESULT __stdcall Reset(IDirect3DDevice9* device, D3DPRESENT_PARAMETERS* params) noexcept;
+	HRESULT __stdcall ResetHook(IDirect3DDevice9* device, D3DPRESENT_PARAMETERS* params);
+	static inline decltype(&ResetHook) Reset;
+
+	void __fastcall HandleStateChangeHook(void* statemanager);
+	static inline decltype(&HandleStateChangeHook) HandleStateChange;
 }

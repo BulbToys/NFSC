@@ -1,9 +1,7 @@
 #pragma once
 
-namespace nfsc {
-	void Setup() noexcept;
-
-	inline IDirect3DDevice9* device;
+namespace nfsc
+{
 	inline int gameState;
 
 	inline void (*Game_ForceAIControl)(int) = reinterpret_cast<void(*)(int)>(0x65C2C0);
