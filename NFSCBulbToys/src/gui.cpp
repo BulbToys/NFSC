@@ -123,21 +123,21 @@ void gui::Render()
 		}
 
 		// Traffic crash speed
-		static float crashspeed = ReadMemory<float>(0x9C1790);
+		float crashspeed = ReadMemory<float>(0x9C1790);
 		if (ImGui::SliderFloat("Traffic crash speed", &crashspeed, 0.0, 1000.0))
 		{
 			WriteMemory<float>(0x9C1790, crashspeed);
 		}
 
 		// UnlockAll
-		static bool unlockall = ReadMemory<unsigned char>(0xA9E6C0) == 0x00 ? false : true;
+		bool unlockall = ReadMemory<unsigned char>(0xA9E6C0) == 0x00 ? false : true;
 		if (ImGui::Checkbox("UnlockAll", &unlockall))
 		{
 			WriteMemory<unsigned char>(0xA9E6C0, unlockall ? 0x01 : 0x00);
 		}
 
 		// DebugCar
-		static bool debugcar = ReadMemory<unsigned char>(0xA9E680) == 0x00 ? false : true;
+		bool debugcar = ReadMemory<unsigned char>(0xA9E680) == 0x00 ? false : true;
 		if (ImGui::Checkbox("DebugCar", &debugcar))
 		{
 			WriteMemory<unsigned char>(0xA9E680, debugcar ? 0x01 : 0x00);
