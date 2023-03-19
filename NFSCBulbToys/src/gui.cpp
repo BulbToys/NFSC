@@ -133,38 +133,10 @@ void gui::Render()
 	ImGui_ImplWin32_NewFrame();
 	ImGui::NewFrame();
 
-	nfsc::gameState = ReadMemory<int>(0xA99BBC);
+	nfsc::state = ReadMemory<nfsc::gameflow_state>(0xA99BBC);
 
 	if (ImGui::Begin(PROJECT_NAME, &menuOpen))
 	{
-		// AutoDrive
-		static bool autodrive = false;
-		if (ImGui::Checkbox("AutoDrive", &autodrive) && nfsc::gameState == 6) {
-			if (autodrive)
-			{
-				nfsc::Game_ForceAIControl(1);
-			}
-			else
-			{
-				nfsc::Game_ClearAIControl(1);
-			}
-		}
-
-		// AutoDrive type
-		static const char* goals[] = { "AIGoalRacer", "AIGoalTraffic" };
-		static int autodrive_type = 0;
-		if (ImGui::ListBox("AutoDrive type", &autodrive_type, goals, IM_ARRAYSIZE(goals)))
-		{
-			WriteMemory<const char*>(0x4194F9, goals[autodrive_type]);
-		}
-
-		// Traffic crash speed
-		float crashspeed = ReadMemory<float>(0x9C1790);
-		if (ImGui::SliderFloat("Traffic crash speed", &crashspeed, 1.0, 1000.0))
-		{
-			WriteMemory<float>(0x9C1790, crashspeed);
-		}
-
 		// UnlockAll
 		bool unlockall = ReadMemory<unsigned char>(0xA9E6C0) == 0x00 ? false : true;
 		if (ImGui::Checkbox("UnlockAll", &unlockall))
@@ -172,11 +144,83 @@ void gui::Render()
 			WriteMemory<unsigned char>(0xA9E6C0, unlockall ? 0x01 : 0x00);
 		}
 
-		// DebugCar
+		// DebugCarCustomize
 		bool debugcar = ReadMemory<unsigned char>(0xA9E680) == 0x00 ? false : true;
-		if (ImGui::Checkbox("DebugCar", &debugcar))
+		if (ImGui::Checkbox("DebugCarCustomize", &debugcar))
 		{
 			WriteMemory<unsigned char>(0xA9E680, debugcar ? 0x01 : 0x00);
+		}
+
+		ImGui::Separator();
+
+		// DebugCamera
+		if (ImGui::Button("DebugCamera") && nfsc::state == nfsc::gameflow_state::racing)
+		{
+			nfsc::CameraAI_SetAction(1, "CDActionDebug");
+		}
+
+		// AutoDrive
+		static bool autodrive = false;
+		if (ImGui::Checkbox("AutoDrive", &autodrive) && nfsc::state == nfsc::gameflow_state::racing)
+		{
+			autodrive ? nfsc::Game_ForceAIControl(1) : nfsc::Game_ClearAIControl(1);
+		}
+
+		// AutoDrive type
+		static int autodrive_type = static_cast<int>(nfsc::ai_goal::racer);
+		ImGui::Text("AutoDrive type:");
+		if (ImGui::ListBox("##ADType", &autodrive_type, nfsc::goals, IM_ARRAYSIZE(nfsc::goals)))
+		{
+			WriteMemory<const char*>(0x4194F9, nfsc::goals[autodrive_type]);
+		}
+
+		ImGui::Separator();
+
+		// Traffic crash speed
+		float crashspeed = ReadMemory<float>(0x9C1790);
+		ImGui::Text("Traffic crash speed:");
+		if (ImGui::SliderFloat("##TCSpeed", &crashspeed, 1.0, 1000.0))
+		{
+			WriteMemory<float>(0x9C1790, crashspeed);
+		}
+
+		// Traffic type
+		static int traffic_type = static_cast<int>(nfsc::ai_goal::traffic);
+		ImGui::Text("Traffic type:");
+		if (ImGui::ListBox("##TType", &traffic_type, nfsc::goals, IM_ARRAYSIZE(nfsc::goals)))
+		{
+			WriteMemory<const char*>(0x419738, nfsc::goals[traffic_type]);
+		}
+
+		// Racer post-race type
+		static int racer_postrace_type = static_cast<int>(nfsc::ai_goal::racer);
+		ImGui::Text("Racer post-race type:");
+		if (ImGui::ListBox("##RFType", &racer_postrace_type, nfsc::goals, IM_ARRAYSIZE(nfsc::goals)))
+		{
+			WriteMemory<const char*>(0x4292D0, nfsc::goals[racer_postrace_type]);
+		}
+
+		// Override NeedsEncounter
+		if (needs_encounter::hooked)
+		{
+			ImGui::Checkbox("Override NeedsEncounter:", &needs_encounter::overridden);
+			ImGui::SameLine();
+			ImGui::Checkbox("##NEValue", &needs_encounter::value);
+		}
+
+		// Override NeedsTraffic
+		if (needs_traffic::hooked)
+		{
+			ImGui::Checkbox("Override NeedsTraffic:", &needs_traffic::overridden);
+			ImGui::SameLine();
+			ImGui::Checkbox("##NTValue", &needs_traffic::value);
+		}
+
+		// CopsEnabled
+		static bool cops_enabled = true;
+		if (ImGui::Checkbox("CopsEnabled", &cops_enabled) && nfsc::state == nfsc::gameflow_state::racing)
+		{
+			nfsc::Game_SetCopsEnabled(cops_enabled);
 		}
 
 		// NOTE: SkipMovies is NOT hotswappable, guaranteed crash upon game exit in CleanupTextures!

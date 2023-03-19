@@ -72,6 +72,18 @@ bool hooks::SetupPart2(IDirect3DDevice9* device)
 		// Prevent pushing splash screen: DEMO_SPLASH.fng -> \0
 		WriteMemory<unsigned char>(0x9CB4E4, 0x00);
 	}
+
+	if (MH_CreateHook(reinterpret_cast<LPVOID>(0x422BF0), &NeedsEncounterHook, reinterpret_cast<void**>(&NeedsEncounter)) == MH_OK &&
+		MH_EnableHook(reinterpret_cast<LPVOID>(0x422BF0)) == MH_OK)
+	{
+		needs_encounter::hooked = true;
+	}
+
+	if (MH_CreateHook(reinterpret_cast<LPVOID>(0x422990), &NeedsTrafficHook, reinterpret_cast<void**>(&NeedsTraffic)) == MH_OK &&
+		MH_EnableHook(reinterpret_cast<LPVOID>(0x422990)) == MH_OK)
+	{
+		needs_traffic::hooked = true;
+	}
 	
 	return true;
 }
@@ -151,7 +163,7 @@ enum class bootflow_state : unsigned int
 	num_total_states    = 0x18
 };
 
-void __fastcall hooks::HandleStateChangeHook(void* statemanager)
+void __fastcall hooks::HandleStateChangeHook(void* state_manager)
 {
 	/*
 		Original boot flow is as follows:
@@ -172,19 +184,19 @@ void __fastcall hooks::HandleStateChangeHook(void* statemanager)
 		14. 0x0C - STATE_DO_AUTOLOAD
 		15.  -1  - STATE_TERMINAL_STATE
 	*/
-	int statemanager_mCurState = reinterpret_cast<int>(statemanager) + 4;
-	auto current_state = ReadMemory<bootflow_state>(statemanager_mCurState);
+	int mCurState = reinterpret_cast<int>(state_manager) + 4;
+	auto current_state = ReadMemory<bootflow_state>(mCurState);
 
 	// First state is backdrop, force splash instead (creates FeMainMenu)
 	if (current_state == bootflow_state::backdrop)
 	{
-		WriteMemory<bootflow_state>(statemanager_mCurState, bootflow_state::splash);
+		WriteMemory<bootflow_state>(mCurState, bootflow_state::splash);
 	}
 
 	// Now it will try to play the splash, force bootcheck instead (instantiates memcard)
 	else if (current_state == bootflow_state::do_splash)
 	{
-		WriteMemory<bootflow_state>(statemanager_mCurState, bootflow_state::bootcheck);
+		WriteMemory<bootflow_state>(mCurState, bootflow_state::bootcheck);
 	}
 
 	// Next is do_bootcheck, which is what we want, no change necessary
@@ -192,7 +204,7 @@ void __fastcall hooks::HandleStateChangeHook(void* statemanager)
 	// Afterwards, it will try to play the EA logo, force autoload instead (handles immediate load if only save?)
 	else if (current_state == bootflow_state::ea_logo)
 	{
-		WriteMemory<bootflow_state>(statemanager_mCurState, bootflow_state::autoload);
+		WriteMemory<bootflow_state>(mCurState, bootflow_state::autoload);
 	}
 
 	// Next is do_autoload, which is what we want, no change necessary
@@ -200,12 +212,22 @@ void __fastcall hooks::HandleStateChangeHook(void* statemanager)
 	// Finally, it will try to play the Nikki PSA movie, force terminal state instead (completes boot flow)
 	else if (current_state == bootflow_state::psa)
 	{
-		WriteMemory<bootflow_state>(statemanager_mCurState, bootflow_state::terminal_state);
+		WriteMemory<bootflow_state>(mCurState, bootflow_state::terminal_state);
 
 		// Crashes the game
 		//MH_DisableHook(reinterpret_cast<LPVOID>(0x5BD3D0));
 		//MH_RemoveHook(reinterpret_cast<LPVOID>(0x5BD3D0));
 	}
 	
-	HandleStateChange(statemanager);
+	HandleStateChange(state_manager);
+}
+
+bool __fastcall hooks::NeedsEncounterHook(void* traffic_manager)
+{
+	return needs_encounter::overridden ? needs_encounter::value : NeedsEncounter(traffic_manager);
+}
+
+bool __fastcall hooks::NeedsTrafficHook(void* traffic_manager)
+{
+	return needs_traffic::overridden ? needs_traffic::value : NeedsTraffic(traffic_manager);
 }

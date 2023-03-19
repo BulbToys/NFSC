@@ -7,6 +7,20 @@
 
 inline bool exitMainLoop = false;
 
+namespace needs_encounter
+{
+	inline bool hooked = false;
+	inline bool value = false;
+	inline bool overridden = false;
+}
+
+namespace needs_traffic
+{
+	inline bool hooked = false;
+	inline bool value = false;
+	inline bool overridden = false;
+}
+
 void Error(const char* message, ...);
 inline void Sleep(int ms);
 
