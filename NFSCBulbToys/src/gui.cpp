@@ -133,25 +133,27 @@ void gui::Render()
 	ImGui_ImplWin32_NewFrame();
 	ImGui::NewFrame();
 
-	nfsc::state = ReadMemory<nfsc::gameflow_state>(0xA99BBC);
-
 	if (ImGui::Begin(PROJECT_NAME, &menuOpen))
 	{
+		// GetWindowWidth() - GetStyle().WindowPadding (total)
+		float width = ImGui::GetWindowWidth() - 16.0f;
+
+		nfsc::state = ReadMemory<nfsc::gameflow_state>(0xA99BBC);
+		void* myPVehicle = nfsc::ivehicleList[0];
+
 		// UnlockAll
-		bool unlockall = ReadMemory<unsigned char>(0xA9E6C0) == 0x00 ? false : true;
-		if (ImGui::Checkbox("UnlockAll", &unlockall))
-		{
-			WriteMemory<unsigned char>(0xA9E6C0, unlockall ? 0x01 : 0x00);
-		}
+		ImGui::Checkbox("UnlockAll", reinterpret_cast<bool*>(0xA9E6C0));
 
 		// DebugCarCustomize
-		bool debugcar = ReadMemory<unsigned char>(0xA9E680) == 0x00 ? false : true;
-		if (ImGui::Checkbox("DebugCarCustomize", &debugcar))
-		{
-			WriteMemory<unsigned char>(0xA9E680, debugcar ? 0x01 : 0x00);
-		}
+		ImGui::Checkbox("DebugCarCustomize", reinterpret_cast<bool*>(0xA9E680));
 
 		ImGui::Separator();
+
+		// TEST: Speed
+		if (myPVehicle)
+		{
+			ImGui::Text("Speed: %.2fkm/h", nfsc::PVehicle_GetSpeed(myPVehicle) * 3.5999999);
+		}
 
 		// DebugCamera
 		if (ImGui::Button("DebugCamera") && nfsc::state == nfsc::gameflow_state::racing)
@@ -161,6 +163,22 @@ void gui::Render()
 
 		// AutoDrive
 		static bool autodrive = false;
+		/*if (myPVehicle)
+		{
+			void* myAIVehicleHuman = nfsc::PVehicle_GetAIVehiclePtr(myPVehicle);
+			if (myAIVehicleHuman)
+			{
+				autodrive = !nfsc::AIVehicleHuman_GetAIControl(myAIVehicleHuman);
+			}
+			else
+			{
+				autodrive = false;
+			}
+		}
+		else
+		{
+			autodrive = false;
+		}*/
 		if (ImGui::Checkbox("AutoDrive", &autodrive) && nfsc::state == nfsc::gameflow_state::racing)
 		{
 			autodrive ? nfsc::Game_ForceAIControl(1) : nfsc::Game_ClearAIControl(1);
@@ -169,6 +187,7 @@ void gui::Render()
 		// AutoDrive type
 		static int autodrive_type = static_cast<int>(nfsc::ai_goal::racer);
 		ImGui::Text("AutoDrive type:");
+		ImGui::PushItemWidth(width);
 		if (ImGui::ListBox("##ADType", &autodrive_type, nfsc::goals, IM_ARRAYSIZE(nfsc::goals)))
 		{
 			WriteMemory<const char*>(0x4194F9, nfsc::goals[autodrive_type]);
@@ -177,16 +196,14 @@ void gui::Render()
 		ImGui::Separator();
 
 		// Traffic crash speed
-		float crashspeed = ReadMemory<float>(0x9C1790);
 		ImGui::Text("Traffic crash speed:");
-		if (ImGui::SliderFloat("##TCSpeed", &crashspeed, 1.0, 1000.0))
-		{
-			WriteMemory<float>(0x9C1790, crashspeed);
-		}
+		ImGui::PushItemWidth(width);
+		ImGui::SliderFloat("##TCSpeed", reinterpret_cast<float*>(0x9C1790), 1.0, 1000.0);
 
 		// Traffic type
 		static int traffic_type = static_cast<int>(nfsc::ai_goal::traffic);
 		ImGui::Text("Traffic type:");
+		ImGui::PushItemWidth(width);
 		if (ImGui::ListBox("##TType", &traffic_type, nfsc::goals, IM_ARRAYSIZE(nfsc::goals)))
 		{
 			WriteMemory<const char*>(0x419738, nfsc::goals[traffic_type]);
@@ -195,6 +212,7 @@ void gui::Render()
 		// Racer post-race type
 		static int racer_postrace_type = static_cast<int>(nfsc::ai_goal::racer);
 		ImGui::Text("Racer post-race type:");
+		ImGui::PushItemWidth(width);
 		if (ImGui::ListBox("##RFType", &racer_postrace_type, nfsc::goals, IM_ARRAYSIZE(nfsc::goals)))
 		{
 			WriteMemory<const char*>(0x4292D0, nfsc::goals[racer_postrace_type]);
@@ -217,7 +235,7 @@ void gui::Render()
 		}
 
 		// CopsEnabled
-		static bool cops_enabled = true;
+		static bool cops_enabled = true;// ReadMemory<bool>(0xA83A50);
 		if (ImGui::Checkbox("CopsEnabled", &cops_enabled) && nfsc::state == nfsc::gameflow_state::racing)
 		{
 			nfsc::Game_SetCopsEnabled(cops_enabled);
