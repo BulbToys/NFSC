@@ -10,6 +10,20 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND window, UINT m
 
 LRESULT CALLBACK WindowProcess(HWND window, UINT message, WPARAM wideParam, LPARAM longParam);
 
+inline bool ImGui::MyListBox(const char* text, const char* id, int* current_item, const char* const *items, int items_count, int height_in_items = -1)
+{
+	ImGui::Text(text);
+	ImGui::PushItemWidth(gui::width);
+	return ImGui::ListBox(id, current_item, items, items_count, height_in_items);
+}
+
+inline bool ImGui::MySliderFloat(const char* text, const char* id, float* v, float v_min, float v_max, const char* format = "%.3f")
+{
+	ImGui::Text(text);
+	ImGui::PushItemWidth(gui::width);
+	return ImGui::SliderFloat(id, v, v_min, v_max, format);
+}
+
 void gui::SetupStyle()
 {
 	// Orange Enemymouse style from ImThemes
@@ -136,7 +150,7 @@ void gui::Render()
 	if (ImGui::Begin(PROJECT_NAME, &menuOpen))
 	{
 		// GetWindowWidth() - GetStyle().WindowPadding (total)
-		float width = ImGui::GetWindowWidth() - 16.0f;
+		gui::width = ImGui::GetWindowWidth() - 16.0f;
 
 		nfsc::state = ReadMemory<nfsc::gameflow_state>(0xA99BBC);
 		void* myPVehicle = nfsc::ivehicleList[0];
@@ -150,10 +164,7 @@ void gui::Render()
 		ImGui::Separator();
 
 		// TEST: Speed
-		if (myPVehicle)
-		{
-			ImGui::Text("Speed: %.2fkm/h", nfsc::PVehicle_GetSpeed(myPVehicle) * 3.5999999);
-		}
+		ImGui::Text("Speed: %.2fkm/h", myPVehicle ? nfsc::PVehicle_GetSpeed(myPVehicle) * 3.5999999 : 0.0f);
 
 		// DebugCamera
 		if (ImGui::Button("DebugCamera") && nfsc::state == nfsc::gameflow_state::racing)
@@ -186,9 +197,7 @@ void gui::Render()
 
 		// AutoDrive type
 		static int autodrive_type = static_cast<int>(nfsc::ai_goal::racer);
-		ImGui::Text("AutoDrive type:");
-		ImGui::PushItemWidth(width);
-		if (ImGui::ListBox("##ADType", &autodrive_type, nfsc::goals, IM_ARRAYSIZE(nfsc::goals)))
+		if (ImGui::MyListBox("AutoDrive type:", "##ADType", &autodrive_type, nfsc::goals, IM_ARRAYSIZE(nfsc::goals)))
 		{
 			WriteMemory<const char*>(0x4194F9, nfsc::goals[autodrive_type]);
 		}
@@ -196,24 +205,18 @@ void gui::Render()
 		ImGui::Separator();
 
 		// Traffic crash speed
-		ImGui::Text("Traffic crash speed:");
-		ImGui::PushItemWidth(width);
-		ImGui::SliderFloat("##TCSpeed", reinterpret_cast<float*>(0x9C1790), 1.0, 1000.0);
+		ImGui::MySliderFloat("Traffic crash speed:", "##TCSpeed", reinterpret_cast<float*>(0x9C1790), 1.0, 1000.0);
 
 		// Traffic type
 		static int traffic_type = static_cast<int>(nfsc::ai_goal::traffic);
-		ImGui::Text("Traffic type:");
-		ImGui::PushItemWidth(width);
-		if (ImGui::ListBox("##TType", &traffic_type, nfsc::goals, IM_ARRAYSIZE(nfsc::goals)))
+		if (ImGui::MyListBox("Traffic type:", "##TType", &traffic_type, nfsc::goals, IM_ARRAYSIZE(nfsc::goals)))
 		{
 			WriteMemory<const char*>(0x419738, nfsc::goals[traffic_type]);
 		}
 
 		// Racer post-race type
 		static int racer_postrace_type = static_cast<int>(nfsc::ai_goal::racer);
-		ImGui::Text("Racer post-race type:");
-		ImGui::PushItemWidth(width);
-		if (ImGui::ListBox("##RFType", &racer_postrace_type, nfsc::goals, IM_ARRAYSIZE(nfsc::goals)))
+		if (ImGui::MyListBox("Racer post-race type:", "##RPRType", &racer_postrace_type, nfsc::goals, IM_ARRAYSIZE(nfsc::goals)))
 		{
 			WriteMemory<const char*>(0x4292D0, nfsc::goals[racer_postrace_type]);
 		}
