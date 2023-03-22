@@ -84,6 +84,12 @@ bool hooks::SetupPart2(IDirect3DDevice9* device)
 	{
 		needs_traffic::hooked = true;
 	}
+
+	if (MH_CreateHook(reinterpret_cast<LPVOID>(0x433930), &GpsEngageHook, reinterpret_cast<void**>(&GpsEngage)) == MH_OK &&
+		MH_EnableHook(reinterpret_cast<LPVOID>(0x433930)) == MH_OK)
+	{
+		gps_engage::hooked = true;
+	}
 	
 	return true;
 }
@@ -184,7 +190,7 @@ void __fastcall hooks::HandleStateChangeHook(void* state_manager)
 		14. 0x0C - STATE_DO_AUTOLOAD
 		15.  -1  - STATE_TERMINAL_STATE
 	*/
-	int mCurState = reinterpret_cast<int>(state_manager) + 4;
+	auto mCurState = reinterpret_cast<unsigned int>(state_manager) + 4;
 	auto current_state = ReadMemory<bootflow_state>(mCurState);
 
 	// First state is backdrop, force splash instead (creates FeMainMenu)
@@ -230,4 +236,23 @@ bool __fastcall hooks::NeedsEncounterHook(void* traffic_manager)
 bool __fastcall hooks::NeedsTrafficHook(void* traffic_manager)
 {
 	return needs_traffic::overridden ? needs_traffic::value : NeedsTraffic(traffic_manager);
+}
+
+bool __fastcall hooks::GpsEngageHook(void* gps, void* edx, void* vec3target, float max_deviation, bool re_engage, bool always_re_establish)
+{
+	bool result = GpsEngage(gps, edx, vec3target, max_deviation, re_engage, always_re_establish);
+
+	// If we're in AutoDrive and the GPS has been successfully established, find the path to the destination
+	// Since Gps::Engage also gets called after reconnections, turning on AutoDrive late will still work
+	if (gps_engage::myAIVehicle && result)
+	{
+		auto myRoadNav = ReadMemory<void*>(reinterpret_cast<unsigned int>(gps_engage::myAIVehicle) + 0x38);
+		if (myRoadNav)
+		{
+			// TODO: Needs more testing, AutoDrive might forget the destination at any point
+			nfsc::WRoadNav_FindPath(myRoadNav, vec3target, 0, 1);
+		}
+	}
+
+	return result;
 }

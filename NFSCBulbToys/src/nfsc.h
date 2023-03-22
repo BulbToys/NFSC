@@ -20,14 +20,16 @@ namespace nfsc
 
 	inline void** ivehicleList = reinterpret_cast<void**>(0xA9F168);
 
-	//inline void* (__thiscall *PVehicle_GetAIVehiclePtr)(void*) = reinterpret_cast<void*(__thiscall*)(void*)>(0x6D8110);
-	inline float (__thiscall* PVehicle_GetSpeed)(void*) = reinterpret_cast<float(__thiscall*)(void*)>(0x6D8070);
+	inline void (*CameraAI_SetAction)(int eview, const char* name) = reinterpret_cast<void(*)(int, const char*)>(0x48D620);
 
-	//inline bool (__thiscall *AIVehicleHuman_GetAIControl)(void*) = reinterpret_cast<bool(__thiscall*)(void*)>(0x4421B0);
+	inline void (*Game_ForceAIControl)(int unk) = reinterpret_cast<void(*)(int)>(0x65C2C0);
+	inline void (*Game_ClearAIControl)(int unk) = reinterpret_cast<void(*)(int)>(0x65C330);
+	inline void (*Game_SetCopsEnabled)(bool enable) = reinterpret_cast<void(*)(bool)>(0x6513E0);
+	inline void (*Game_UnlockNikki)(void) = reinterpret_cast<void(*)(void)>(0x667FF0);
 
-	inline void (*CameraAI_SetAction)(int, const char*) = reinterpret_cast<void(*)(int, const char*)>(0x48D620);
+	inline void* (__thiscall* PVehicle_GetAIVehiclePtr)(void* pvehicle) = reinterpret_cast<void* (__thiscall*)(void*)>(0x6D8110);
+	inline float (__thiscall* PVehicle_GetSpeed)(void* pvehicle) = reinterpret_cast<float(__thiscall*)(void*)>(0x6D8070);
 
-	inline void (*Game_ForceAIControl)(int) = reinterpret_cast<void(*)(int)>(0x65C2C0);
-	inline void (*Game_ClearAIControl)(int) = reinterpret_cast<void(*)(int)>(0x65C330);
-	inline void (*Game_SetCopsEnabled)(bool) = reinterpret_cast<void(*)(bool)>(0x6513E0);
+	inline bool (__thiscall* WRoadNav_FindPath)(void* roadnav, void* vec3_goal_position, void* vec3_goal_direction, bool shortcuts_allowed) =
+		reinterpret_cast<bool(__thiscall*)(void*, void*, void*, bool)>(0x7FB090);
 }

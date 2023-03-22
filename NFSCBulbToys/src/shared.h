@@ -21,17 +21,23 @@ namespace needs_traffic
 	inline bool overridden = false;
 }
 
+namespace gps_engage
+{
+	inline bool hooked = false;
+	inline void* myAIVehicle = nullptr;
+}
+
 void Error(const char* message, ...);
 inline void Sleep(int ms);
 
 template <typename T>
-inline T ReadMemory(int address)
+inline T ReadMemory(unsigned int address)
 {
 	return *reinterpret_cast<T*>(address);
 }
 
 template <typename T>
-inline void WriteMemory(int address, T value)
+inline void WriteMemory(unsigned int address, T value)
 {
 	T* memory = reinterpret_cast<T*>(address);
 	*memory = value;

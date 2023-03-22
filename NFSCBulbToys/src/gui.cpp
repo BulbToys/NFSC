@@ -13,15 +13,15 @@ LRESULT CALLBACK WindowProcess(HWND window, UINT message, WPARAM wideParam, LPAR
 inline bool ImGui::MyListBox(const char* text, const char* id, int* current_item, const char* const *items, int items_count, int height_in_items = -1)
 {
 	ImGui::Text(text);
-	ImGui::PushItemWidth(gui::width);
-	return ImGui::ListBox(id, current_item, items, items_count, height_in_items);
+	bool result = ImGui::ListBox(id, current_item, items, items_count, height_in_items);
+	return result;
 }
 
 inline bool ImGui::MySliderFloat(const char* text, const char* id, float* v, float v_min, float v_max, const char* format = "%.3f")
 {
 	ImGui::Text(text);
-	ImGui::PushItemWidth(gui::width);
-	return ImGui::SliderFloat(id, v, v_min, v_max, format);
+	bool result = ImGui::SliderFloat(id, v, v_min, v_max, format);
+	return result;
 }
 
 void gui::SetupStyle()
@@ -149,11 +149,13 @@ void gui::Render()
 
 	if (ImGui::Begin(PROJECT_NAME, &menuOpen))
 	{
-		// GetWindowWidth() - GetStyle().WindowPadding (total)
-		gui::width = ImGui::GetWindowWidth() - 16.0f;
-
+		// Grab necessary game info here
 		nfsc::state = ReadMemory<nfsc::gameflow_state>(0xA99BBC);
 		void* myPVehicle = nfsc::ivehicleList[0];
+
+		// GetWindowWidth() - GetStyle().WindowPadding (total)
+		gui::width = ImGui::GetWindowWidth() - 16.0f;
+		ImGui::PushItemWidth(gui::width);
 
 		// UnlockAll
 		ImGui::Checkbox("UnlockAll", reinterpret_cast<bool*>(0xA9E6C0));
@@ -161,9 +163,15 @@ void gui::Render()
 		// DebugCarCustomize
 		ImGui::Checkbox("DebugCarCustomize", reinterpret_cast<bool*>(0xA9E680));
 
+		// UnlockNikki
+		if (ImGui::Button("UnlockNikki"))
+		{
+			nfsc::Game_UnlockNikki();
+		}
+
 		ImGui::Separator();
 
-		// TEST: Speed
+		// Speed
 		ImGui::Text("Speed: %.2fkm/h", myPVehicle ? nfsc::PVehicle_GetSpeed(myPVehicle) * 3.5999999 : 0.0f);
 
 		// DebugCamera
@@ -174,22 +182,17 @@ void gui::Render()
 
 		// AutoDrive
 		static bool autodrive = false;
-		/*if (myPVehicle)
+		if (gps_engage::hooked)
 		{
-			void* myAIVehicleHuman = nfsc::PVehicle_GetAIVehiclePtr(myPVehicle);
-			if (myAIVehicleHuman)
+			if (myPVehicle)
 			{
-				autodrive = !nfsc::AIVehicleHuman_GetAIControl(myAIVehicleHuman);
+				gps_engage::myAIVehicle = nfsc::PVehicle_GetAIVehiclePtr(myPVehicle);
 			}
 			else
 			{
-				autodrive = false;
+				gps_engage::myAIVehicle = nullptr;
 			}
 		}
-		else
-		{
-			autodrive = false;
-		}*/
 		if (ImGui::Checkbox("AutoDrive", &autodrive) && nfsc::state == nfsc::gameflow_state::racing)
 		{
 			autodrive ? nfsc::Game_ForceAIControl(1) : nfsc::Game_ClearAIControl(1);
@@ -246,6 +249,7 @@ void gui::Render()
 
 		// NOTE: SkipMovies is NOT hotswappable, guaranteed crash upon game exit in CleanupTextures!
 
+		ImGui::PopItemWidth();
 		ImGui::End();
 	}
 	
