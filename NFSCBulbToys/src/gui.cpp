@@ -163,6 +163,9 @@ void gui::Render()
 		// DebugCarCustomize
 		ImGui::Checkbox("DebugCarCustomize", reinterpret_cast<bool*>(0xA9E680));
 
+		// ShowAllPresetsInFE
+		ImGui::Checkbox("ShowAllPresetsInFE", reinterpret_cast<bool*>(0xA9E6C3));
+
 		// UnlockNikki
 		if (ImGui::Button("UnlockNikki"))
 		{
