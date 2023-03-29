@@ -1,6 +1,8 @@
 #pragma once
 #include <d3d9.h>
 
+#include "nfsc.h"
+
 namespace hooks
 {
 	bool Setup();
@@ -30,6 +32,6 @@ namespace hooks
 	bool __fastcall NeedsTrafficHook(void* traffic_manager);
 	static inline decltype(&NeedsTrafficHook) NeedsTraffic;
 
-	bool __fastcall GpsEngageHook(void* gps, void* edx, void* vec3target, float max_deviation, bool re_engage, bool always_re_establish);
+	bool __fastcall GpsEngageHook(void* gps, void* edx, nfsc::vector3* vec3target, float max_deviation, bool re_engage, bool always_re_establish);
 	static inline decltype(&GpsEngageHook) GpsEngage;
 }

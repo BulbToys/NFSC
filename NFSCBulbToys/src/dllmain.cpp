@@ -25,10 +25,10 @@ inline void Sleep(int ms)
 
 void Setup(const HMODULE instance)
 {
-	// patch out IsWindowed check for Set/ShowCursor(0)
+	// Patch out IsWindowed check for Set/ShowCursor(0)
 	WriteNop(0x730A8D, 8);
 
-	// patch out looping ShowCursor(0)
+	// Patch out looping ShowCursor(0)
 	WriteNop(0x711EF2, 7);
 
 	if (hooks::Setup())
@@ -49,6 +49,7 @@ BOOL APIENTRY DllMain(HMODULE instance, DWORD reason, LPVOID)
 {
 	if (reason == DLL_PROCESS_ATTACH)
 	{
+		// Version check :3
 		if (!strncmp(reinterpret_cast<char*>(0x9F03D5), ":33", 3))
 		{
 			DisableThreadLibraryCalls(instance);

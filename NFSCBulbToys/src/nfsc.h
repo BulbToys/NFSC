@@ -2,6 +2,13 @@
 
 namespace nfsc
 {
+	struct vector3
+	{
+		float x;
+		float y;
+		float z;
+	};
+
 	enum class gameflow_state : int
 	{
 		in_frontend = 3,
@@ -30,6 +37,6 @@ namespace nfsc
 	inline void* (__thiscall* PVehicle_GetAIVehiclePtr)(void* pvehicle) = reinterpret_cast<void* (__thiscall*)(void*)>(0x6D8110);
 	inline float (__thiscall* PVehicle_GetSpeed)(void* pvehicle) = reinterpret_cast<float(__thiscall*)(void*)>(0x6D8070);
 
-	inline bool (__thiscall* WRoadNav_FindPath)(void* roadnav, void* vec3_goal_position, void* vec3_goal_direction, bool shortcuts_allowed) =
-		reinterpret_cast<bool(__thiscall*)(void*, void*, void*, bool)>(0x7FB090);
+	inline bool (__thiscall* WRoadNav_FindPath)(void* roadnav, nfsc::vector3* vec3_goal_position, nfsc::vector3* vec3_goal_direction, bool shortcuts_allowed) =
+		reinterpret_cast<bool(__thiscall*)(void*, nfsc::vector3*, nfsc::vector3*, bool)>(0x7FB090);
 }

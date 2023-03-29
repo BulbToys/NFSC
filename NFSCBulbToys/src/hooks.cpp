@@ -69,7 +69,7 @@ bool hooks::SetupPart2(IDirect3DDevice9* device)
 	if (MH_CreateHook(reinterpret_cast<LPVOID>(0x5BD3D0), &HandleStateChangeHook, reinterpret_cast<void**>(&HandleStateChange)) == MH_OK &&
 		MH_EnableHook(reinterpret_cast<LPVOID>(0x5BD3D0)) == MH_OK)
 	{
-		// Prevent pushing splash screen: DEMO_SPLASH.fng -> \0
+		// Prevent pushing splash screen: "DEMO_SPLASH.fng" -> ""
 		WriteMemory<unsigned char>(0x9CB4E4, 0x00);
 	}
 
@@ -207,7 +207,7 @@ void __fastcall hooks::HandleStateChangeHook(void* state_manager)
 
 	// Next is do_bootcheck, which is what we want, no change necessary
 
-	// Afterwards, it will try to play the EA logo, force autoload instead (handles immediate load if only save?)
+	// Afterwards, it will try to play the EA logo, force autoload instead (handles immediate load if only save(?))
 	else if (current_state == bootflow_state::ea_logo)
 	{
 		WriteMemory<bootflow_state>(mCurState, bootflow_state::autoload);
@@ -238,7 +238,7 @@ bool __fastcall hooks::NeedsTrafficHook(void* traffic_manager)
 	return needs_traffic::overridden ? needs_traffic::value : NeedsTraffic(traffic_manager);
 }
 
-bool __fastcall hooks::GpsEngageHook(void* gps, void* edx, void* vec3target, float max_deviation, bool re_engage, bool always_re_establish)
+bool __fastcall hooks::GpsEngageHook(void* gps, void* edx, nfsc::vector3* vec3target, float max_deviation, bool re_engage, bool always_re_establish)
 {
 	bool result = GpsEngage(gps, edx, vec3target, max_deviation, re_engage, always_re_establish);
 

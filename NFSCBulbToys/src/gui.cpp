@@ -250,6 +250,12 @@ void gui::Render()
 			nfsc::Game_SetCopsEnabled(cops_enabled);
 		}
 
+		if (nfsc::state == nfsc::gameflow_state::in_frontend)
+		{
+			autodrive = false;
+			cops_enabled = true;
+		}
+
 		// NOTE: SkipMovies is NOT hotswappable, guaranteed crash upon game exit in CleanupTextures!
 
 		ImGui::PopItemWidth();
