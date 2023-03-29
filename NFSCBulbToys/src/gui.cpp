@@ -266,6 +266,7 @@ LRESULT CALLBACK WindowProcess(HWND window, UINT message, WPARAM wideParam, LPAR
 	if (GetAsyncKeyState(MENU_KEY) & 1)
 	{
 		gui::menuOpen = !gui::menuOpen;
+		ShowCursor(gui::menuOpen);
 	}
 
 	if (gui::menuOpen && ImGui_ImplWin32_WndProcHandler(window, message, wideParam, longParam))

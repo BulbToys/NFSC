@@ -42,3 +42,11 @@ inline void WriteMemory(unsigned int address, T value)
 	T* memory = reinterpret_cast<T*>(address);
 	*memory = value;
 }
+
+inline void WriteNop(unsigned int address, int count = 1)
+{
+	for (int i = 0; i < count; i++)
+	{
+		WriteMemory<unsigned char>(address + i, 0x90);
+	}
+}
