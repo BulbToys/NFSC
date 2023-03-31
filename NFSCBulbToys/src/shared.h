@@ -31,19 +31,19 @@ void Error(const char* message, ...);
 inline void Sleep(int ms);
 
 template <typename T>
-inline T ReadMemory(unsigned int address)
+inline T ReadMemory(size_t address)
 {
 	return *reinterpret_cast<T*>(address);
 }
 
 template <typename T>
-inline void WriteMemory(unsigned int address, T value)
+inline void WriteMemory(size_t address, T value)
 {
 	T* memory = reinterpret_cast<T*>(address);
 	*memory = value;
 }
 
-inline void WriteNop(unsigned int address, int count = 1)
+inline void WriteNop(size_t address, int count = 1)
 {
 	for (int i = 0; i < count; i++)
 	{

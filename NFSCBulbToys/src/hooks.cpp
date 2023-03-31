@@ -190,7 +190,7 @@ void __fastcall hooks::HandleStateChangeHook(void* state_manager)
 		14. 0x0C - STATE_DO_AUTOLOAD
 		15.  -1  - STATE_TERMINAL_STATE
 	*/
-	auto mCurState = reinterpret_cast<unsigned int>(state_manager) + 4;
+	auto mCurState = reinterpret_cast<size_t>(state_manager) + 4;
 	auto current_state = ReadMemory<bootflow_state>(mCurState);
 
 	// First state is backdrop, force splash instead (creates FeMainMenu)
@@ -246,7 +246,7 @@ bool __fastcall hooks::GpsEngageHook(void* gps, void* edx, nfsc::vector3* vec3ta
 	// Since Gps::Engage also gets called after reconnections, turning on AutoDrive late will still work
 	if (gps_engage::myAIVehicle && result)
 	{
-		auto myRoadNav = ReadMemory<void*>(reinterpret_cast<unsigned int>(gps_engage::myAIVehicle) + 0x38);
+		auto myRoadNav = ReadMemory<void*>(reinterpret_cast<size_t>(gps_engage::myAIVehicle) + 0x38);
 		if (myRoadNav)
 		{
 			// TODO: Needs more testing, AutoDrive might forget the destination at any point
