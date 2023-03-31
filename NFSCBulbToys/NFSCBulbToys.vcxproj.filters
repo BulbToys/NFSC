@@ -21,6 +21,7 @@
     <ClInclude Include="src\hooks.h" />
     <ClInclude Include="src\shared.h" />
     <ClInclude Include="src\nfsc.h" />
+    <ClInclude Include="ext\imgui\imgui_memory_editor.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ext\imgui\imgui.cpp" />

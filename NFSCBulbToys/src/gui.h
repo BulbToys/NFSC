@@ -1,5 +1,10 @@
 #pragma once
 #include <d3d9.h>
+#include <vector>
+#include <string>
+
+#include "../ext/imgui/imgui.h"
+#include "../ext/imgui/imgui_memory_editor.h"
 
 namespace gui
 {
@@ -13,6 +18,17 @@ namespace gui
 	void SetupMenu(LPDIRECT3DDEVICE9 device);
 	void Destroy();
 	void Render();
+
+	struct MemoryWindow
+	{
+		MemoryEditor* mem_edit;
+		const char* title;
+		void* addr;
+		size_t size;
+		bool open;
+		MemoryWindow(const char* title, void* addr, size_t size) : mem_edit(new MemoryEditor()), title(title), addr(addr), size(size), open(true) {}
+	};
+	inline std::vector<MemoryWindow> mem_windows;
 }
 
 namespace ImGui

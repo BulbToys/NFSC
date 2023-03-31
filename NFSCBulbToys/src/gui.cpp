@@ -5,6 +5,7 @@
 #include "../ext/imgui/imgui.h"
 #include "../ext/imgui/imgui_impl_win32.h"
 #include "../ext/imgui/imgui_impl_dx9.h"
+#include "../ext/imgui/imgui_memory_editor.h"
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND window, UINT message, WPARAM wideParam, LPARAM longParam);
 
@@ -147,7 +148,31 @@ void gui::Render()
 	ImGui_ImplWin32_NewFrame();
 	ImGui::NewFrame();
 
-	if (ImGui::Begin(PROJECT_NAME, &menuOpen))
+	// Memory Editor Windows
+	auto iter = mem_windows.begin();
+	while (iter != mem_windows.end())
+	{
+		if (ImGui::Begin(iter->title, &iter->open))
+		{
+			iter->mem_edit->DrawContents(iter->addr, iter->size);
+			ImGui::End();
+		}
+
+		// If we've closed the window with X, deallocate
+		if (!iter->open)
+		{
+			delete iter->title;
+			delete iter->mem_edit;
+			iter = mem_windows.erase(iter);
+		}
+		else
+		{
+			++iter;
+		}
+	}
+
+	// Main window
+	if (ImGui::Begin(PROJECT_NAME))
 	{
 		// Grab necessary game info here
 		nfsc::state = ReadMemory<nfsc::gameflow_state>(0xA99BBC);
@@ -156,6 +181,26 @@ void gui::Render()
 		// GetWindowWidth() - GetStyle().WindowPadding (total)
 		gui::width = ImGui::GetWindowWidth() - 16.0f;
 		ImGui::PushItemWidth(gui::width);
+
+		// New Memory Editor
+		static char input_addr[9];
+		ImGui::InputText("##addr", input_addr, IM_ARRAYSIZE(input_addr), ImGuiInputTextFlags_CharsHexadecimal);
+		if (ImGui::Button("New Memory Editor"))
+		{
+			size_t addr;
+			if (sscanf_s(input_addr, "%IX", &addr) == 1)
+			{
+				// Weak safety precaution. Too high values also crash ofc
+				if (addr >= 0x400000)
+				{
+					char* window_name = new char[25];
+					sprintf_s(window_name, 25, "Memory Editor 0x%08X", addr);
+					mem_windows.push_back(MemoryWindow(window_name, reinterpret_cast<void*>(addr), 0x10000));
+				}
+			}
+		}
+
+		ImGui::Separator();
 
 		// UnlockAll
 		ImGui::Checkbox("UnlockAll", reinterpret_cast<bool*>(0xA9E6C0));
