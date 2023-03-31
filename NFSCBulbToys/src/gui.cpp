@@ -187,7 +187,7 @@ void gui::Render()
 		ImGui::InputText("##addr", input_addr, IM_ARRAYSIZE(input_addr), ImGuiInputTextFlags_CharsHexadecimal);
 		if (ImGui::Button("New Memory Editor"))
 		{
-			size_t addr;
+			uintptr_t addr;
 			if (sscanf_s(input_addr, "%IX", &addr) == 1)
 			{
 				// Weak safety precaution. Too high values also crash ofc

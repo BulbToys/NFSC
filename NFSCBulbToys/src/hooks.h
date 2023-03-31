@@ -9,7 +9,7 @@ namespace hooks
 	bool SetupPart2(IDirect3DDevice9* device);
 	void Destroy();
 
-	constexpr void* VirtualFunction(void* thisptr, size_t index)
+	constexpr void* VirtualFunction(void* thisptr, ptrdiff_t index)
 	{
 		return (*static_cast<void***>(thisptr))[index];
 	}
