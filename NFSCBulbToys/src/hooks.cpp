@@ -70,7 +70,7 @@ bool hooks::SetupPart2(IDirect3DDevice9* device)
 		MH_EnableHook(reinterpret_cast<LPVOID>(0x5BD3D0)) == MH_OK)
 	{
 		// Prevent pushing splash screen: "DEMO_SPLASH.fng" -> ""
-		WriteMemory<unsigned char>(0x9CB4E4, 0x00);
+		WriteMemory<uint8_t>(0x9CB4E4, 0x00);
 	}
 
 	if (MH_CreateHook(reinterpret_cast<LPVOID>(0x422BF0), &NeedsEncounterHook, reinterpret_cast<void**>(&NeedsEncounter)) == MH_OK &&
@@ -90,6 +90,8 @@ bool hooks::SetupPart2(IDirect3DDevice9* device)
 	{
 		gps_engage::hooked = true;
 	}
+
+	WriteJmp(0x445A9D, CreateRoadBlockHook, 6);
 	
 	return true;
 }
@@ -249,10 +251,27 @@ bool __fastcall hooks::GpsEngageHook(void* gps, void* edx, nfsc::vector3* vec3ta
 		auto myRoadNav = ReadMemory<void*>(reinterpret_cast<uintptr_t>(gps_engage::myAIVehicle) + 0x38);
 		if (myRoadNav)
 		{
-			// TODO: Needs more testing, AutoDrive might forget the destination at any point
+			// TODO: Needs more testing, AutoDrive might forget the destination at any point, ie. AIActionGetUnstuck, etc...
 			nfsc::WRoadNav_FindPath(myRoadNav, vec3target, 0, 1);
 		}
 	}
 
 	return result;
+}
+
+__declspec(naked) void hooks::CreateRoadBlockHook()
+{
+	__asm
+	{
+		// Redo what we've overwritten
+		inc		dword ptr[eax + 0x90]
+
+		// Increment HUD count by 1 (per roadblock vehicle)
+		mov     eax, [esp + 0x558]
+		inc     dword ptr[eax + 0x194]
+
+		// Return to just after the jump
+		push    0x445AA3
+		ret
+	}
 }

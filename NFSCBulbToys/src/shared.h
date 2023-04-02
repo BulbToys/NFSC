@@ -47,6 +47,21 @@ inline void WriteNop(uintptr_t address, int count = 1)
 {
 	for (int i = 0; i < count; i++)
 	{
-		WriteMemory<unsigned char>(address + i, 0x90);
+		WriteMemory<uint8_t>(address + i, 0x90);
 	}
+}
+
+// NOTE: The jump instruction is 5 bytes
+inline void WriteJmp(uintptr_t address, void* jump_to, size_t length = 5)
+{
+	ptrdiff_t relative = reinterpret_cast<uintptr_t>(jump_to) - address - 5;
+
+	// Write the jump instruction
+	WriteMemory<uint8_t>(address, 0xE9);
+
+	// Write the relative address to jump to
+	WriteMemory<ptrdiff_t>(address + 1, relative);
+
+	// Write nops until we've reached length
+	WriteNop(address + 5, length - 5);
 }

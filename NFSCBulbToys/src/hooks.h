@@ -34,4 +34,6 @@ namespace hooks
 
 	bool __fastcall GpsEngageHook(void* gps, void* edx, nfsc::vector3* vec3target, float max_deviation, bool re_engage, bool always_re_establish);
 	static inline decltype(&GpsEngageHook) GpsEngage;
+
+	void CreateRoadBlockHook();
 }
