@@ -92,6 +92,21 @@ bool hooks::SetupPart2(IDirect3DDevice9* device)
 	}
 
 	WriteJmp(0x445A9D, CreateRoadBlockHook, 6);
+
+	// Horribly unstable
+	//WriteJmp(0x445D3B, UpdatePursuitsHook, 19);
+
+	WriteJmp(0x5D8C10, UpdateCopElementsHook1, 6);
+	WriteJmp(0x5D8CFB, UpdateCopElementsHook2, 11);
+
+	// HACK: JNZ does not exist in Visual C++ inline assembly, so we're manually replacing our JZ with a JNZ here
+	// In this single special case, memory will be protected, and we must grant ourselves write permissions first
+	// We set the old protection flags shortafter
+	uintptr_t update_cop_elements_hook_2_jz = reinterpret_cast<uintptr_t>(&UpdateCopElementsHook2) + 0xE;
+	DWORD protection_flags = 0;
+	VirtualProtect(reinterpret_cast<LPVOID>(update_cop_elements_hook_2_jz), 1, PAGE_EXECUTE_READWRITE, &protection_flags);
+	WriteMemory<uint8_t>(update_cop_elements_hook_2_jz, 0x75);
+	VirtualProtect(reinterpret_cast<LPVOID>(update_cop_elements_hook_2_jz), 1, protection_flags, &protection_flags);
 	
 	return true;
 }
@@ -270,8 +285,87 @@ __declspec(naked) void hooks::CreateRoadBlockHook()
 		mov     eax, [esp + 0x558]
 		inc     dword ptr[eax + 0x194]
 
-		// Return to just after the jump
+		// Continue as normal (return to just after the jump)
 		push    0x445AA3
+		ret
+	}
+}
+
+/*
+constexpr uintptr_t AIPursuit_IncNumCopsDestroyed = 0x42A4E0;
+constexpr uintptr_t AIVehiclePursuit_SetInPursuit = 0x43CE10;
+uintptr_t AIVehiclePursuit_temp;
+__declspec(naked) void hooks::UpdatePursuitsHook()
+{
+	__asm
+	{
+		// Preserve eax (AIVehicle pointer)
+		mov     AIVehiclePursuit_temp, eax
+
+		// Redo what we've overwritten
+		call	dword ptr[edx + 0xC0]
+		mov     ecx, [eax + 0x60]
+		test    ecx, ecx
+		jz      skip
+		push    esi
+		call	AIPursuit_IncNumCopsDestroyed
+
+		// If a roadblock cop has been killed, unset it from the pursuit
+		// Reuse AIVehicle pointer that we've stored
+		mov		ecx, AIVehiclePursuit_temp
+		push	0
+		call	AIVehiclePursuit_SetInPursuit
+
+	skip:
+		// Continue as normal (return to just after the jump)
+		push    0x445D4E
+		ret
+	}
+}
+*/
+
+uintptr_t IVehicle_temp;
+__declspec(naked) void hooks::UpdateCopElementsHook1()
+{
+	__asm
+	{
+		// Redo what we've overwritten
+		mov     esi, [ecx]
+		mov     edx, [esi]
+		mov     ecx, esi
+
+		// Preserve IVehicle*
+		mov		IVehicle_temp, ecx
+
+		push    0x5D8C16
+		ret
+	}
+}
+
+constexpr uintptr_t AIVehicle_GetVehicle = 0x406700;
+constexpr uintptr_t PVehicle_IsDestroyed = 0x6D8030;
+constexpr uintptr_t Minimap_GetCurrCopElementColor = 0x5D2200;
+__declspec(naked) void hooks::UpdateCopElementsHook2()
+{
+	__asm
+	{
+		// Skip if destroyed
+		// Reuse IVehicle* that we've stored
+		mov		ecx, IVehicle_temp
+		call	PVehicle_IsDestroyed
+		test	eax, eax
+
+		// This NEEDS to be a JNZ, but JNZ does not exist in Visual C++ inline assembly
+		// We patch JZ to be a JNZ in hooks::SetupPart2(), see above
+		jz		skip
+
+		// Redo what we've overwritten
+		mov		ecx, [esp + 0xC]
+		call	Minimap_GetCurrCopElementColor
+		mov     edi, eax
+
+	skip:
+		push    0x5D8D06
 		ret
 	}
 }

@@ -45,10 +45,7 @@ inline void WriteMemory(uintptr_t address, T value)
 
 inline void WriteNop(uintptr_t address, int count = 1)
 {
-	for (int i = 0; i < count; i++)
-	{
-		WriteMemory<uint8_t>(address + i, 0x90);
-	}
+	memset(reinterpret_cast<void*>(address), 0x90, count);
 }
 
 // NOTE: The jump instruction is 5 bytes

@@ -36,4 +36,7 @@ namespace hooks
 	static inline decltype(&GpsEngageHook) GpsEngage;
 
 	void CreateRoadBlockHook();
+	//void UpdatePursuitsHook();
+	void UpdateCopElementsHook1();
+	void UpdateCopElementsHook2();
 }
