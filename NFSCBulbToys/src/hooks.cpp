@@ -98,15 +98,6 @@ bool hooks::SetupPart2(IDirect3DDevice9* device)
 
 	WriteJmp(0x5D8C10, UpdateCopElementsHook1, 6);
 	WriteJmp(0x5D8CFB, UpdateCopElementsHook2, 11);
-
-	// HACK: JNZ does not exist in Visual C++ inline assembly, so we're manually replacing our JZ with a JNZ here
-	// In this single special case, memory will be protected, and we must grant ourselves write permissions first
-	// We set the old protection flags shortafter
-	uintptr_t update_cop_elements_hook_2_jz = reinterpret_cast<uintptr_t>(&UpdateCopElementsHook2) + 0xE;
-	DWORD protection_flags = 0;
-	VirtualProtect(reinterpret_cast<LPVOID>(update_cop_elements_hook_2_jz), 1, PAGE_EXECUTE_READWRITE, &protection_flags);
-	WriteMemory<uint8_t>(update_cop_elements_hook_2_jz, 0x75);
-	VirtualProtect(reinterpret_cast<LPVOID>(update_cop_elements_hook_2_jz), 1, protection_flags, &protection_flags);
 	
 	return true;
 }
@@ -334,14 +325,13 @@ __declspec(naked) void hooks::UpdateCopElementsHook1()
 		mov     edx, [esi]
 		mov     ecx, esi
 
-		// Preserve IVehicle*
 		mov		IVehicle_temp, ecx
-
 		push    0x5D8C16
 		ret
 	}
 }
 
+// This is wasteful, but MASM lacks a JNZ instruction, so there really is no better way
 constexpr uintptr_t AIVehicle_GetVehicle = 0x406700;
 constexpr uintptr_t PVehicle_IsDestroyed = 0x6D8030;
 constexpr uintptr_t Minimap_GetCurrCopElementColor = 0x5D2200;
@@ -349,22 +339,19 @@ __declspec(naked) void hooks::UpdateCopElementsHook2()
 {
 	__asm
 	{
-		// Skip if destroyed
-		// Reuse IVehicle* that we've stored
+		// Skip changing the color if the vehicle is destroyed
 		mov		ecx, IVehicle_temp
 		call	PVehicle_IsDestroyed
 		test	eax, eax
+		jz		not_destroyed
+		push    0x5D8D06
+		ret
 
-		// This NEEDS to be a JNZ, but JNZ does not exist in Visual C++ inline assembly
-		// We patch JZ to be a JNZ in hooks::SetupPart2(), see above
-		jz		skip
-
+	not_destroyed:
 		// Redo what we've overwritten
 		mov		ecx, [esp + 0xC]
 		call	Minimap_GetCurrCopElementColor
 		mov     edi, eax
-
-	skip:
 		push    0x5D8D06
 		ret
 	}
