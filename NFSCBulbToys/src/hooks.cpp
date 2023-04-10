@@ -294,18 +294,18 @@ __declspec(naked) void hooks::UpdatePursuitsHook()
 		mov     AIVehiclePursuit_temp, eax
 
 		// Redo what we've overwritten
-		call	dword ptr[edx + 0xC0]
+		call    dword ptr[edx + 0xC0]
 		mov     ecx, [eax + 0x60]
 		test    ecx, ecx
 		jz      skip
 		push    esi
-		call	AIPursuit_IncNumCopsDestroyed
+		call    AIPursuit_IncNumCopsDestroyed
 
 		// If a roadblock cop has been killed, unset it from the pursuit
 		// Reuse AIVehicle pointer that we've stored
-		mov		ecx, AIVehiclePursuit_temp
-		push	0
-		call	AIVehiclePursuit_SetInPursuit
+		mov     ecx, AIVehiclePursuit_temp
+		push    0
+		call    AIVehiclePursuit_SetInPursuit
 
 	skip:
 		// Continue as normal (return to just after the jump)
@@ -325,7 +325,7 @@ __declspec(naked) void hooks::UpdateCopElementsHook1()
 		mov     edx, [esi]
 		mov     ecx, esi
 
-		mov		IVehicle_temp, ecx
+		mov     IVehicle_temp, ecx
 		push    0x5D8C16
 		ret
 	}
@@ -340,17 +340,17 @@ __declspec(naked) void hooks::UpdateCopElementsHook2()
 	__asm
 	{
 		// Skip changing the color if the vehicle is destroyed
-		mov		ecx, IVehicle_temp
-		call	PVehicle_IsDestroyed
-		test	eax, eax
-		jz		not_destroyed
+		mov     ecx, IVehicle_temp
+		call    PVehicle_IsDestroyed
+		test    eax, eax
+		jz      not_destroyed
 		push    0x5D8D06
 		ret
 
 	not_destroyed:
 		// Redo what we've overwritten
-		mov		ecx, [esp + 0xC]
-		call	Minimap_GetCurrCopElementColor
+		mov     ecx, [esp + 0xC]
+		call    Minimap_GetCurrCopElementColor
 		mov     edi, eax
 		push    0x5D8D06
 		ret
