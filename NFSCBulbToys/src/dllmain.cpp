@@ -15,7 +15,8 @@ void Error(const char* message, ...)
 	va_list va;
 	va_start(va, message);
 	vsprintf_s(buffer, 1024, message, va);
-	MessageBoxA(NULL, message, PROJECT_NAME, MB_ICONERROR);
+
+	MessageBoxA(NULL, buffer, PROJECT_NAME, MB_ICONERROR);
 }
 
 inline void Sleep(int ms)
