@@ -64,8 +64,9 @@ bool hooks::SetupPart2(IDirect3DDevice9* device)
 
 	gui::SetupMenu(device);
 
-	// Non-critical hooks go here
+	/* Non-critical hooks go here */
 
+	//
 	if (MH_CreateHook(reinterpret_cast<LPVOID>(0x5BD3D0), &HandleStateChangeHook, reinterpret_cast<void**>(&HandleStateChange)) == MH_OK &&
 		MH_EnableHook(reinterpret_cast<LPVOID>(0x5BD3D0)) == MH_OK)
 	{
@@ -73,31 +74,41 @@ bool hooks::SetupPart2(IDirect3DDevice9* device)
 		WriteMemory<uint8_t>(0x9CB4E4, 0x00);
 	}
 
+	// Override encounter spawn requirement
 	if (MH_CreateHook(reinterpret_cast<LPVOID>(0x422BF0), &NeedsEncounterHook, reinterpret_cast<void**>(&NeedsEncounter)) == MH_OK &&
 		MH_EnableHook(reinterpret_cast<LPVOID>(0x422BF0)) == MH_OK)
 	{
 		needs_encounter::hooked = true;
 	}
 
+	// Override traffic spawn requirement
 	if (MH_CreateHook(reinterpret_cast<LPVOID>(0x422990), &NeedsTrafficHook, reinterpret_cast<void**>(&NeedsTraffic)) == MH_OK &&
 		MH_EnableHook(reinterpret_cast<LPVOID>(0x422990)) == MH_OK)
 	{
 		needs_traffic::hooked = true;
 	}
 
+	//
 	if (MH_CreateHook(reinterpret_cast<LPVOID>(0x433930), &GpsEngageHook, reinterpret_cast<void**>(&GpsEngage)) == MH_OK &&
 		MH_EnableHook(reinterpret_cast<LPVOID>(0x433930)) == MH_OK)
 	{
 		gps_engage::hooked = true;
 	}
 
-	WriteJmp(0x445A9D, CreateRoadBlockHook, 6);
+	// Increment cop counter by 1 per roadblock vehicle
+	// TODO: if re-enabling this, make sure roadblock cops that get attached don't increment again
+	//WriteJmp(0x445A9D, CreateRoadBlockHook, 6);
 
+	// Remove dead roadblock cops from the pursuit
 	// Horribly unstable
 	//WriteJmp(0x445D3B, UpdatePursuitsHook, 19);
 
+	// Fix dead roadblock vehicles not turning off their lights
 	WriteJmp(0x5D8C10, UpdateCopElementsHook1, 6);
 	WriteJmp(0x5D8CFB, UpdateCopElementsHook2, 11);
+
+	// Attach roadblock cops to the pursuit once it's been dodged
+	WriteJmp(0x4410D4, UpdateRoadBlocksHook, 6);
 	
 	return true;
 }
@@ -265,7 +276,7 @@ bool __fastcall hooks::GpsEngageHook(void* gps, void* edx, nfsc::vector3* vec3ta
 	return result;
 }
 
-__declspec(naked) void hooks::CreateRoadBlockHook()
+/*__declspec(naked) void hooks::CreateRoadBlockHook()
 {
 	__asm
 	{
@@ -280,7 +291,7 @@ __declspec(naked) void hooks::CreateRoadBlockHook()
 		push    0x445AA3
 		ret
 	}
-}
+}*/
 
 /*
 constexpr uintptr_t AIPursuit_IncNumCopsDestroyed = 0x42A4E0;
@@ -353,6 +364,55 @@ __declspec(naked) void hooks::UpdateCopElementsHook2()
 		call    Minimap_GetCurrCopElementColor
 		mov     edi, eax
 		push    0x5D8D06
+		ret
+	}
+}
+
+constexpr uintptr_t AIPursuit_Attach = 0x412850;
+uintptr_t AIPursuit;
+uintptr_t AIRoadBlock;
+__declspec(naked) void hooks::UpdateRoadBlocksHook()
+{
+	__asm
+	{
+		// Redo what we've overwritten
+		inc     dword ptr[edi + 0x1B4]
+
+		// Preserve pursuit and roadblock
+		mov		AIPursuit, edi
+		mov		AIRoadBlock, esi
+
+		push    ebx
+		push	ebp
+		push	esi
+		push	edi
+
+		// Check if the vehicle list is empty, bail if so, iterate otherwise
+		mov		ebx, AIRoadBlock
+		mov     eax, [ebx + 0x44]
+		mov     edi, [ebx + 0x40]
+		cmp		edi, eax
+		jz		done_iterating
+
+	iterate:
+		mov     esi, [edi]
+		push	esi
+		mov     ecx, AIPursuit
+		call	AIPursuit_Attach
+
+		// Next vehicle, check if it's the last vehicle, stop iterating if so, continue iterating otherwise
+		mov		eax, [ebx + 0x44]
+		add		edi, 4
+		cmp		edi, eax
+		jz		done_iterating
+		jmp		iterate
+
+	done_iterating:
+		pop		edi
+		pop		esi
+		pop		ebp
+		pop		ebx
+		push	0x4410DA
 		ret
 	}
 }

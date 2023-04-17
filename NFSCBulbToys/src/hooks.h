@@ -39,4 +39,5 @@ namespace hooks
 	//void UpdatePursuitsHook();
 	void UpdateCopElementsHook1();
 	void UpdateCopElementsHook2();
+	void UpdateRoadBlocksHook();
 }
