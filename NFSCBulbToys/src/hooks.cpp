@@ -66,7 +66,7 @@ bool hooks::SetupPart2(IDirect3DDevice9* device)
 
 	/* Non-critical hooks go here */
 
-	//
+	// Mimic FastFE behavior, this time making sure the memcard manager gets loaded as well
 	if (MH_CreateHook(reinterpret_cast<LPVOID>(0x5BD3D0), &HandleStateChangeHook, reinterpret_cast<void**>(&HandleStateChange)) == MH_OK &&
 		MH_EnableHook(reinterpret_cast<LPVOID>(0x5BD3D0)) == MH_OK)
 	{
@@ -74,21 +74,21 @@ bool hooks::SetupPart2(IDirect3DDevice9* device)
 		WriteMemory<uint8_t>(0x9CB4E4, 0x00);
 	}
 
-	// Override encounter spawn requirement
+	// Optionally override encounter spawn requirement
 	if (MH_CreateHook(reinterpret_cast<LPVOID>(0x422BF0), &NeedsEncounterHook, reinterpret_cast<void**>(&NeedsEncounter)) == MH_OK &&
 		MH_EnableHook(reinterpret_cast<LPVOID>(0x422BF0)) == MH_OK)
 	{
 		needs_encounter::hooked = true;
 	}
 
-	// Override traffic spawn requirement
+	// Optionally override traffic spawn requirement
 	if (MH_CreateHook(reinterpret_cast<LPVOID>(0x422990), &NeedsTrafficHook, reinterpret_cast<void**>(&NeedsTraffic)) == MH_OK &&
 		MH_EnableHook(reinterpret_cast<LPVOID>(0x422990)) == MH_OK)
 	{
 		needs_traffic::hooked = true;
 	}
 
-	//
+	// Make autopilot drive to the location marked by the GPS
 	if (MH_CreateHook(reinterpret_cast<LPVOID>(0x433930), &GpsEngageHook, reinterpret_cast<void**>(&GpsEngage)) == MH_OK &&
 		MH_EnableHook(reinterpret_cast<LPVOID>(0x433930)) == MH_OK)
 	{
@@ -158,7 +158,7 @@ HRESULT __stdcall hooks::ResetHook(IDirect3DDevice9* device, D3DPRESENT_PARAMETE
 	return result;
 }
 
-enum class bootflow_state : unsigned int
+enum class bootflow_state : uint32_t
 {
 	terminal_state      = 0xFFFFFFFF,
 	attract             = 0x00,
@@ -379,40 +379,40 @@ __declspec(naked) void hooks::UpdateRoadBlocksHook()
 		inc     dword ptr[edi + 0x1B4]
 
 		// Preserve pursuit and roadblock
-		mov		AIPursuit, edi
-		mov		AIRoadBlock, esi
+		mov     AIPursuit, edi
+		mov     AIRoadBlock, esi
 
 		push    ebx
-		push	ebp
-		push	esi
-		push	edi
+		push    ebp
+		push    esi
+		push    edi
 
 		// Check if the vehicle list is empty, bail if so, iterate otherwise
-		mov		ebx, AIRoadBlock
+		mov     ebx, AIRoadBlock
 		mov     eax, [ebx + 0x44]
 		mov     edi, [ebx + 0x40]
-		cmp		edi, eax
-		jz		done_iterating
+		cmp     edi, eax
+		jz      done_iterating
 
 	iterate:
 		mov     esi, [edi]
-		push	esi
+		push    esi
 		mov     ecx, AIPursuit
-		call	AIPursuit_Attach
+		call    AIPursuit_Attach
 
 		// Next vehicle, check if it's the last vehicle, stop iterating if so, continue iterating otherwise
-		mov		eax, [ebx + 0x44]
-		add		edi, 4
-		cmp		edi, eax
-		jz		done_iterating
-		jmp		iterate
+		mov     eax, [ebx + 0x44]
+		add     edi, 4
+		cmp     edi, eax
+		jz      done_iterating
+		jmp     iterate
 
 	done_iterating:
-		pop		edi
-		pop		esi
-		pop		ebp
-		pop		ebx
-		push	0x4410DA
+		pop     edi
+		pop     esi
+		pop     ebp
+		pop     ebx
+		push    0x4410DA
 		ret
 	}
 }
