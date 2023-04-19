@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include <cstring>
 
 #define PROJECT_NAME "NFSC Bulb Toys"
 

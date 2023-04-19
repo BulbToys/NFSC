@@ -25,6 +25,7 @@
     <ClInclude Include="ext\minhook\minhook.h" />
     <ClInclude Include="ext\minhook\trampoline.h" />
     <ClInclude Include="src\nfsc.h" />
+    <ClInclude Include="src\patches.h" />
     <ClInclude Include="src\shared.h" />
     <ClInclude Include="src\gui.h" />
     <ClInclude Include="src\hooks.h" />
@@ -45,6 +46,7 @@
     <ClCompile Include="src\dllmain.cpp" />
     <ClCompile Include="src\gui.cpp" />
     <ClCompile Include="src\hooks.cpp" />
+    <ClCompile Include="src\patches.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>

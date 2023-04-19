@@ -8,6 +8,7 @@
 #include "shared.h"
 #include "hooks.h"
 #include "gui.h"
+#include "patches.h"
 
 void Error(const char* message, ...)
 {
@@ -26,11 +27,7 @@ inline void Sleep(int ms)
 
 void Setup(const HMODULE instance)
 {
-	// Patch out IsWindowed check for Set/ShowCursor(0)
-	WriteNop(0x730A8D, 8);
-
-	// Patch out looping ShowCursor(0)
-	WriteNop(0x711EF2, 7);
+	patches::Do();
 
 	if (hooks::Setup())
 	{

@@ -66,13 +66,14 @@ bool hooks::SetupPart2(IDirect3DDevice9* device)
 
 	/* Non-critical hooks go here */
 
+	/*
 	// Mimic FastFE behavior, this time making sure the memcard manager gets loaded as well
 	if (MH_CreateHook(reinterpret_cast<LPVOID>(0x5BD3D0), &HandleStateChangeHook, reinterpret_cast<void**>(&HandleStateChange)) == MH_OK &&
 		MH_EnableHook(reinterpret_cast<LPVOID>(0x5BD3D0)) == MH_OK)
 	{
 		// Prevent pushing splash screen: "DEMO_SPLASH.fng" -> ""
 		WriteMemory<uint8_t>(0x9CB4E4, 0x00);
-	}
+	}*/
 
 	// Optionally override encounter spawn requirement
 	if (MH_CreateHook(reinterpret_cast<LPVOID>(0x422BF0), &NeedsEncounterHook, reinterpret_cast<void**>(&NeedsEncounter)) == MH_OK &&
@@ -158,6 +159,7 @@ HRESULT __stdcall hooks::ResetHook(IDirect3DDevice9* device, D3DPRESENT_PARAMETE
 	return result;
 }
 
+/*
 enum class bootflow_state : uint32_t
 {
 	terminal_state      = 0xFFFFFFFF,
@@ -190,7 +192,7 @@ enum class bootflow_state : uint32_t
 
 void __fastcall hooks::HandleStateChangeHook(void* state_manager)
 {
-	/*
+	
 		Original boot flow is as follows:
 
 		 1. 0x02 - STATE_BACKDROP
@@ -208,7 +210,7 @@ void __fastcall hooks::HandleStateChangeHook(void* state_manager)
 		13. 0x01 - STATE_AUTOLOAD
 		14. 0x0C - STATE_DO_AUTOLOAD
 		15.  -1  - STATE_TERMINAL_STATE
-	*/
+	
 	auto mCurState = reinterpret_cast<uintptr_t>(state_manager) + 4;
 	auto current_state = ReadMemory<bootflow_state>(mCurState);
 
@@ -245,7 +247,7 @@ void __fastcall hooks::HandleStateChangeHook(void* state_manager)
 	}
 	
 	HandleStateChange(state_manager);
-}
+}*/
 
 bool __fastcall hooks::NeedsEncounterHook(void* traffic_manager)
 {
