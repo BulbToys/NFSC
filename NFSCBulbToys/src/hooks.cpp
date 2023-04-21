@@ -66,15 +66,6 @@ bool hooks::SetupPart2(IDirect3DDevice9* device)
 
 	/* Non-critical hooks go here */
 
-	/*
-	// Mimic FastFE behavior, this time making sure the memcard manager gets loaded as well
-	if (MH_CreateHook(reinterpret_cast<LPVOID>(0x5BD3D0), &HandleStateChangeHook, reinterpret_cast<void**>(&HandleStateChange)) == MH_OK &&
-		MH_EnableHook(reinterpret_cast<LPVOID>(0x5BD3D0)) == MH_OK)
-	{
-		// Prevent pushing splash screen: "DEMO_SPLASH.fng" -> ""
-		WriteMemory<uint8_t>(0x9CB4E4, 0x00);
-	}*/
-
 	// Optionally override encounter spawn requirement
 	if (MH_CreateHook(reinterpret_cast<LPVOID>(0x422BF0), &NeedsEncounterHook, reinterpret_cast<void**>(&NeedsEncounter)) == MH_OK &&
 		MH_EnableHook(reinterpret_cast<LPVOID>(0x422BF0)) == MH_OK)
@@ -99,10 +90,6 @@ bool hooks::SetupPart2(IDirect3DDevice9* device)
 	// Increment cop counter by 1 per roadblock vehicle
 	// TODO: if re-enabling this, make sure roadblock cops that get attached don't increment again
 	//WriteJmp(0x445A9D, CreateRoadBlockHook, 6);
-
-	// Remove dead roadblock cops from the pursuit
-	// Horribly unstable
-	//WriteJmp(0x445D3B, UpdatePursuitsHook, 19);
 
 	// Fix dead roadblock vehicles not turning off their lights
 	WriteJmp(0x5D8C10, UpdateCopElementsHook1, 6);
@@ -159,96 +146,6 @@ HRESULT __stdcall hooks::ResetHook(IDirect3DDevice9* device, D3DPRESENT_PARAMETE
 	return result;
 }
 
-/*
-enum class bootflow_state : uint32_t
-{
-	terminal_state      = 0xFFFFFFFF,
-	attract             = 0x00,
-	autoload            = 0x01,
-	backdrop            = 0x02,
-	bootcheck           = 0x03,
-	controller_check    = 0x04,
-	ea_logo             = 0x05,
-	hi_def              = 0x06,
-	enable_home_menu    = 0x07,
-	language_select     = 0x08,
-	psa                 = 0x09,
-	splash              = 0x0A,
-	num_main_states     = 0x0B,
-	do_autoload         = 0x0C,
-	do_backdrop         = 0x0D,
-	do_bootcheck        = 0x0E,
-	do_controller_check = 0x0F,
-	do_language_select  = 0x10,
-	do_splash           = 0x11,
-	pop_backdrop        = 0x12,
-	showing_screen      = 0x13,
-	playing_attract     = 0x14,
-	playing_ea_logo     = 0x15,
-	playing_hi_def      = 0x16,
-	playing_movie       = 0x17,
-	num_total_states    = 0x18
-};
-
-void __fastcall hooks::HandleStateChangeHook(void* state_manager)
-{
-	
-		Original boot flow is as follows:
-
-		 1. 0x02 - STATE_BACKDROP
-		 2. 0x0D - STATE_DO_BACKDROP
-		 3. 0x05 - STATE_EA_LOGO
-		 4. 0x13 - STATE_SHOWING_SCREEN
-		 5. 0x09 - STATE_PSA
-		 6. 0x15 - STATE_PLAYING_EA_LOGO
-		 7. 0x00 - STATE_ATTRACT
-		 8. 0x12 - STATE_POP_BACKDROP
-		 9. 0x0A - STATE_SPLASH
-		10. 0x11 - STATE_DO_SPLASH
-		11. 0x03 - STATE_BOOTCHECK
-		12. 0x0E - STATE_DO_BOOTCHECK
-		13. 0x01 - STATE_AUTOLOAD
-		14. 0x0C - STATE_DO_AUTOLOAD
-		15.  -1  - STATE_TERMINAL_STATE
-	
-	auto mCurState = reinterpret_cast<uintptr_t>(state_manager) + 4;
-	auto current_state = ReadMemory<bootflow_state>(mCurState);
-
-	// First state is backdrop, force splash instead (creates FeMainMenu)
-	if (current_state == bootflow_state::backdrop)
-	{
-		WriteMemory<bootflow_state>(mCurState, bootflow_state::splash);
-	}
-
-	// Now it will try to play the splash, force bootcheck instead (instantiates memcard)
-	else if (current_state == bootflow_state::do_splash)
-	{
-		WriteMemory<bootflow_state>(mCurState, bootflow_state::bootcheck);
-	}
-
-	// Next is do_bootcheck, which is what we want, no change necessary
-
-	// Afterwards, it will try to play the EA logo, force autoload instead (handles immediate load if only save(?))
-	else if (current_state == bootflow_state::ea_logo)
-	{
-		WriteMemory<bootflow_state>(mCurState, bootflow_state::autoload);
-	}
-
-	// Next is do_autoload, which is what we want, no change necessary
-
-	// Finally, it will try to play the Nikki PSA movie, force terminal state instead (completes boot flow)
-	else if (current_state == bootflow_state::psa)
-	{
-		WriteMemory<bootflow_state>(mCurState, bootflow_state::terminal_state);
-
-		// Crashes the game
-		//MH_DisableHook(reinterpret_cast<LPVOID>(0x5BD3D0));
-		//MH_RemoveHook(reinterpret_cast<LPVOID>(0x5BD3D0));
-	}
-	
-	HandleStateChange(state_manager);
-}*/
-
 bool __fastcall hooks::NeedsEncounterHook(void* traffic_manager)
 {
 	return needs_encounter::overridden ? needs_encounter::value : NeedsEncounter(traffic_manager);
@@ -294,39 +191,6 @@ bool __fastcall hooks::GpsEngageHook(void* gps, void* edx, nfsc::vector3* vec3ta
 		ret
 	}
 }*/
-
-/*
-constexpr uintptr_t AIPursuit_IncNumCopsDestroyed = 0x42A4E0;
-constexpr uintptr_t AIVehiclePursuit_SetInPursuit = 0x43CE10;
-uintptr_t AIVehiclePursuit_temp;
-__declspec(naked) void hooks::UpdatePursuitsHook()
-{
-	__asm
-	{
-		// Preserve eax (AIVehicle pointer)
-		mov     AIVehiclePursuit_temp, eax
-
-		// Redo what we've overwritten
-		call    dword ptr[edx + 0xC0]
-		mov     ecx, [eax + 0x60]
-		test    ecx, ecx
-		jz      skip
-		push    esi
-		call    AIPursuit_IncNumCopsDestroyed
-
-		// If a roadblock cop has been killed, unset it from the pursuit
-		// Reuse AIVehicle pointer that we've stored
-		mov     ecx, AIVehiclePursuit_temp
-		push    0
-		call    AIVehiclePursuit_SetInPursuit
-
-	skip:
-		// Continue as normal (return to just after the jump)
-		push    0x445D4E
-		ret
-	}
-}
-*/
 
 uintptr_t IVehicle_temp;
 __declspec(naked) void hooks::UpdateCopElementsHook1()

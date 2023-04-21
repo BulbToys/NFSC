@@ -23,11 +23,6 @@ namespace hooks
 	HRESULT __stdcall ResetHook(IDirect3DDevice9* device, D3DPRESENT_PARAMETERS* params);
 	static inline decltype(&ResetHook) Reset;
 
-	/*
-	void __fastcall HandleStateChangeHook(void* state_manager);
-	static inline decltype(&HandleStateChangeHook) HandleStateChange;
-	*/
-
 	bool __fastcall NeedsEncounterHook(void* traffic_manager);
 	static inline decltype(&NeedsEncounterHook) NeedsEncounter;
 
@@ -38,7 +33,6 @@ namespace hooks
 	static inline decltype(&GpsEngageHook) GpsEngage;
 
 	//void CreateRoadBlockHook();
-	//void UpdatePursuitsHook();
 	void UpdateCopElementsHook1();
 	void UpdateCopElementsHook2();
 	void UpdateRoadBlocksHook();

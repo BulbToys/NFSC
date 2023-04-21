@@ -152,7 +152,7 @@ void gui::Render()
 	auto iter = mem_windows.begin();
 	while (iter != mem_windows.end())
 	{
-		if (ImGui::Begin(iter->title, &iter->open))
+		if (ImGui::Begin(iter->title, &iter->open, ImGuiWindowFlags_NoSavedSettings))
 		{
 			iter->mem_edit->DrawContents(iter->addr, iter->size);
 			ImGui::End();
@@ -190,7 +190,7 @@ void gui::Render()
 			uintptr_t addr;
 			if (sscanf_s(input_addr, "%IX", &addr) == 1)
 			{
-				// Weak safety precaution. Too high values also crash ofc
+				// Weak safety precaution in case of mistypes. Any non-readable memory will cause a crash, as well as writing to non-writable memory
 				if (addr >= 0x400000)
 				{
 					char* window_name = new char[25];
