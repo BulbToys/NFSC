@@ -96,7 +96,12 @@ bool hooks::SetupPart2(IDirect3DDevice9* device)
 	WriteJmp(0x5D8CFB, UpdateCopElementsHook2, 11);
 
 	// Attach roadblock cops to the pursuit once it's been dodged
-	WriteJmp(0x4410D4, UpdateRoadBlocksHook, 6);
+	// TODO: ideally detach from roadblock and destroy said roadblock afterwards because of several bugs
+	// - roadblock crash cam nag
+	// - no new roadblocks will spawn until the cops have been killed
+	// - when the roadblock gets destroyed (ie. last cop dies), all cops and their corpses instantly despawn
+	//WriteJmp(0x4410D4, UpdateRoadBlocksHook, 6);
+	//WriteJmp(0x4411AD, UpdateRoadBlocksHook, 6);
 	
 	return true;
 }
@@ -234,15 +239,24 @@ __declspec(naked) void hooks::UpdateCopElementsHook2()
 	}
 }
 
+/*
+//constexpr uintptr_t Sim_Activity_DetachAll = 0x75DFA0;
+//constexpr uintptr_t Sim_Activity_Detach = 0x407260;
 constexpr uintptr_t AIPursuit_Attach = 0x412850;
 uintptr_t AIPursuit;
 uintptr_t AIRoadBlock;
+//uintptr_t IVehicle;
 __declspec(naked) void hooks::UpdateRoadBlocksHook()
 {
 	__asm
 	{
 		// Redo what we've overwritten
-		inc     dword ptr[edi + 0x1B4]
+		//inc     dword ptr[edi + 0x1B4]
+		add     [edi + 0x1D0], ecx
+
+		// Detach everything from the roadblock
+		//mov     ecx, esi
+		//call    Sim_Activity_DetachAll
 
 		// Preserve pursuit and roadblock
 		mov     AIPursuit, edi
@@ -255,20 +269,43 @@ __declspec(naked) void hooks::UpdateRoadBlocksHook()
 
 		// Check if the vehicle list is empty, bail if so, iterate otherwise
 		mov     ebx, AIRoadBlock
-		mov     eax, [ebx + 0x44]
-		mov     edi, [ebx + 0x40]
+		mov     eax, [ebx + 0x40]
+		mov     edi, [ebx + 0x44]
 		cmp     edi, eax
 		jz      done_iterating
 
 	iterate:
 		mov     esi, [edi]
-		push    esi
+		//test    esi, esi
+		//jz      next
+
+		//mov     IVehicle, esi
+
+		//mov     ecx, AIRoadBlock
+		//add     ecx, 0x24
+		//push    esi
+		//call    Sim_Activity_Detach
+
+		// Detach from roadblock
+		//mov     eax, IVehicle
+		//mov     ecx, AIRoadBlock
+		//mov     edx, [ecx + 0x24]
+		//add     ecx, 0x24
+		//push    eax
+		//call    dword ptr[edx + 0xC]
+
+		// Attach to pursuit
+		//mov     eax, IVehicle
 		mov     ecx, AIPursuit
+		//push    eax
+		push    esi
 		call    AIPursuit_Attach
 
+	//next:
 		// Next vehicle, check if it's the last vehicle, stop iterating if so, continue iterating otherwise
-		mov     eax, [ebx + 0x44]
-		add     edi, 4
+		//mov     ebx, AIRoadBlock
+		mov     eax, [ebx + 0x40]
+		sub     edi, 4
 		cmp     edi, eax
 		jz      done_iterating
 		jmp     iterate
@@ -278,7 +315,9 @@ __declspec(naked) void hooks::UpdateRoadBlocksHook()
 		pop     esi
 		pop     ebp
 		pop     ebx
-		push    0x4410DA
+		//push    0x4410DA
+		push    0x4411B3
 		ret
 	}
 }
+*/
