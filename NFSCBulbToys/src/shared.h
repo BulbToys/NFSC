@@ -28,6 +28,11 @@ namespace gps_engage
 	inline void* myAIVehicle = nullptr;
 }
 
+namespace move_vinyl
+{
+	inline int step_size = 1;
+}
+
 void Error(const char* message, ...);
 inline void Sleep(int ms);
 

@@ -102,6 +102,9 @@ bool hooks::SetupPart2(IDirect3DDevice9* device)
 	// - when the roadblock gets destroyed (ie. last cop dies), all cops and their corpses instantly despawn
 	//WriteJmp(0x4410D4, UpdateRoadBlocksHook, 6);
 	//WriteJmp(0x4411AD, UpdateRoadBlocksHook, 6);
+
+	WriteJmp(0x7B0F63, MoveVinylVerticalHook, 9);
+	WriteJmp(0x7B0F94, MoveVinylHorizontalHook, 9);
 	
 	return true;
 }
@@ -321,3 +324,49 @@ __declspec(naked) void hooks::UpdateRoadBlocksHook()
 	}
 }
 */
+
+__declspec(naked) void hooks::MoveVinylVerticalHook()
+{
+	__asm
+	{
+		// [esp + 4] contains the step size (normally -1 or 1, depending on direction)
+		mov     edx, [esp + 4]
+		cmp     edx, 0
+		jl      negative
+
+		add     eax, move_vinyl::step_size
+		jmp     done
+
+	negative:
+		sub     eax, move_vinyl::step_size
+
+	done:
+		// Redo what we've overwritten
+		cmp     eax, 0xFFFFFE00
+		push    0x7B0F6C
+		ret
+	}
+}
+
+__declspec(naked) void hooks::MoveVinylHorizontalHook()
+{
+	__asm
+	{
+		// [esp + 4] contains the step size (normally -1 or 1, depending on direction)
+		mov     edx, [esp + 4]
+		cmp     edx, 0
+		jl      negative
+
+		add     eax, move_vinyl::step_size
+		jmp     done
+
+	negative:
+		sub     eax, move_vinyl::step_size
+
+	done:
+		// Redo what we've overwritten
+		cmp     eax, 0xFFFFFE00
+		push    0x7B0F9D
+		ret
+	}
+}

@@ -35,5 +35,7 @@ namespace hooks
 	//void CreateRoadBlockHook();
 	void UpdateCopElementsHook1();
 	void UpdateCopElementsHook2();
-	void UpdateRoadBlocksHook();
+	//void UpdateRoadBlocksHook();
+	void MoveVinylVerticalHook();
+	void MoveVinylHorizontalHook();
 }

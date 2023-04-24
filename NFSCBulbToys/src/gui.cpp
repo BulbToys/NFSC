@@ -200,6 +200,7 @@ void gui::Render()
 			}
 		}
 
+		/* === FRONTEND === */
 		ImGui::Separator();
 
 		// UnlockAll
@@ -217,6 +218,7 @@ void gui::Render()
 			nfsc::Game_UnlockNikki();
 		}
 
+		/* === PLAYER === */
 		ImGui::Separator();
 
 		// Speed
@@ -253,6 +255,7 @@ void gui::Render()
 			WriteMemory<const char*>(0x4194F9, nfsc::goals[autodrive_type]);
 		}
 
+		/* === AI === */
 		ImGui::Separator();
 
 		// Traffic crash speed
@@ -302,6 +305,26 @@ void gui::Render()
 		}
 
 		// NOTE: SkipMovies is NOT hotswappable, guaranteed crash upon game exit in CleanupTextures!
+
+		/* === VINYLS === */
+		ImGui::Separator();
+
+		// Move vinyl step size
+		static int step_size = 1;
+		ImGui::Text("Move vinyl step size:");
+		if (ImGui::InputInt("##MVSSize", &step_size))
+		{
+			if (step_size < 1)
+			{
+				step_size = 1;
+			}
+			else if (step_size > 512)
+			{
+				step_size = 512;
+			}
+
+			move_vinyl::step_size = step_size;
+		}
 
 		ImGui::PopItemWidth();
 		ImGui::End();
