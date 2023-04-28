@@ -208,14 +208,14 @@ void __fastcall hooks::WorldMapPadAcceptHook(void* fe_state_manager)
 	nfsc::FE_Object_GetCenter(ReadMemory<void*>(reinterpret_cast<uintptr_t>(world_map) + 0x28), &x, &y);
 
 	// Account for WorldMap pan
-	nfsc::vector2 input, output;
-	input.x = x;
-	input.y = y;
+	nfsc::vector2 temp;
+	temp.x = x;
+	temp.y = y;
 
-	nfsc::WorldMap_GetPanFromMapCoordLocation(world_map, &output, &input);
+	nfsc::WorldMap_GetPanFromMapCoordLocation(world_map, &temp, &temp);
 
-	x = output.x;
-	y = output.y;
+	x = temp.x;
+	y = temp.y;
 
 	// Account for WorldMap zoom
 	nfsc::vector2 top_left = ReadMemory<nfsc::vector2>(reinterpret_cast<uintptr_t>(world_map) + 0x44);
@@ -246,20 +246,14 @@ void __fastcall hooks::WorldMapPadAcceptHook(void* fe_state_manager)
 	position.y = 0; // z
 	position.z = x;
 
-	// Attempt to get world height at given position
+	// Attempt to get world height at given position. If it can't (returns false), height will be NaN
 	nfsc::WCollisionMgr mgr;
 	mgr.fSurfaceExclusionMask = 0;
 	mgr.fPrimitiveMask = 3;
 
-	float height;
-	if (nfsc::WCollisionMgr_GetWorldHeightAtPointRigorous(&mgr, &position, &height, nullptr))
-	{
-		position.y = height;
-	}
-	else
-	{
-		position.y = NAN;
-	}
+	float height = NAN;
+	nfsc::WCollisionMgr_GetWorldHeightAtPointRigorous(&mgr, &position, &height, nullptr);
+	position.y = height;
 
 	// Return
 	click_tp::location[0] = position.x;

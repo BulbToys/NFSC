@@ -186,6 +186,9 @@ void gui::Render()
 		static bool confirm_close = false;
 		if (!exitMainLoop && ImGui::Button("Detach"))
 		{
+			gui::menuOpen = false;
+			ShowCursor(0);
+
 			exitMainLoop = confirm_close;
 		}
 		ImGui::SameLine();
@@ -252,6 +255,45 @@ void gui::Render()
 						nfsc::RigidBody_SetPosition(rigid_body, &position);
 					}
 				}
+			}
+		}
+
+		// GPS to location
+		if (ImGui::Button("GPS to location"))
+		{
+			nfsc::vector3 position;
+			position.x = click_tp::location[0];
+			position.y = click_tp::location[1];
+			position.z = click_tp::location[2];
+
+			if (nfsc::GPS_Engage(&position, 0.0, false))
+			{
+				auto g_manager_base = ReadMemory<void*>(0xA98294);
+
+				position.x = click_tp::location[2];
+				position.y = -click_tp::location[0];
+				position.z = click_tp::location[1];
+
+				auto icon = nfsc::GManager_AllocIcon(g_manager_base, 0x15, &position, 0, false);
+				auto icon_addr = reinterpret_cast<uintptr_t>(icon);
+				
+				// Set flag to ShowOnSpawn
+				//WriteMemory<uint8_t>(icon_addr + 1, 0x40);
+
+				// Set flag to ShowInWorld + ShowOnMap
+				WriteMemory<uint8_t>(icon_addr + 1, 3);
+
+				// Set color to white
+				WriteMemory<uint32_t>(icon_addr + 0x20, 0xFFFFFFFF);
+
+				// Set tex hash
+				WriteMemory<uint32_t>(icon_addr + 0x24, nfsc::bStringHash("MINIMAP_ICON_EVENT"));
+
+				nfsc::GIcon_Spawn(icon);
+				nfsc::WorldMap_SetGPSIng(icon);
+
+				// Set flag to previous + Spawned + Enabled + GPSing
+				WriteMemory<uint8_t>(icon_addr + 1, 0x8F);
 			}
 		}
 

@@ -64,4 +64,14 @@ namespace nfsc
 
 	inline void (__thiscall* WorldMap_GetPanFromMapCoordLocation)(void* world_map, vector2* output, vector2* input) =
 		reinterpret_cast<void(__thiscall*)(void*, vector2*, vector2*)>(0x5ACA90);
+	inline void (*WorldMap_SetGPSIng)(void* icon) = reinterpret_cast<void(*)(void*)>(0x582C30);
+
+	inline bool (*GPS_Engage)(vector3* target, float max_deviation, bool always_re_establish) = reinterpret_cast<bool(*)(vector3*, float, bool)>(0x433AB0);
+
+	inline void* (__thiscall* GManager_AllocIcon)(void* g_manager, char type, vector3* position, float rotation, bool is_disposable) =
+		reinterpret_cast<void*(__thiscall*)(void*, char, vector3*, float, bool)>(0x626F90);
+
+	inline unsigned int (*bStringHash)(const char* string) = reinterpret_cast<unsigned int(*)(const char*)>(0x471050);
+
+	inline void (__thiscall* GIcon_Spawn)(void* icon) = reinterpret_cast<void(__thiscall*)(void*)>(0x627840);
 }

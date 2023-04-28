@@ -4,14 +4,15 @@
 
 #include "nfsc.h"
 
-/* main project stuff */
+/* === main project stuff === */
+
 #define PROJECT_NAME "NFSC Bulb Toys"
 
 #define MENU_KEY VK_F9
 
 inline bool exitMainLoop = false;
 
-/* shared hook data */
+/* === shared hook data === */
 
 namespace needs_encounter
 {
@@ -45,7 +46,7 @@ namespace move_vinyl
 	inline int step_size = 1;
 }
 
-/* helper functions */
+/* === helper functions === */
 
 void Error(const char* message, ...);
 inline void Sleep(int ms);
