@@ -2,11 +2,16 @@
 #include <cstdint>
 #include <cstring>
 
+#include "nfsc.h"
+
+/* main project stuff */
 #define PROJECT_NAME "NFSC Bulb Toys"
 
 #define MENU_KEY VK_F9
 
 inline bool exitMainLoop = false;
+
+/* shared hook data */
 
 namespace needs_encounter
 {
@@ -28,10 +33,18 @@ namespace gps_engage
 	inline void* myAIVehicle = nullptr;
 }
 
+namespace world_map_pad_accept
+{
+	inline bool hooked = false;
+	inline nfsc::vector3* location;
+}
+
 namespace move_vinyl
 {
 	inline int step_size = 1;
 }
+
+/* helper functions */
 
 void Error(const char* message, ...);
 inline void Sleep(int ms);

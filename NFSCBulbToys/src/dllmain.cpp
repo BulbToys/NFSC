@@ -40,6 +40,8 @@ void Setup(const HMODULE instance)
 	hooks::Destroy();
 	gui::Destroy();
 
+	// TODO: undo patches?
+
 	FreeLibraryAndExitThread(instance, 0);
 }
 

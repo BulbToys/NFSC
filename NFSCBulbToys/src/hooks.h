@@ -2,16 +2,18 @@
 #include <d3d9.h>
 
 #include "nfsc.h"
+#include "../ext/minhook/minhook.h"
 
 namespace hooks
 {
+	inline MH_STATUS CreateHook(uintptr_t address, void* hook, void* call);
 	bool Setup();
 	bool SetupPart2(IDirect3DDevice9* device);
 	void Destroy();
 
-	constexpr void* VirtualFunction(void* thisptr, ptrdiff_t index)
+	inline uintptr_t VirtualFunction(void* thisptr, ptrdiff_t index)
 	{
-		return (*static_cast<void***>(thisptr))[index];
+		return reinterpret_cast<uintptr_t>((*static_cast<void***>(thisptr))[index]);
 	}
 
 	HRESULT __cdecl DxInitHook();
@@ -31,6 +33,9 @@ namespace hooks
 
 	bool __fastcall GpsEngageHook(void* gps, void* edx, nfsc::vector3* vec3target, float max_deviation, bool re_engage, bool always_re_establish);
 	static inline decltype(&GpsEngageHook) GpsEngage;
+
+	void __fastcall WorldMapPadAcceptHook(void* fe_state_manager);
+	static inline decltype(&WorldMapPadAcceptHook) WorldMapPadAccept;
 
 	//void CreateRoadBlockHook();
 	void UpdateCopElementsHook1();

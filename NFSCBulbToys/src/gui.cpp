@@ -182,6 +182,15 @@ void gui::Render()
 		gui::width = ImGui::GetWindowWidth() - 16.0f;
 		ImGui::PushItemWidth(gui::width);
 
+		// Confirm & detach
+		static bool confirm_close = false;
+		if (!exitMainLoop && ImGui::Button("Detach"))
+		{
+			exitMainLoop = confirm_close;
+		}
+		ImGui::SameLine();
+		ImGui::Checkbox("Confirm", &confirm_close);
+
 		// New Memory Editor
 		static char input_addr[9];
 		ImGui::InputText("##addr", input_addr, IM_ARRAYSIZE(input_addr), ImGuiInputTextFlags_CharsHexadecimal);
@@ -216,6 +225,47 @@ void gui::Render()
 		if (ImGui::Button("UnlockNikki"))
 		{
 			nfsc::Game_UnlockNikki();
+		}
+
+		/* === MAP === */
+		ImGui::Separator();
+
+		// Location
+		if (!world_map_pad_accept::location)
+		{
+			world_map_pad_accept::location = new nfsc::vector3();
+			world_map_pad_accept::location->x = 0;
+			world_map_pad_accept::location->y = 0;
+			world_map_pad_accept::location->z = 0;
+		}
+
+		static float location[3] = {0, 0, 0};
+		location[0] = world_map_pad_accept::location->x;
+		location[1] = world_map_pad_accept::location->y;
+		location[2] = world_map_pad_accept::location->z;
+
+		if (ImGui::InputFloat3("#Location", location))
+		{
+			world_map_pad_accept::location->x = location[0];
+			world_map_pad_accept::location->y = location[1];
+			world_map_pad_accept::location->z = location[2];
+		}
+
+		// Teleport to location
+		if (ImGui::Button("Teleport to location"))
+		{
+			if (myPVehicle)
+			{
+				void* simable = nfsc::PVehicle_GetSimable(myPVehicle);
+				if (simable)
+				{
+					void* rigid_body = nfsc::PhysicsObject_GetRigidBody(simable);
+					if (rigid_body)
+					{
+						nfsc::RigidBody_SetPosition(rigid_body, world_map_pad_accept::location);
+					}
+				}
+			}
 		}
 
 		/* === PLAYER === */

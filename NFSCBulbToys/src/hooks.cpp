@@ -3,11 +3,21 @@
 #include "gui.h"
 #include "nfsc.h"
 
-#include "../ext/minhook/minhook.h"
-
 #include "../ext/imgui/imgui.h"
 #include "../ext/imgui/imgui_impl_win32.h"
 #include "../ext/imgui/imgui_impl_dx9.h"
+
+MH_STATUS hooks::CreateHook(uintptr_t address, void* hook, void* call)
+{
+	auto status = MH_CreateHook(reinterpret_cast<LPVOID>(address), hook, reinterpret_cast<void**>(call));
+
+	if (status != MH_OK)
+	{
+		return status;
+	}
+
+	return MH_EnableHook(reinterpret_cast<LPVOID>(address));
+}
 
 bool hooks::Setup()
 {
@@ -26,15 +36,10 @@ bool hooks::Setup()
 	}
 	else
 	{
-		if (MH_CreateHook(reinterpret_cast<LPVOID>(0x710220), &DxInitHook, reinterpret_cast<void**>(&DxInit)) != MH_OK)
+		auto status = CreateHook(0x710220, &DxInitHook, &DxInit);
+		if (status != MH_OK)
 		{
-			Error("Unable to hook DirectX_Init().");
-			return false;
-		}
-
-		if (MH_EnableHook(reinterpret_cast<LPVOID>(0x710220)) != MH_OK)
-		{
-			Error("Unable to enable DirectX_Init() hook.");
+			Error("Failed to hook DirectX_Init() with MH_STATUS code %d.", status);
 			return false;
 		}
 	}
@@ -44,21 +49,17 @@ bool hooks::Setup()
 
 bool hooks::SetupPart2(IDirect3DDevice9* device)
 {
-	if (MH_CreateHook(VirtualFunction(device, 42), &EndSceneHook, reinterpret_cast<void**>(&EndScene)) != MH_OK)
+	auto status = CreateHook(VirtualFunction(device, 42), &EndSceneHook, &EndScene);
+	if (status != MH_OK)
 	{
-		Error("Unable to hook EndScene().");
+		Error("Failed to hook EndScene() with MH_STATUS code %d.", status);
 		return false;
 	}
 
-	if (MH_CreateHook(VirtualFunction(device, 16), &ResetHook, reinterpret_cast<void**>(&Reset)) != MH_OK)
+	status = CreateHook(VirtualFunction(device, 16), &ResetHook, &Reset);
+	if (status != MH_OK)
 	{
-		Error("Unable to hook Reset().");
-		return false;
-	}
-
-	if (MH_EnableHook(MH_ALL_HOOKS) != MH_OK)
-	{
-		Error("Unable to enable EndScene() and Reset() hooks.");
+		Error("Failed to hook Reset() with MH_STATUS code %d.", status);
 		return false;
 	}
 
@@ -67,24 +68,27 @@ bool hooks::SetupPart2(IDirect3DDevice9* device)
 	/* Non-critical hooks go here */
 
 	// Optionally override encounter spawn requirement
-	if (MH_CreateHook(reinterpret_cast<LPVOID>(0x422BF0), &NeedsEncounterHook, reinterpret_cast<void**>(&NeedsEncounter)) == MH_OK &&
-		MH_EnableHook(reinterpret_cast<LPVOID>(0x422BF0)) == MH_OK)
+	if (CreateHook(0x422BF0, &NeedsEncounterHook, &NeedsEncounter) == MH_OK)
 	{
 		needs_encounter::hooked = true;
 	}
 
 	// Optionally override traffic spawn requirement
-	if (MH_CreateHook(reinterpret_cast<LPVOID>(0x422990), &NeedsTrafficHook, reinterpret_cast<void**>(&NeedsTraffic)) == MH_OK &&
-		MH_EnableHook(reinterpret_cast<LPVOID>(0x422990)) == MH_OK)
+	if (CreateHook(0x422990, &NeedsTrafficHook, &NeedsTraffic) == MH_OK)
 	{
 		needs_traffic::hooked = true;
 	}
 
 	// Make autopilot drive to the location marked by the GPS
-	if (MH_CreateHook(reinterpret_cast<LPVOID>(0x433930), &GpsEngageHook, reinterpret_cast<void**>(&GpsEngage)) == MH_OK &&
-		MH_EnableHook(reinterpret_cast<LPVOID>(0x433930)) == MH_OK)
+	if (CreateHook(0x433930, &GpsEngageHook, &GpsEngage) == MH_OK)
 	{
 		gps_engage::hooked = true;
+	}
+
+	// Calculate 
+	if (CreateHook(0x5B3850, &WorldMapPadAcceptHook, &WorldMapPadAccept) == MH_OK)
+	{
+		world_map_pad_accept::hooked = true;
 	}
 
 	// Increment cop counter by 1 per roadblock vehicle
@@ -181,6 +185,85 @@ bool __fastcall hooks::GpsEngageHook(void* gps, void* edx, nfsc::vector3* vec3ta
 	}
 
 	return result;
+}
+
+void __fastcall hooks::WorldMapPadAcceptHook(void* fe_state_manager)
+{
+	// Call original function
+	WorldMapPadAccept(fe_state_manager);
+
+	auto world_map_instance = ReadMemory<void*>(0xA977F0);
+	auto track_info = ReadMemory<void*>(0xB69BA0);
+	if (!world_map_instance || !track_info)
+	{
+		world_map_pad_accept::location->x = NAN;
+		world_map_pad_accept::location->y = NAN;
+		world_map_pad_accept::location->z = NAN;
+		return;
+	}
+
+	// Get the current position of the cursor relative to the screen
+	float x, y;
+	nfsc::FE_Object_GetCenter(ReadMemory<void*>(reinterpret_cast<uintptr_t>(world_map_instance) + 0x28), &x, &y);
+
+	// Account for WorldMap pan
+	nfsc::vector2 input, output;
+	input.x = x;
+	input.y = y;
+
+	nfsc::WorldMap_GetPanFromMapCoordLocation(world_map_instance, &output, &input);
+
+	x = output.x;
+	y = output.y;
+
+	// Account for WorldMap zoom
+	nfsc::vector2 top_left = ReadMemory<nfsc::vector2>(reinterpret_cast<uintptr_t>(world_map_instance) + 0x44);
+	nfsc::vector2 size = ReadMemory<nfsc::vector2>(reinterpret_cast<uintptr_t>(world_map_instance) + 0x4C);
+
+	x = x * size.x + top_left.x;
+	y = y * size.y + top_left.y;
+
+	// Inverse WorldMap::ConvertPos to get world coordinates
+	float calibration_width = ReadMemory<float>(reinterpret_cast<uintptr_t>(track_info) + 0xB4);
+	float calibration_offset_x = ReadMemory<float>(reinterpret_cast<uintptr_t>(track_info) + 0xAC);
+	float calibration_offset_y = ReadMemory<float>(reinterpret_cast<uintptr_t>(track_info) + 0xB0);
+
+	x = x - top_left.x;
+	y = y - top_left.y;
+	x = x / size.x;
+	y = y / size.y;
+	y = y - 1.0f;
+	y = y * calibration_width;
+	x = x * calibration_width;
+	x = x + calibration_offset_x;
+	y = -y;
+	y = y - calibration_offset_y - calibration_width;
+
+	// Inverse GetVehicleVectors to get position from world coordinates
+	nfsc::vector3 position;
+	position.x = -y;
+	position.y = 0; // z
+	position.z = x;
+
+	// Attempt to get world height at given position
+	nfsc::WCollisionMgr mgr;
+	mgr.fSurfaceExclusionMask = 0;
+	mgr.fPrimitiveMask = 3;
+
+	float height;
+	if (nfsc::WCollisionMgr_GetWorldHeightAtPointRigorous(&mgr, &position, &height, nullptr))
+	{
+		position.y = height;
+	}
+	else
+	{
+		position.y = NAN;
+	}
+
+	// Return
+	world_map_pad_accept::location->x = position.x;
+	world_map_pad_accept::location->y = position.y;
+	world_map_pad_accept::location->z = position.z;
 }
 
 /*__declspec(naked) void hooks::CreateRoadBlockHook()

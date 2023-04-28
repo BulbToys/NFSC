@@ -9,6 +9,18 @@ namespace nfsc
 		float z;
 	};
 
+	struct vector2
+	{
+		float x;
+		float y;
+	};
+
+	struct WCollisionMgr
+	{
+		unsigned int fSurfaceExclusionMask;
+		unsigned int fPrimitiveMask;
+	};
+
 	enum class gameflow_state : int
 	{
 		in_frontend = 3,
@@ -36,7 +48,20 @@ namespace nfsc
 
 	inline void* (__thiscall* PVehicle_GetAIVehiclePtr)(void* pvehicle) = reinterpret_cast<void* (__thiscall*)(void*)>(0x6D8110);
 	inline float (__thiscall* PVehicle_GetSpeed)(void* pvehicle) = reinterpret_cast<float(__thiscall*)(void*)>(0x6D8070);
+	inline void* (__thiscall* PVehicle_GetSimable)(void* pvehicle) = reinterpret_cast<void* (__thiscall*)(void*)>(0x6D7EC0);
 
-	inline bool (__thiscall* WRoadNav_FindPath)(void* roadnav, nfsc::vector3* vec3_goal_position, nfsc::vector3* vec3_goal_direction, bool shortcuts_allowed) =
-		reinterpret_cast<bool(__thiscall*)(void*, nfsc::vector3*, nfsc::vector3*, bool)>(0x7FB090);
+	inline void* (__thiscall* PhysicsObject_GetRigidBody)(void* physics_object) = reinterpret_cast<void* (__thiscall*)(void*)>(0x6D6CD0);
+
+	inline void (__thiscall* RigidBody_SetPosition)(void* rigid_body, vector3* position) = reinterpret_cast<void(__thiscall*)(void*, vector3*)>(0x6E8210);
+
+	inline bool (__thiscall* WRoadNav_FindPath)(void* roadnav, vector3* vec3_goal_position, vector3* vec3_goal_direction, bool shortcuts_allowed) =
+		reinterpret_cast<bool(__thiscall*)(void*, vector3*, vector3*, bool)>(0x7FB090);
+
+	inline void (*FE_Object_GetCenter)(void* object, float* x, float* y) = reinterpret_cast<void(*)(void*, float*, float*)>(0x597900);
+
+	inline bool (__thiscall* WCollisionMgr_GetWorldHeightAtPointRigorous)(WCollisionMgr* mgr, vector3* point, float* height, vector3* normal) =
+		reinterpret_cast<bool(__thiscall*)(WCollisionMgr*, vector3*, float*, vector3*)>(0x816DF0);
+
+	inline void (__thiscall* WorldMap_GetPanFromMapCoordLocation)(void* world_map, vector2* output, vector2* input) =
+		reinterpret_cast<void(__thiscall*)(void*, vector2*, vector2*)>(0x5ACA90);
 }
