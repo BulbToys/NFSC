@@ -4,21 +4,21 @@ namespace nfsc
 {
 	struct vector3
 	{
-		float x;
-		float y;
-		float z;
+		float x = 0;
+		float y = 0;
+		float z = 0;
 	};
 
 	struct vector2
 	{
-		float x;
-		float y;
+		float x = 0;
+		float y = 0;
 	};
 
 	struct WCollisionMgr
 	{
-		unsigned int fSurfaceExclusionMask;
-		unsigned int fPrimitiveMask;
+		unsigned int fSurfaceExclusionMask = 0;
+		unsigned int fPrimitiveMask = 0;
 	};
 
 	enum class gameflow_state : int

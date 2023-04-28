@@ -33,10 +33,11 @@ namespace gps_engage
 	inline void* myAIVehicle = nullptr;
 }
 
-namespace world_map_pad_accept
+namespace click_tp
 {
 	inline bool hooked = false;
-	inline nfsc::vector3* location;
+	inline float location[3] = {0, 0, 0};
+	constexpr float extra_height = 1;
 }
 
 namespace move_vinyl

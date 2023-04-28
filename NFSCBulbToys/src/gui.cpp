@@ -231,25 +231,7 @@ void gui::Render()
 		ImGui::Separator();
 
 		// Location
-		if (!world_map_pad_accept::location)
-		{
-			world_map_pad_accept::location = new nfsc::vector3();
-			world_map_pad_accept::location->x = 0;
-			world_map_pad_accept::location->y = 0;
-			world_map_pad_accept::location->z = 0;
-		}
-
-		static float location[3] = {0, 0, 0};
-		location[0] = world_map_pad_accept::location->x;
-		location[1] = world_map_pad_accept::location->y;
-		location[2] = world_map_pad_accept::location->z;
-
-		if (ImGui::InputFloat3("#Location", location))
-		{
-			world_map_pad_accept::location->x = location[0];
-			world_map_pad_accept::location->y = location[1];
-			world_map_pad_accept::location->z = location[2];
-		}
+		ImGui::InputFloat3("#Location", click_tp::location);
 
 		// Teleport to location
 		if (ImGui::Button("Teleport to location"))
@@ -262,7 +244,12 @@ void gui::Render()
 					void* rigid_body = nfsc::PhysicsObject_GetRigidBody(simable);
 					if (rigid_body)
 					{
-						nfsc::RigidBody_SetPosition(rigid_body, world_map_pad_accept::location);
+						nfsc::vector3 position;
+						position.x = click_tp::location[0];
+						position.y = click_tp::location[1];
+						position.z = click_tp::location[2];
+
+						nfsc::RigidBody_SetPosition(rigid_body, &position);
 					}
 				}
 			}

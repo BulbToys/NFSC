@@ -88,7 +88,7 @@ bool hooks::SetupPart2(IDirect3DDevice9* device)
 	// Calculate 
 	if (CreateHook(0x5B3850, &WorldMapPadAcceptHook, &WorldMapPadAccept) == MH_OK)
 	{
-		world_map_pad_accept::hooked = true;
+		click_tp::hooked = true;
 	}
 
 	// Increment cop counter by 1 per roadblock vehicle
@@ -192,33 +192,34 @@ void __fastcall hooks::WorldMapPadAcceptHook(void* fe_state_manager)
 	// Call original function
 	WorldMapPadAccept(fe_state_manager);
 
-	auto world_map_instance = ReadMemory<void*>(0xA977F0);
+	// Get current WorldMap and TrackInfo
+	auto world_map = ReadMemory<void*>(0xA977F0);
 	auto track_info = ReadMemory<void*>(0xB69BA0);
-	if (!world_map_instance || !track_info)
+	if (!world_map || !track_info)
 	{
-		world_map_pad_accept::location->x = NAN;
-		world_map_pad_accept::location->y = NAN;
-		world_map_pad_accept::location->z = NAN;
+		click_tp::location[0] = NAN;
+		click_tp::location[1] = NAN;
+		click_tp::location[2] = NAN;
 		return;
 	}
 
 	// Get the current position of the cursor relative to the screen
 	float x, y;
-	nfsc::FE_Object_GetCenter(ReadMemory<void*>(reinterpret_cast<uintptr_t>(world_map_instance) + 0x28), &x, &y);
+	nfsc::FE_Object_GetCenter(ReadMemory<void*>(reinterpret_cast<uintptr_t>(world_map) + 0x28), &x, &y);
 
 	// Account for WorldMap pan
 	nfsc::vector2 input, output;
 	input.x = x;
 	input.y = y;
 
-	nfsc::WorldMap_GetPanFromMapCoordLocation(world_map_instance, &output, &input);
+	nfsc::WorldMap_GetPanFromMapCoordLocation(world_map, &output, &input);
 
 	x = output.x;
 	y = output.y;
 
 	// Account for WorldMap zoom
-	nfsc::vector2 top_left = ReadMemory<nfsc::vector2>(reinterpret_cast<uintptr_t>(world_map_instance) + 0x44);
-	nfsc::vector2 size = ReadMemory<nfsc::vector2>(reinterpret_cast<uintptr_t>(world_map_instance) + 0x4C);
+	nfsc::vector2 top_left = ReadMemory<nfsc::vector2>(reinterpret_cast<uintptr_t>(world_map) + 0x44);
+	nfsc::vector2 size = ReadMemory<nfsc::vector2>(reinterpret_cast<uintptr_t>(world_map) + 0x4C);
 
 	x = x * size.x + top_left.x;
 	y = y * size.y + top_left.y;
@@ -261,9 +262,9 @@ void __fastcall hooks::WorldMapPadAcceptHook(void* fe_state_manager)
 	}
 
 	// Return
-	world_map_pad_accept::location->x = position.x;
-	world_map_pad_accept::location->y = position.y;
-	world_map_pad_accept::location->z = position.z;
+	click_tp::location[0] = position.x;
+	click_tp::location[1] = position.y + click_tp::extra_height;
+	click_tp::location[2] = position.z;
 }
 
 /*__declspec(naked) void hooks::CreateRoadBlockHook()
