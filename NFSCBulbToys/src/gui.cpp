@@ -186,10 +186,13 @@ void gui::Render()
 		static bool confirm_close = false;
 		if (!exitMainLoop && ImGui::Button("Detach"))
 		{
-			gui::menuOpen = false;
-			ShowCursor(0);
+			if (confirm_close)
+			{
+				gui::menuOpen = false;
+				ShowCursor(0);
 
-			exitMainLoop = confirm_close;
+				exitMainLoop = true;
+			}
 		}
 		ImGui::SameLine();
 		ImGui::Checkbox("Confirm", &confirm_close);
@@ -237,7 +240,7 @@ void gui::Render()
 		ImGui::InputFloat3("#Location", click_tp::location);
 
 		// Teleport to location
-		if (ImGui::Button("Teleport to location"))
+		if (ImGui::Button("Teleport to location") && nfsc::state == nfsc::gameflow_state::racing)
 		{
 			if (myPVehicle)
 			{
@@ -259,7 +262,7 @@ void gui::Render()
 		}
 
 		// GPS to location
-		if (ImGui::Button("GPS to location"))
+		if (ImGui::Button("GPS to location") && nfsc::state == nfsc::gameflow_state::racing)
 		{
 			nfsc::vector3 position;
 			position.x = click_tp::location[0];
@@ -319,10 +322,12 @@ void gui::Render()
 			if (myPVehicle)
 			{
 				gps_engage::myAIVehicle = nfsc::PVehicle_GetAIVehiclePtr(myPVehicle);
+				autodrive = ReadMemory<bool>(reinterpret_cast<uintptr_t>(gps_engage::myAIVehicle) + 0x10);
 			}
 			else
 			{
 				gps_engage::myAIVehicle = nullptr;
+				autodrive = false;
 			}
 		}
 		if (ImGui::Checkbox("AutoDrive", &autodrive) && nfsc::state == nfsc::gameflow_state::racing)
@@ -373,18 +378,8 @@ void gui::Render()
 			ImGui::Checkbox("##NTValue", &needs_traffic::value);
 		}
 
-		// CopsEnabled
-		static bool cops_enabled = true;// ReadMemory<bool>(0xA83A50);
-		if (ImGui::Checkbox("CopsEnabled", &cops_enabled) && nfsc::state == nfsc::gameflow_state::racing)
-		{
-			nfsc::Game_SetCopsEnabled(cops_enabled);
-		}
-
-		if (nfsc::state == nfsc::gameflow_state::in_frontend)
-		{
-			autodrive = false;
-			cops_enabled = true;
-		}
+		// Disable cops
+		ImGui::Checkbox("Disable cops", reinterpret_cast<bool*>(0xA83A50));
 
 		// NOTE: SkipMovies is NOT hotswappable, guaranteed crash upon game exit in CleanupTextures!
 

@@ -74,4 +74,8 @@ namespace nfsc
 	inline unsigned int (*bStringHash)(const char* string) = reinterpret_cast<unsigned int(*)(const char*)>(0x471050);
 
 	inline void (__thiscall* GIcon_Spawn)(void* icon) = reinterpret_cast<void(__thiscall*)(void*)>(0x627840);
+
+	//inline void (__thiscall* AIVehicle_SetDriveTarget)(void* ai_vehicle, vector3* target) = reinterpret_cast<void(__thiscall*)(void*, vector3*)>(0x406710);
+
+	//inline void(__thiscall* AITarget_Acquire)(void* ai_target, vector3* target) = reinterpret_cast<void(__thiscall*)(void*, vector3*)>(0x429CD0);
 }

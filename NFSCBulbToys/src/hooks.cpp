@@ -168,19 +168,28 @@ bool __fastcall hooks::NeedsTrafficHook(void* traffic_manager)
 	return needs_traffic::overridden ? needs_traffic::value : NeedsTraffic(traffic_manager);
 }
 
-bool __fastcall hooks::GpsEngageHook(void* gps, void* edx, nfsc::vector3* vec3target, float max_deviation, bool re_engage, bool always_re_establish)
+bool __fastcall hooks::GpsEngageHook(void* gps, void* edx, nfsc::vector3* target, float max_deviation, bool re_engage, bool always_re_establish)
 {
-	bool result = GpsEngage(gps, edx, vec3target, max_deviation, re_engage, always_re_establish);
+	bool result = GpsEngage(gps, edx, target, max_deviation, re_engage, always_re_establish);
+
+	auto ai_vehicle = gps_engage::myAIVehicle;
 
 	// If we're in AutoDrive and the GPS has been successfully established, find the path to the destination
 	// Since Gps::Engage also gets called after reconnections, turning on AutoDrive late will still work
-	if (gps_engage::myAIVehicle && result)
+	if (ai_vehicle && result)
 	{
-		auto myRoadNav = ReadMemory<void*>(reinterpret_cast<uintptr_t>(gps_engage::myAIVehicle) + 0x38);
-		if (myRoadNav)
+		// AIVehicleHuman::Update handles targets, but gets skipped if autodrive is on and calls AIVehicleRacecar::Update instead
+
+		//auto ai_target = ReadMemory<void*>(reinterpret_cast<uintptr_t>(ai_vehicle) + 0x6C);
+		//nfsc::AITarget_Acquire(ai_target, vec3target);
+
+		//nfsc::AIVehicle_SetDriveTarget(ai_vehicle, vec3target);
+
+		auto road_nav = ReadMemory<void*>(reinterpret_cast<uintptr_t>(ai_vehicle) + 0x38);
+		if (road_nav)
 		{
 			// TODO: Needs more testing, AutoDrive might forget the destination at any point, ie. AIActionGetUnstuck, etc...
-			nfsc::WRoadNav_FindPath(myRoadNav, vec3target, 0, 1);
+			nfsc::WRoadNav_FindPath(road_nav, target, nullptr, 1);
 		}
 	}
 
