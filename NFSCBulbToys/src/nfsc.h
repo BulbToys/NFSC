@@ -37,7 +37,7 @@ namespace nfsc
 		traffic           = 3
 	};
 
-	inline void** ivehicleList = reinterpret_cast<void**>(0xA9F168);
+	constexpr uintptr_t IVehicleList_begin_addr = 0xA9F158 + 0x04;
 
 	inline void (*CameraAI_SetAction)(int eview, const char* name) = reinterpret_cast<void(*)(int, const char*)>(0x48D620);
 

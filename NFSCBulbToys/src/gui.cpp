@@ -176,7 +176,7 @@ void gui::Render()
 	{
 		// Grab necessary game info here
 		nfsc::state = ReadMemory<nfsc::gameflow_state>(0xA99BBC);
-		void* myPVehicle = nfsc::ivehicleList[0];
+		auto myPVehicle = ReadMemory<void*>(ReadMemory<uintptr_t>(nfsc::IVehicleList_begin_addr));
 
 		// GetWindowWidth() - GetStyle().WindowPadding (total)
 		gui::width = ImGui::GetWindowWidth() - 16.0f;
@@ -299,6 +299,9 @@ void gui::Render()
 
 		/* === PLAYER === */
 		ImGui::Separator();
+
+		// PVehicle
+		ImGui::Text("PVehicle: %p", myPVehicle);
 
 		// Speed
 		ImGui::Text("Speed: %.2fkm/h", myPVehicle ? nfsc::PVehicle_GetSpeed(myPVehicle) * 3.5999999 : 0.0f);

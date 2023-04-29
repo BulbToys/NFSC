@@ -12,7 +12,7 @@
 
 inline bool exitMainLoop = false;
 
-/* === shared hook data === */
+/* === shared hook/gui data === */
 
 namespace needs_encounter
 {
