@@ -46,7 +46,7 @@ namespace move_vinyl
 	inline int step_size = 1;
 }
 
-/* === helper functions === */
+/* === utility === */
 
 void Error(const char* message, ...);
 inline void Sleep(int ms);
