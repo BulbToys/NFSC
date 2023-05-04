@@ -1,7 +1,4 @@
 #pragma once
-#include <d3d9.h>
-
-#include "nfsc.h"
 #include "../ext/minhook/minhook.h"
 
 namespace hooks

@@ -1,9 +1,9 @@
 #pragma once
-#include <d3d9.h>
 #include <vector>
-#include <string>
 
 #include "../ext/imgui/imgui.h"
+#include "../ext/imgui/imgui_impl_win32.h"
+#include "../ext/imgui/imgui_impl_dx9.h"
 #include "../ext/imgui/imgui_memory_editor.h"
 
 namespace gui
@@ -26,6 +26,7 @@ namespace gui
 		void* addr;
 		size_t size;
 		bool open;
+
 		MemoryWindow(const char* title, void* addr, size_t size) : mem_edit(new MemoryEditor()), title(title), addr(addr), size(size), open(true) {}
 	};
 	inline std::vector<MemoryWindow> mem_windows;

@@ -1,10 +1,15 @@
 #pragma once
 #include <cstdint>
 #include <cstring>
+#include <d3d9.h>
 
 #include "nfsc.h"
 
-/* === main project stuff === */
+#include "gui.h"
+#include "hooks.h"
+#include "patches.h"
+
+/* === Main project stuff === */
 
 #define PROJECT_NAME "NFSC Bulb Toys"
 
@@ -12,7 +17,7 @@
 
 inline bool exitMainLoop = false;
 
-/* === shared hook/gui data === */
+/* === Shared hook/gui data === */
 
 namespace needs_encounter
 {
@@ -46,7 +51,7 @@ namespace move_vinyl
 	inline int step_size = 1;
 }
 
-/* === utility === */
+/* === Utility === */
 
 void Error(const char* message, ...);
 inline void Sleep(int ms);

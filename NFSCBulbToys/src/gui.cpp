@@ -1,11 +1,4 @@
-#include "gui.h"
 #include "shared.h"
-#include "nfsc.h"
-
-#include "../ext/imgui/imgui.h"
-#include "../ext/imgui/imgui_impl_win32.h"
-#include "../ext/imgui/imgui_impl_dx9.h"
-#include "../ext/imgui/imgui_memory_editor.h"
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND window, UINT message, WPARAM wideParam, LPARAM longParam);
 

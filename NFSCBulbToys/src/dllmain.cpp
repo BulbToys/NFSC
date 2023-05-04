@@ -1,14 +1,8 @@
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
-
 #include <thread>
-#include <cstdint>
-#include <string>
 
 #include "shared.h"
-#include "hooks.h"
-#include "gui.h"
-#include "patches.h"
 
 void Error(const char* message, ...)
 {

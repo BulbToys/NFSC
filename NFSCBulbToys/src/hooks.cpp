@@ -1,11 +1,4 @@
-#include "hooks.h"
 #include "shared.h"
-#include "gui.h"
-#include "nfsc.h"
-
-#include "../ext/imgui/imgui.h"
-#include "../ext/imgui/imgui_impl_win32.h"
-#include "../ext/imgui/imgui_impl_dx9.h"
 
 MH_STATUS hooks::CreateHook(uintptr_t address, void* hook, void* call)
 {
