@@ -37,6 +37,29 @@ namespace nfsc
 		traffic           = 3
 	};
 
+	enum class rbelem_t : int
+	{
+		none       = 0,
+		car        = 1,
+		barrier    = 2,
+		spikestrip = 3
+	};
+
+	struct RoadblockElement
+	{
+		rbelem_t type = rbelem_t::none;
+		float offset_x = 0;
+		float offset_z = 0;
+		float angle = 0;
+	};
+
+	struct RoadblockSetup
+	{
+		float minimum_width = 0;
+		int required_vehicles = 0;
+		RoadblockElement contents[6] = { {rbelem_t::none, 0, 0, 0} };
+	};
+
 	constexpr uintptr_t IVehicleList_begin_addr = 0xA9F158 + 0x04;
 
 	//inline void(__thiscall* AITarget_Acquire)(void* ai_target, vector3* target) = reinterpret_cast<void(__thiscall*)(void*, vector3*)>(0x429CD0);
