@@ -81,7 +81,7 @@ bool hooks::SetupPart2(IDirect3DDevice9* device)
 	// Calculate 
 	if (CreateHook(0x5B3850, &WorldMapPadAcceptHook, &WorldMapPadAccept) == MH_OK)
 	{
-		click_tp::hooked = true;
+		map_click::hooked = true;
 	}
 
 	// Increment cop counter by 1 per roadblock vehicle
@@ -199,9 +199,9 @@ void __fastcall hooks::WorldMapPadAcceptHook(void* fe_state_manager)
 	auto track_info = ReadMemory<void*>(0xB69BA0);
 	if (!world_map || !track_info)
 	{
-		click_tp::location[0] = NAN;
-		click_tp::location[1] = NAN;
-		click_tp::location[2] = NAN;
+		map_click::location[0] = NAN;
+		map_click::location[1] = NAN;
+		map_click::location[2] = NAN;
 		return;
 	}
 
@@ -258,9 +258,9 @@ void __fastcall hooks::WorldMapPadAcceptHook(void* fe_state_manager)
 	position.y = height;
 
 	// Return
-	click_tp::location[0] = position.x;
-	click_tp::location[1] = position.y + click_tp::extra_height;
-	click_tp::location[2] = position.z;
+	map_click::location[0] = position.x;
+	map_click::location[1] = position.y + map_click::extra_height;
+	map_click::location[2] = position.z;
 }
 
 /*__declspec(naked) void hooks::CreateRoadBlockHook()

@@ -39,7 +39,7 @@ namespace gps_engage
 	inline void* myAIVehicle = nullptr;
 }
 
-namespace click_tp
+namespace map_click
 {
 	inline bool hooked = false;
 	inline float location[3] = {0, 0, 0};

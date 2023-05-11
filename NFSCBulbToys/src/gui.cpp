@@ -230,7 +230,7 @@ void gui::Render()
 		ImGui::Separator();
 
 		// Location
-		ImGui::InputFloat3("#Location", click_tp::location);
+		ImGui::InputFloat3("#Location", map_click::location);
 
 		// Teleport to location
 		if (ImGui::Button("Teleport to location") && nfsc::state == nfsc::gameflow_state::racing)
@@ -244,9 +244,9 @@ void gui::Render()
 					if (rigid_body)
 					{
 						nfsc::vector3 position;
-						position.x = click_tp::location[0];
-						position.y = click_tp::location[1];
-						position.z = click_tp::location[2];
+						position.x = map_click::location[0];
+						position.y = map_click::location[1];
+						position.z = map_click::location[2];
 
 						nfsc::RigidBody_SetPosition(rigid_body, &position);
 					}
@@ -258,17 +258,17 @@ void gui::Render()
 		if (ImGui::Button("GPS to location") && nfsc::state == nfsc::gameflow_state::racing)
 		{
 			nfsc::vector3 position;
-			position.x = click_tp::location[0];
-			position.y = click_tp::location[1];
-			position.z = click_tp::location[2];
+			position.x = map_click::location[0];
+			position.y = map_click::location[1];
+			position.z = map_click::location[2];
 
 			if (nfsc::GPS_Engage(&position, 0.0, false))
 			{
 				auto g_manager_base = ReadMemory<void*>(0xA98294);
 
-				position.x = click_tp::location[2];
-				position.y = -click_tp::location[0];
-				position.z = click_tp::location[1];
+				position.x = map_click::location[2];
+				position.y = -map_click::location[0];
+				position.z = map_click::location[1];
 
 				auto icon = nfsc::GManager_AllocIcon(g_manager_base, 0x15, &position, 0, false);
 				auto icon_addr = reinterpret_cast<uintptr_t>(icon);
