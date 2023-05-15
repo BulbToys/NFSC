@@ -21,12 +21,11 @@ namespace nfsc
 		unsigned int fPrimitiveMask = 0;
 	};
 
-	enum class gameflow_state : int
+	/*enum class gameflow_state : int
 	{
 		in_frontend = 3,
 		racing      = 6
-	};
-	inline gameflow_state state;
+	};*/
 
 	inline const char* goals[] = { "AIGoalEncounterPursuit", "AIGoalNone", "AIGoalRacer", "AIGoalTraffic" };
 	enum class ai_goal : int
@@ -60,7 +59,7 @@ namespace nfsc
 		RoadblockElement contents[6] = { {rbelem_t::none, 0, 0, 0} };
 	};
 
-	constexpr uintptr_t IVehicleList_begin_addr = 0xA9F158 + 0x04;
+	constexpr uintptr_t IVehicleList_begin = 0xA9F158 + 0x04;
 
 	//inline void(__thiscall* AITarget_Acquire)(void* ai_target, vector3* target) = reinterpret_cast<void(__thiscall*)(void*, vector3*)>(0x429CD0);
 

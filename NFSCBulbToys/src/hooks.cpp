@@ -63,25 +63,22 @@ bool hooks::SetupPart2(IDirect3DDevice9* device)
 	// Optionally override encounter spawn requirement
 	if (CreateHook(0x422BF0, &NeedsEncounterHook, &NeedsEncounter) == MH_OK)
 	{
-		needs_encounter::hooked = true;
+		g::needs_encounter::hooked = true;
 	}
 
 	// Optionally override traffic spawn requirement
 	if (CreateHook(0x422990, &NeedsTrafficHook, &NeedsTraffic) == MH_OK)
 	{
-		needs_traffic::hooked = true;
+		g::needs_traffic::hooked = true;
 	}
 
 	// Make autopilot drive to the location marked by the GPS
-	if (CreateHook(0x433930, &GpsEngageHook, &GpsEngage) == MH_OK)
-	{
-		gps_engage::hooked = true;
-	}
+	CreateHook(0x433930, &GpsEngageHook, &GpsEngage);
 
 	// Calculate 
 	if (CreateHook(0x5B3850, &WorldMapPadAcceptHook, &WorldMapPadAccept) == MH_OK)
 	{
-		map_click::hooked = true;
+		g::map_click::hooked = true;
 	}
 
 	// Increment cop counter by 1 per roadblock vehicle
@@ -100,6 +97,7 @@ bool hooks::SetupPart2(IDirect3DDevice9* device)
 	//WriteJmp(0x4410D4, UpdateRoadBlocksHook, 6);
 	//WriteJmp(0x4411AD, UpdateRoadBlocksHook, 6);
 
+	// Add ability to increase vinyl move step size to move vinyls faster
 	WriteJmp(0x7B0F63, MoveVinylVerticalHook, 9);
 	WriteJmp(0x7B0F94, MoveVinylHorizontalHook, 9);
 	
@@ -153,45 +151,76 @@ HRESULT __stdcall hooks::ResetHook(IDirect3DDevice9* device, D3DPRESENT_PARAMETE
 
 bool __fastcall hooks::NeedsEncounterHook(void* traffic_manager)
 {
-	return needs_encounter::overridden ? needs_encounter::value : NeedsEncounter(traffic_manager);
+	return g::needs_encounter::overridden ? g::needs_encounter::value : NeedsEncounter(traffic_manager);
 }
 
 bool __fastcall hooks::NeedsTrafficHook(void* traffic_manager)
 {
-	return needs_traffic::overridden ? needs_traffic::value : NeedsTraffic(traffic_manager);
+	return g::needs_traffic::overridden ? g::needs_traffic::value : NeedsTraffic(traffic_manager);
 }
 
 bool __fastcall hooks::GpsEngageHook(void* gps, void* edx, nfsc::vector3* target, float max_deviation, bool re_engage, bool always_re_establish)
 {
 	bool result = GpsEngage(gps, edx, target, max_deviation, re_engage, always_re_establish);
 
-	auto ai_vehicle = gps_engage::myAIVehicle;
-
-	// If we're in AutoDrive and the GPS has been successfully established, find the path to the destination
-	// Since Gps::Engage also gets called after reconnections, turning on AutoDrive late will still work
-	if (ai_vehicle && result)
+	// GPS failed to establish
+	if (!result)
 	{
-		// AIVehicleHuman::Update handles targets, but gets skipped if autodrive is on and calls AIVehicleRacecar::Update instead
-
-		//auto ai_target = ReadMemory<void*>(reinterpret_cast<uintptr_t>(ai_vehicle) + 0x6C);
-		//nfsc::AITarget_Acquire(ai_target, vec3target);
-
-		//nfsc::AIVehicle_SetDriveTarget(ai_vehicle, vec3target);
-
-		auto road_nav = ReadMemory<void*>(reinterpret_cast<uintptr_t>(ai_vehicle) + 0x38);
-		if (road_nav)
-		{
-			// TODO: Needs more testing, AutoDrive might forget the destination at any point, ie. AIActionGetUnstuck, etc...
-			nfsc::WRoadNav_FindPath(road_nav, target, nullptr, 1);
-		}
+		return result;
 	}
+
+	auto p_vehicle = ReadMemory<void*>(ReadMemory<uintptr_t>(nfsc::IVehicleList_begin));
+	if (!p_vehicle)
+	{
+		return result;
+	}
+
+	auto ai_vehicle = nfsc::PVehicle_GetAIVehiclePtr(p_vehicle);
+	if (!ai_vehicle)
+	{
+		return result;
+	}
+
+	g::smart_ai::target.x = target->x;
+	g::smart_ai::target.y = target->y;
+	g::smart_ai::target.z = target->z;
+	g::smart_ai::PathToTarget(ai_vehicle);
 
 	return result;
 }
 
+void __fastcall hooks::ResetDriveToNavHook(void* ai_vehicle, void* edx, int lane_selection)
+{
+	ResetDriveToNav(ai_vehicle, edx, lane_selection);
+
+	if (g::IsGPSDown())
+	{
+		return;
+	}
+
+	auto p_vehicle = ReadMemory<void*>(ReadMemory<uintptr_t>(nfsc::IVehicleList_begin));
+	if (!p_vehicle)
+	{
+		return;
+	}
+
+	auto local_ai_vehicle = nfsc::PVehicle_GetAIVehiclePtr(p_vehicle);
+	if (!local_ai_vehicle)
+	{
+		return;
+	}
+
+	// Only do it for our vehicle
+	if (local_ai_vehicle != ai_vehicle)
+	{
+		return;
+	}
+
+	g::smart_ai::PathToTarget(ai_vehicle);
+}
+
 void __fastcall hooks::WorldMapPadAcceptHook(void* fe_state_manager)
 {
-	// Call original function
 	WorldMapPadAccept(fe_state_manager);
 
 	// Get current WorldMap and TrackInfo
@@ -199,9 +228,9 @@ void __fastcall hooks::WorldMapPadAcceptHook(void* fe_state_manager)
 	auto track_info = ReadMemory<void*>(0xB69BA0);
 	if (!world_map || !track_info)
 	{
-		map_click::location[0] = NAN;
-		map_click::location[1] = NAN;
-		map_click::location[2] = NAN;
+		g::map_click::location[0] = NAN;
+		g::map_click::location[1] = NAN;
+		g::map_click::location[2] = NAN;
 		return;
 	}
 
@@ -258,9 +287,9 @@ void __fastcall hooks::WorldMapPadAcceptHook(void* fe_state_manager)
 	position.y = height;
 
 	// Return
-	map_click::location[0] = position.x;
-	map_click::location[1] = position.y + map_click::extra_height;
-	map_click::location[2] = position.z;
+	g::map_click::location[0] = position.x;
+	g::map_click::location[1] = position.y + g::map_click::extra_height;
+	g::map_click::location[2] = position.z;
 }
 
 /*__declspec(naked) void hooks::CreateRoadBlockHook()
@@ -414,11 +443,11 @@ __declspec(naked) void hooks::MoveVinylVerticalHook()
 		cmp     edx, 0
 		jl      negative
 
-		add     eax, move_vinyl::step_size
+		add     eax, g::move_vinyl::step_size
 		jmp     done
 
 	negative:
-		sub     eax, move_vinyl::step_size
+		sub     eax, g::move_vinyl::step_size
 
 	done:
 		// Redo what we've overwritten
@@ -437,11 +466,11 @@ __declspec(naked) void hooks::MoveVinylHorizontalHook()
 		cmp     edx, 0
 		jl      negative
 
-		add     eax, move_vinyl::step_size
+		add     eax, g::move_vinyl::step_size
 		jmp     done
 
 	negative:
-		sub     eax, move_vinyl::step_size
+		sub     eax, g::move_vinyl::step_size
 
 	done:
 		// Redo what we've overwritten

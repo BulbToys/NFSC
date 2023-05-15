@@ -34,6 +34,9 @@ namespace hooks
 	void __fastcall WorldMapPadAcceptHook(void* fe_state_manager);
 	static inline decltype(&WorldMapPadAcceptHook) WorldMapPadAccept;
 
+	void __fastcall ResetDriveToNavHook(void* ai_vehicle, void* edx, int lane_selection);
+	static inline decltype (&ResetDriveToNavHook) ResetDriveToNav;
+
 	//void CreateRoadBlockHook();
 	void UpdateCopElementsHook1();
 	void UpdateCopElementsHook2();

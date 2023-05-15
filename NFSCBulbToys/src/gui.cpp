@@ -168,8 +168,8 @@ void gui::Render()
 	if (ImGui::Begin(PROJECT_NAME))
 	{
 		// Grab necessary game info here
-		nfsc::state = ReadMemory<nfsc::gameflow_state>(0xA99BBC);
-		auto myPVehicle = ReadMemory<void*>(ReadMemory<uintptr_t>(nfsc::IVehicleList_begin_addr));
+		//auto state = ReadMemory<nfsc::gameflow_state>(0xA99BBC);
+		auto p_vehicle = ReadMemory<void*>(ReadMemory<uintptr_t>(nfsc::IVehicleList_begin));
 
 		// GetWindowWidth() - GetStyle().WindowPadding (total)
 		gui::width = ImGui::GetWindowWidth() - 16.0f;
@@ -230,23 +230,23 @@ void gui::Render()
 		ImGui::Separator();
 
 		// Location
-		ImGui::InputFloat3("#Location", map_click::location);
+		ImGui::InputFloat3("#Location", g::map_click::location);
 
 		// Teleport to location
-		if (ImGui::Button("Teleport to location") && nfsc::state == nfsc::gameflow_state::racing)
+		if (ImGui::Button("Teleport to location"))
 		{
-			if (myPVehicle)
+			if (p_vehicle)
 			{
-				void* simable = nfsc::PVehicle_GetSimable(myPVehicle);
+				void* simable = nfsc::PVehicle_GetSimable(p_vehicle);
 				if (simable)
 				{
 					void* rigid_body = nfsc::PhysicsObject_GetRigidBody(simable);
 					if (rigid_body)
 					{
 						nfsc::vector3 position;
-						position.x = map_click::location[0];
-						position.y = map_click::location[1];
-						position.z = map_click::location[2];
+						position.x = g::map_click::location[0];
+						position.y = g::map_click::location[1];
+						position.z = g::map_click::location[2];
 
 						nfsc::RigidBody_SetPosition(rigid_body, &position);
 					}
@@ -255,20 +255,20 @@ void gui::Render()
 		}
 
 		// GPS to location
-		if (ImGui::Button("GPS to location") && nfsc::state == nfsc::gameflow_state::racing)
+		if (ImGui::Button("GPS to location"))
 		{
 			nfsc::vector3 position;
-			position.x = map_click::location[0];
-			position.y = map_click::location[1];
-			position.z = map_click::location[2];
+			position.x = g::map_click::location[0];
+			position.y = g::map_click::location[1];
+			position.z = g::map_click::location[2];
 
 			if (nfsc::GPS_Engage(&position, 0.0, false))
 			{
 				auto g_manager_base = ReadMemory<void*>(0xA98294);
 
-				position.x = map_click::location[2];
-				position.y = -map_click::location[0];
-				position.z = map_click::location[1];
+				position.x = g::map_click::location[2];
+				position.y = -g::map_click::location[0];
+				position.z = g::map_click::location[1];
 
 				auto icon = nfsc::GManager_AllocIcon(g_manager_base, 0x15, &position, 0, false);
 				auto icon_addr = reinterpret_cast<uintptr_t>(icon);
@@ -297,43 +297,58 @@ void gui::Render()
 		ImGui::Separator();
 
 		// PVehicle
-		ImGui::Text("PVehicle: %p", myPVehicle);
+		ImGui::Text("PVehicle: %p", p_vehicle);
 
 		// Speed
-		ImGui::Text("Speed: %.2fkm/h", myPVehicle ? nfsc::PVehicle_GetSpeed(myPVehicle) * 3.5999999 : 0.0f);
+		ImGui::Text("Speed: %.2fkm/h", p_vehicle ? nfsc::PVehicle_GetSpeed(p_vehicle) * 3.5999999 : 0.0f);
 
 		// DebugCamera
-		if (ImGui::Button("DebugCamera") && nfsc::state == nfsc::gameflow_state::racing)
+		if (ImGui::Button("DebugCamera"))
 		{
 			nfsc::CameraAI_SetAction(1, "CDActionDebug");
 		}
 
 		// AutoDrive
 		static bool autodrive = false;
-		if (gps_engage::hooked)
+		if (p_vehicle)
 		{
-			if (myPVehicle)
+			auto ai_vehicle = nfsc::PVehicle_GetAIVehiclePtr(p_vehicle);
+			if (ai_vehicle)
 			{
-				gps_engage::myAIVehicle = nfsc::PVehicle_GetAIVehiclePtr(myPVehicle);
-				if (gps_engage::myAIVehicle)
+				// bool AIVehicleHuman::bAIControl
+				autodrive = ReadMemory<bool>(reinterpret_cast<uintptr_t>(ai_vehicle) + 0x258);
+			}
+			else
+			{
+				autodrive = false;
+			}
+		}
+		else
+		{
+			autodrive = false;
+		}
+		if (ImGui::Checkbox("AutoDrive", &autodrive))
+		{
+			if (autodrive)
+			{
+				nfsc::Game_ForceAIControl(1);
+
+				if (p_vehicle)
 				{
-					// bool AIVehicleHuman::bAIControl
-					autodrive = ReadMemory<bool>(reinterpret_cast<uintptr_t>(gps_engage::myAIVehicle) + 0x258);
-				}
-				else
-				{
-					autodrive = false;
+					auto ai_vehicle = nfsc::PVehicle_GetAIVehiclePtr(p_vehicle);
+					if (ai_vehicle)
+					{
+						if (!g::IsGPSDown())
+						{
+							g::smart_ai::PathToTarget(ai_vehicle);
+						}
+					}
 				}
 			}
 			else
 			{
-				gps_engage::myAIVehicle = nullptr;
-				autodrive = false;
+				nfsc::Game_ClearAIControl(1);
 			}
-		}
-		if (ImGui::Checkbox("AutoDrive", &autodrive) && nfsc::state == nfsc::gameflow_state::racing)
-		{
-			autodrive ? nfsc::Game_ForceAIControl(1) : nfsc::Game_ClearAIControl(1);
 		}
 
 		// AutoDrive type
@@ -364,19 +379,19 @@ void gui::Render()
 		}
 
 		// Override NeedsEncounter
-		if (needs_encounter::hooked)
+		if (g::needs_encounter::hooked)
 		{
-			ImGui::Checkbox("Override NeedsEncounter:", &needs_encounter::overridden);
+			ImGui::Checkbox("Override NeedsEncounter:", &g::needs_encounter::overridden);
 			ImGui::SameLine();
-			ImGui::Checkbox("##NEValue", &needs_encounter::value);
+			ImGui::Checkbox("##NEValue", &g::needs_encounter::value);
 		}
 
 		// Override NeedsTraffic
-		if (needs_traffic::hooked)
+		if (g::needs_traffic::hooked)
 		{
-			ImGui::Checkbox("Override NeedsTraffic:", &needs_traffic::overridden);
+			ImGui::Checkbox("Override NeedsTraffic:", &g::needs_traffic::overridden);
 			ImGui::SameLine();
-			ImGui::Checkbox("##NTValue", &needs_traffic::value);
+			ImGui::Checkbox("##NTValue", &g::needs_traffic::value);
 		}
 
 		// Disable cops
@@ -401,7 +416,7 @@ void gui::Render()
 				step_size = 512;
 			}
 
-			move_vinyl::step_size = step_size;
+			g::move_vinyl::step_size = step_size;
 		}
 
 		ImGui::PopItemWidth();
