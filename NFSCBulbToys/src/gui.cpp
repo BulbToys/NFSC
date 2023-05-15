@@ -317,7 +317,8 @@ void gui::Render()
 				gps_engage::myAIVehicle = nfsc::PVehicle_GetAIVehiclePtr(myPVehicle);
 				if (gps_engage::myAIVehicle)
 				{
-					autodrive = ReadMemory<bool>(reinterpret_cast<uintptr_t>(gps_engage::myAIVehicle) + 0x10);
+					// bool AIVehicleHuman::bAIControl
+					autodrive = ReadMemory<bool>(reinterpret_cast<uintptr_t>(gps_engage::myAIVehicle) + 0x258);
 				}
 				else
 				{
