@@ -309,6 +309,10 @@ void gui::Render()
 		{
 			damage_racer = ReadMemory<uintptr_t>(reinterpret_cast<uintptr_t>(p_vehicle) + 0x44);
 		}
+		else
+		{
+			damage_racer = 0;
+		}
 		for (int i = 0; i < 4; i++)
 		{
 			if (damage_racer)
@@ -325,11 +329,14 @@ void gui::Render()
 
 			if (ImGui::Checkbox(name, &tire_popped[i]))
 			{
-				// Offsets 0x78, 0x7C, 0x80, 0x84 - mBlowOutTimes[4]
-				WriteMemory<float>(damage_racer + 0x78 + i * 4, 0);
+				if (damage_racer)
+				{
+					// Offsets 0x78, 0x7C, 0x80, 0x84 - mBlowOutTimes[4]
+					WriteMemory<float>(damage_racer + 0x78 + i * 4, 0);
 
-				// Offsets 0x88, 0x89, 0x8A, 0x8B - mDamage[4]
-				WriteMemory<uint8_t>(damage_racer + 0x88 + i, tire_popped[i] ? 2 : 0);
+					// Offsets 0x88, 0x89, 0x8A, 0x8B - mDamage[4]
+					WriteMemory<uint8_t>(damage_racer + 0x88 + i, tire_popped[i] ? 2 : 0);
+				}
 			}
 		}
 
