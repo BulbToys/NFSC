@@ -72,8 +72,14 @@ bool hooks::SetupPart2(IDirect3DDevice9* device)
 		g::needs_traffic::hooked = true;
 	}
 
-	// Make autopilot drive to the location marked by the GPS
-	CreateHook(0x433930, &GpsEngageHook, &GpsEngage);
+	// Smart AI hooks
+	// - Make autopilot drive to the location marked by the GPS
+	// - Make autopilot drive to the location after a navigation reset
+	if (CreateHook(0x433930, &GpsEngageHook, &GpsEngage) == MH_OK &&
+		CreateHook(0x427AD0, &ResetDriveToNavHook, &ResetDriveToNav) == MH_OK)
+	{
+		g::smart_ai::hooked = true;
+	}
 
 	// Calculate 
 	if (CreateHook(0x5B3850, &WorldMapPadAcceptHook, &WorldMapPadAccept) == MH_OK)

@@ -333,14 +333,17 @@ void gui::Render()
 			{
 				nfsc::Game_ForceAIControl(1);
 
-				if (p_vehicle)
+				if (g::smart_ai::hooked)
 				{
-					auto ai_vehicle = nfsc::PVehicle_GetAIVehiclePtr(p_vehicle);
-					if (ai_vehicle)
+					if (p_vehicle)
 					{
-						if (!g::IsGPSDown())
+						auto ai_vehicle = nfsc::PVehicle_GetAIVehiclePtr(p_vehicle);
+						if (ai_vehicle)
 						{
-							g::smart_ai::PathToTarget(ai_vehicle);
+							if (!g::IsGPSDown())
+							{
+								g::smart_ai::PathToTarget(ai_vehicle);
+							}
 						}
 					}
 				}
