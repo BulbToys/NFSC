@@ -1,6 +1,5 @@
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
-#include <thread>
 
 #include "shared.h"
 
@@ -12,11 +11,6 @@ void Error(const char* message, ...)
 	vsprintf_s(buffer, 1024, message, va);
 
 	MessageBoxA(NULL, buffer, PROJECT_NAME, MB_ICONERROR);
-}
-
-inline void Sleep(int ms)
-{
-	std::this_thread::sleep_for(std::chrono::milliseconds(ms));
 }
 
 void Setup(const HMODULE instance)

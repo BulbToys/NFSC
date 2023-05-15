@@ -20,7 +20,6 @@ inline bool exitMainLoop = false;
 /* === Utility === */
 
 void Error(const char* message, ...);
-inline void Sleep(int ms);
 
 template <typename T>
 inline T ReadMemory(uintptr_t address)
