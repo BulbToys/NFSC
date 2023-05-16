@@ -165,6 +165,7 @@ void gui::Render()
 	}
 
 	// Main window
+	// TODO: tabs
 	if (ImGui::Begin(PROJECT_NAME, NULL, ImGuiWindowFlags_AlwaysVerticalScrollbar))
 	{
 		// Grab necessary game info here
@@ -340,7 +341,7 @@ void gui::Render()
 			}
 
 			char name[7];
-			sprintf_s(name, 7, "Tire %u", i);
+			sprintf_s(name, 7, "Tire %d", i);
 
 			if (ImGui::Checkbox(name, &tire_popped[i]))
 			{
@@ -416,6 +417,9 @@ void gui::Render()
 
 		/* === AI === */
 		ImGui::Separator();
+
+		// Vehicles (count)
+		ImGui::Text("Vehicles: %u/%u", ReadMemory<uint32_t>(0xA83AE8 + 0xC), ReadMemory<uint32_t>(0xA83AE8 + 0x8));
 
 		// Traffic crash speed
 		ImGui::MySliderFloat("Traffic crash speed:", "##TCSpeed", reinterpret_cast<float*>(0x9C1790), 1.0, 1000.0);
