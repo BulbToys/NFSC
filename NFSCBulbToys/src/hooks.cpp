@@ -92,8 +92,8 @@ bool hooks::SetupPart2(IDirect3DDevice9* device)
 	//WriteJmp(0x445A9D, CreateRoadBlockHook, 6);
 
 	// Fix dead roadblock vehicles not turning off their lights
-	WriteJmp(0x5D8C10, UpdateCopElementsHook1, 6);
-	WriteJmp(0x5D8CFB, UpdateCopElementsHook2, 11);
+	PatchJmp(0x5D8C10, UpdateCopElementsHook1, 6);
+	PatchJmp(0x5D8CFB, UpdateCopElementsHook2, 11);
 
 	// Attach roadblock cops to the pursuit once it's been dodged
 	// TODO: ideally detach from roadblock and destroy said roadblock afterwards because of several bugs
@@ -104,14 +104,19 @@ bool hooks::SetupPart2(IDirect3DDevice9* device)
 	//WriteJmp(0x4411AD, UpdateRoadBlocksHook, 6);
 
 	// Add ability to increase vinyl move step size to move vinyls faster
-	WriteJmp(0x7B0F63, MoveVinylVerticalHook, 9);
-	WriteJmp(0x7B0F94, MoveVinylHorizontalHook, 9);
+	PatchJmp(0x7B0F63, MoveVinylVerticalHook, 9);
+	PatchJmp(0x7B0F94, MoveVinylHorizontalHook, 9);
 	
 	return true;
 }
 
 void hooks::Destroy()
 {
+	Unpatch(0x5D8C10);
+	Unpatch(0x5D8CFB);
+	Unpatch(0x7B0F63);
+	Unpatch(0x7B0F94);
+
 	MH_DisableHook(MH_ALL_HOOKS);
 	MH_RemoveHook(MH_ALL_HOOKS);
 	MH_Uninitialize();

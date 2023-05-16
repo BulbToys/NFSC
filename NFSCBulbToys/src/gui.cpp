@@ -192,8 +192,6 @@ void gui::Render()
 			if (confirm_close)
 			{
 				gui::menuOpen = false;
-				ShowCursor(0);
-
 				exitMainLoop = true;
 			}
 		}

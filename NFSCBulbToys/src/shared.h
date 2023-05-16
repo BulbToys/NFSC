@@ -1,6 +1,7 @@
 #pragma once
 #include <cstdint>
 #include <cstring>
+#include <unordered_map>
 #include <d3d9.h>
 
 #include "nfsc.h"
@@ -19,6 +20,25 @@ inline bool exitMainLoop = false;
 
 /* === Utility === */
 
+struct Patch
+{
+	char* bytes = nullptr;
+	size_t len = 0;
+
+	Patch(uintptr_t address, size_t len) : len(len)
+	{
+		bytes = new char[len];
+		memcpy(bytes, reinterpret_cast<void*>(address), len);
+	}
+
+	~Patch()
+	{
+		delete[] bytes;
+	}
+};
+
+inline std::unordered_map<uintptr_t, Patch*> patch_map;
+
 void Error(const char* message, ...);
 
 template <typename T>
@@ -34,14 +54,31 @@ inline void WriteMemory(uintptr_t address, T value)
 	*memory = value;
 }
 
-inline void WriteNop(uintptr_t address, int count = 1)
+// Identical to WriteMemory, except it gets added to the patch map (for later unpatching)
+template <typename T>
+inline void PatchMemory(uintptr_t address, T value)
 {
+	Patch* p = new Patch(address, sizeof(T));
+	patch_map.insert({ address, p });
+
+	T* memory = reinterpret_cast<T*>(address);
+	*memory = value;
+}
+
+inline void PatchNop(uintptr_t address, int count = 1)
+{
+	Patch* p = new Patch(address, count);
+	patch_map.insert({ address, p });
+
 	memset(reinterpret_cast<void*>(address), 0x90, count);
 }
 
 // NOTE: The jump instruction is 5 bytes
-inline void WriteJmp(uintptr_t address, void* jump_to, size_t length = 5)
+inline void PatchJmp(uintptr_t address, void* jump_to, size_t length = 5)
 {
+	Patch* p = new Patch(address, length);
+	patch_map.insert({ address, p });
+
 	ptrdiff_t relative = reinterpret_cast<uintptr_t>(jump_to) - address - 5;
 
 	// Write the jump instruction
@@ -51,7 +88,21 @@ inline void WriteJmp(uintptr_t address, void* jump_to, size_t length = 5)
 	WriteMemory<ptrdiff_t>(address + 1, relative);
 
 	// Write nops until we've reached length
-	WriteNop(address + 5, length - 5);
+	memset(reinterpret_cast<void*>(address), 0x90, length - 5);
+}
+
+inline void Unpatch(uintptr_t address)
+{
+	if (patch_map.find(address) == patch_map.end())
+	{
+		Error("Tried to Unpatch() non-existent patch %08X.", address);
+	}
+
+	Patch* p = patch_map.at(address);
+	patch_map.erase(address);
+
+	memcpy(reinterpret_cast<void*>(address), p->bytes, p->len);
+	delete p;
 }
 
 /* === Shared hook/gui data (Globals) === */

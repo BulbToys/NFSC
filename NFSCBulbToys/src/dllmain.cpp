@@ -27,8 +27,7 @@ void Setup(const HMODULE instance)
 
 	hooks::Destroy();
 	gui::Destroy();
-
-	// TODO: undo patches?
+	patches::Undo();
 
 	FreeLibraryAndExitThread(instance, 0);
 }

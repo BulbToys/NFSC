@@ -2,8 +2,23 @@
 
 void patches::Do()
 {
+	// Doing these separately here and not in Undo() because of comment clutter
 	AlwaysShowCursor();
 	FastBootFlow();
+}
+
+void patches::Undo()
+{
+	// AlwaysShowCursor
+	Unpatch(0x730A8D);
+	Unpatch(0x711EF2);
+
+	// FastBootFlow
+	Unpatch(0x9CB4E4);
+	Unpatch(0x5BD528);
+	Unpatch(0x5891C3);
+	Unpatch(0x716583);
+	Unpatch(0x7165B1);
 }
 
 // NOTE: Doesn't actually always show the cursor, as it depends on whether the ImGui menu is open or not, which is handled in the WindowProcess callback
@@ -11,10 +26,10 @@ void patches::Do()
 void patches::AlwaysShowCursor()
 {
 	// Patch out IsWindowed check for Set/ShowCursor(0)
-	WriteNop(0x730A8D, 8);
+	PatchNop(0x730A8D, 8);
 
 	// Patch out looping ShowCursor(0)
-	WriteNop(0x711EF2, 7);
+	PatchNop(0x711EF2, 7);
 }
 
 /*
@@ -50,15 +65,15 @@ void patches::AlwaysShowCursor()
 void patches::FastBootFlow()
 {
 	// Prevent pushing splash screen: "DEMO_SPLASH.fng" -> ""
-	WriteMemory<uint8_t>(0x9CB4E4, 0);
+	PatchMemory<uint8_t>(0x9CB4E4, 0);
 
 	// Patch FEStateManager::Push's next_state: STATE_DO_SPLASH -> STATE_BOOTCHECK
-	WriteMemory<uint8_t>(0x5BD528, 3);
+	PatchMemory<uint8_t>(0x5BD528, 3);
 
 	// Patch out FEBFSM::ShowBackdrop() (STATE_BACKDROP)
-	WriteNop(0x5891C3, 8);
+	PatchNop(0x5891C3, 8);
 
 	// Patch out everything but STATE_SPLASH and STATE_AUTOLOAD in FEBFSM::ShowEverythingElse() (STATE_EA_LOGO, STATE_PSA and STATE_ATTRACT)
-	WriteNop(0x716583, 34);
-	WriteNop(0x7165B1, 12);
+	PatchNop(0x716583, 34);
+	PatchNop(0x7165B1, 12);
 }
