@@ -165,15 +165,24 @@ void gui::Render()
 	}
 
 	// Main window
-	if (ImGui::Begin(PROJECT_NAME))
+	if (ImGui::Begin(PROJECT_NAME, NULL, ImGuiWindowFlags_AlwaysVerticalScrollbar))
 	{
 		// Grab necessary game info here
-		//auto state = ReadMemory<nfsc::gameflow_state>(0xA99BBC);
-		auto p_vehicle = ReadMemory<void*>(ReadMemory<uintptr_t>(nfsc::IVehicleList_begin));
+		auto state = ReadMemory<nfsc::gameflow_state>(0xA99BBC);
+		void* p_vehicle;
+		if (state == nfsc::gameflow_state::in_frontend)
+		{
+			p_vehicle = nullptr;
+		}
+		else
+		{
+			p_vehicle = ReadMemory<void*>(ReadMemory<uintptr_t>(nfsc::IVehicleList_begin));
+		}
 
-		// GetWindowWidth() - GetStyle().WindowPadding (total)
-		gui::width = ImGui::GetWindowWidth() - 16.0f;
-		ImGui::PushItemWidth(gui::width);
+		// TODO: remove AlwaysVerticalScrollbar once there's a clean way to check if scrollbar is visible (without using imgui_internals)
+		// GetWindowWidth() - GetStyle().WindowPadding - GetStyle().ScrollbarSize (total)
+		auto width = ImGui::GetWindowWidth() - 30.0f;
+		ImGui::PushItemWidth(width);
 
 		// Confirm & detach
 		static bool confirm_close = false;
@@ -304,20 +313,26 @@ void gui::Render()
 
 		// Tires 0-4
 		static bool tire_popped[4] = { false };
-		static uintptr_t damage_racer = 0;
+		static uintptr_t i_damageable = 0;
 		if (p_vehicle)
 		{
-			damage_racer = ReadMemory<uintptr_t>(reinterpret_cast<uintptr_t>(p_vehicle) + 0x44);
+			i_damageable = ReadMemory<uintptr_t>(reinterpret_cast<uintptr_t>(p_vehicle) + 0x44);
+
+			// Make sure our IDamageable is of type DamageRacer
+			if (i_damageable && ReadMemory<uintptr_t>(i_damageable) != 0x9E6868)
+			{
+				i_damageable = 0;
+			}
 		}
 		else
 		{
-			damage_racer = 0;
+			i_damageable = 0;
 		}
 		for (int i = 0; i < 4; i++)
 		{
-			if (damage_racer)
+			if (i_damageable)
 			{
-				tire_popped[i] = ReadMemory<uint8_t>(damage_racer + 0x88 + i) == 2;
+				tire_popped[i] = ReadMemory<uint8_t>(i_damageable + 0x88 + i) == 2;
 			}
 			else
 			{
@@ -329,13 +344,13 @@ void gui::Render()
 
 			if (ImGui::Checkbox(name, &tire_popped[i]))
 			{
-				if (damage_racer)
+				if (i_damageable)
 				{
 					// Offsets 0x78, 0x7C, 0x80, 0x84 - mBlowOutTimes[4]
-					WriteMemory<float>(damage_racer + 0x78 + i * 4, 0);
+					WriteMemory<float>(i_damageable + 0x78 + i * 4, 0);
 
 					// Offsets 0x88, 0x89, 0x8A, 0x8B - mDamage[4]
-					WriteMemory<uint8_t>(damage_racer + 0x88 + i, tire_popped[i] ? 2 : 0);
+					WriteMemory<uint8_t>(i_damageable + 0x88 + i, tire_popped[i] ? 2 : 0);
 				}
 			}
 		}

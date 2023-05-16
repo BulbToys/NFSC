@@ -21,11 +21,11 @@ namespace nfsc
 		unsigned int fPrimitiveMask = 0;
 	};
 
-	/*enum class gameflow_state : int
+	enum class gameflow_state : int
 	{
 		in_frontend = 3,
 		racing      = 6
-	};*/
+	};
 
 	inline const char* goals[] = { "AIGoalEncounterPursuit", "AIGoalNone", "AIGoalRacer", "AIGoalTraffic" };
 	enum class ai_goal : int

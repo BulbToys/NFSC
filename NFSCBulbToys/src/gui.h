@@ -9,7 +9,6 @@
 namespace gui
 {
 	inline bool menuOpen = false;
-	inline float width = 0.0f;
 
 	inline HWND window = nullptr;
 	inline WNDPROC originalWindowProcess = nullptr;
