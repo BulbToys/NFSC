@@ -88,7 +88,7 @@ inline void PatchJmp(uintptr_t address, void* jump_to, size_t length = 5)
 	WriteMemory<ptrdiff_t>(address + 1, relative);
 
 	// Write nops until we've reached length
-	memset(reinterpret_cast<void*>(address), 0x90, length - 5);
+	memset(reinterpret_cast<void*>(address + 5), 0x90, length - 5);
 }
 
 inline void Unpatch(uintptr_t address)

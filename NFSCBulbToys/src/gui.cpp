@@ -413,6 +413,13 @@ void gui::Render()
 			WriteMemory<const char*>(0x4194F9, nfsc::goals[autodrive_type]);
 		}
 
+		// No Busted
+		static bool no_busted = false;
+		if (ImGui::Checkbox("No Busted", &no_busted))
+		{
+			WriteMemory<uint8_t>(0x449847, no_busted ? 0xEB : 0x7B);
+		}
+
 		/* === AI === */
 		ImGui::Separator();
 
