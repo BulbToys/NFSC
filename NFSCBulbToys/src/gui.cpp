@@ -7,15 +7,13 @@ LRESULT CALLBACK WindowProcess(HWND window, UINT message, WPARAM wideParam, LPAR
 inline bool ImGui::MyListBox(const char* text, const char* id, int* current_item, const char* const *items, int items_count, int height_in_items = -1)
 {
 	ImGui::Text(text);
-	bool result = ImGui::ListBox(id, current_item, items, items_count, height_in_items);
-	return result;
+	return ImGui::ListBox(id, current_item, items, items_count, height_in_items);;
 }
 
 inline bool ImGui::MySliderFloat(const char* text, const char* id, float* v, float v_min, float v_max, const char* format = "%.3f")
 {
 	ImGui::Text(text);
-	bool result = ImGui::SliderFloat(id, v, v_min, v_max, format);
-	return result;
+	return ImGui::SliderFloat(id, v, v_min, v_max, format);;
 }
 
 void gui::SetupStyle()
