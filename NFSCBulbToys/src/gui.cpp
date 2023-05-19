@@ -238,7 +238,7 @@ void gui::Render()
 		ImGui::Separator();
 
 		// Location
-		ImGui::InputFloat3("#Location", g::map_click::location);
+		ImGui::InputFloat3("#Location", g::location);
 
 		// Teleport to location
 		if (ImGui::Button("Teleport to location"))
@@ -252,9 +252,9 @@ void gui::Render()
 					if (rigid_body)
 					{
 						nfsc::vector3 position;
-						position.x = g::map_click::location[0];
-						position.y = g::map_click::location[1];
-						position.z = g::map_click::location[2];
+						position.x = g::location[0];
+						position.y = g::location[1];
+						position.z = g::location[2];
 
 						nfsc::RigidBody_SetPosition(rigid_body, &position);
 					}
@@ -266,17 +266,17 @@ void gui::Render()
 		if (ImGui::Button("GPS to location"))
 		{
 			nfsc::vector3 position;
-			position.x = g::map_click::location[0];
-			position.y = g::map_click::location[1];
-			position.z = g::map_click::location[2];
+			position.x = g::location[0];
+			position.y = g::location[1];
+			position.z = g::location[2];
 
 			if (nfsc::GPS_Engage(&position, 0.0, false))
 			{
 				auto g_manager_base = ReadMemory<void*>(0xA98294);
 
-				position.x = g::map_click::location[2];
-				position.y = -g::map_click::location[0];
-				position.z = g::map_click::location[1];
+				position.x = g::location[2];
+				position.y = -g::location[0];
+				position.z = g::location[1];
 
 				auto icon = nfsc::GManager_AllocIcon(g_manager_base, 0x15, &position, 0, false);
 				auto icon_addr = reinterpret_cast<uintptr_t>(icon);
@@ -461,6 +461,12 @@ void gui::Render()
 
 		// Disable cops
 		ImGui::Checkbox("Disable cops", reinterpret_cast<bool*>(0xA83A50));
+
+		// Kill skids
+		if (ImGui::Button("Kill skids"))
+		{
+			nfsc::KillSkidsOnRaceRestart();
+		}
 
 		// NOTE: SkipMovies is NOT hotswappable, guaranteed crash upon game exit in CleanupTextures!
 

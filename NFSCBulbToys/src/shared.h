@@ -109,13 +109,6 @@ inline void Unpatch(uintptr_t address)
 
 namespace g
 {
-	namespace map_click
-	{
-		inline bool hooked = false;
-		inline float location[3] = { 0, 0, 0 };
-		constexpr float extra_height = 1;
-	}
-
 	namespace move_vinyl
 	{
 		inline int step_size = 1;
@@ -141,7 +134,6 @@ namespace g
 		inline nfsc::vector3 target = { 0, 0, 0 };
 
 		// TODO Needs more testing:
-		// - AutoDrive might forget the destination at any point, ie. AIActionGetUnstuck, etc...
 		// - Path might not match GPS
 		inline void PathToTarget(void* ai_vehicle)
 		{
@@ -154,6 +146,9 @@ namespace g
 			nfsc::WRoadNav_FindPath(road_nav, &target, nullptr, 1);
 		}
 	}
+
+	inline float location[3] = { 0, 0, 0 };
+	constexpr float extra_height = 1;
 
 	inline bool IsGPSDown()
 	{

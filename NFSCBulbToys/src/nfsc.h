@@ -83,6 +83,8 @@ namespace nfsc
 
 	inline bool (*GPS_Engage)(vector3* target, float max_deviation, bool always_re_establish) = reinterpret_cast<bool(*)(vector3*, float, bool)>(0x433AB0);
 
+	inline void (*KillSkidsOnRaceRestart)(void) = reinterpret_cast<void(*)(void)>(0x7BF9B0);
+
 	inline void* (__thiscall* PhysicsObject_GetRigidBody)(void* physics_object) = reinterpret_cast<void* (__thiscall*)(void*)>(0x6D6CD0);
 
 	inline void* (__thiscall* PVehicle_GetAIVehiclePtr)(void* pvehicle) = reinterpret_cast<void* (__thiscall*)(void*)>(0x6D8110);

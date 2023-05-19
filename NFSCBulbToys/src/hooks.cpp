@@ -81,11 +81,8 @@ bool hooks::SetupPart2(IDirect3DDevice9* device)
 		g::smart_ai::hooked = true;
 	}
 
-	// Calculate 
-	if (CreateHook(0x5B3850, &WorldMapPadAcceptHook, &WorldMapPadAccept) == MH_OK)
-	{
-		g::map_click::hooked = true;
-	}
+	// Calculate world positions from map positions
+	CreateHook(0x5B3850, &WorldMapPadAcceptHook, &WorldMapPadAccept);
 
 	// Increment cop counter by 1 per roadblock vehicle
 	// TODO: if re-enabling this, make sure roadblock cops that get attached don't increment again
@@ -239,9 +236,9 @@ void __fastcall hooks::WorldMapPadAcceptHook(void* fe_state_manager)
 	auto track_info = ReadMemory<void*>(0xB69BA0);
 	if (!world_map || !track_info)
 	{
-		g::map_click::location[0] = NAN;
-		g::map_click::location[1] = NAN;
-		g::map_click::location[2] = NAN;
+		g::location[0] = NAN;
+		g::location[1] = NAN;
+		g::location[2] = NAN;
 		return;
 	}
 
@@ -298,9 +295,9 @@ void __fastcall hooks::WorldMapPadAcceptHook(void* fe_state_manager)
 	position.y = height;
 
 	// Return
-	g::map_click::location[0] = position.x;
-	g::map_click::location[1] = position.y + g::map_click::extra_height;
-	g::map_click::location[2] = position.z;
+	g::location[0] = position.x;
+	g::location[1] = position.y + g::extra_height;
+	g::location[2] = position.z;
 }
 
 /*__declspec(naked) void hooks::CreateRoadBlockHook()
