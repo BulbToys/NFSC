@@ -96,6 +96,8 @@ namespace nfsc
 	inline bool(__thiscall* WCollisionMgr_GetWorldHeightAtPointRigorous)(WCollisionMgr* mgr, vector3* point, float* height, vector3* normal) =
 		reinterpret_cast<bool(__thiscall*)(WCollisionMgr*, vector3*, float*, vector3*)>(0x816DF0);
 
+	inline void (*World_RestoreProps)(void) = reinterpret_cast<void(*)(void)>(0x7CA1A0);
+
 	inline void(__thiscall* WorldMap_GetPanFromMapCoordLocation)(void* world_map, vector2* output, vector2* input) =
 		reinterpret_cast<void(__thiscall*)(void*, vector2*, vector2*)>(0x5ACA90);
 	inline void (*WorldMap_SetGPSIng)(void* icon) = reinterpret_cast<void(*)(void*)>(0x582C30);

@@ -473,6 +473,12 @@ void gui::Render()
 			nfsc::KillSkidsOnRaceRestart();
 		}
 
+		// Restore props
+		if (ImGui::Button("Restore props"))
+		{
+			nfsc::World_RestoreProps();
+		}
+
 		// NOTE: SkipMovies is NOT hotswappable, guaranteed crash upon game exit in CleanupTextures!
 
 		/* === VINYLS === */
