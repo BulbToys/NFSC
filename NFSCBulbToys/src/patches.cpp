@@ -5,6 +5,7 @@ void patches::Do()
 	// Doing these separately here and not in Undo() because of comment clutter
 	AlwaysShowCursor();
 	FastBootFlow();
+	DebugCarCustomizeHelp();
 }
 
 void patches::Undo()
@@ -19,6 +20,16 @@ void patches::Undo()
 	Unpatch(0x5891C3);
 	Unpatch(0x716583);
 	Unpatch(0x7165B1);
+
+	// DebugCarCustomizeHelp
+	Unpatch(0x841ED3);
+	//Unpatch(0x841F67);
+	Unpatch(0x841EDA);
+	Unpatch(0x841EED);
+	Unpatch(0x841F00);
+	Unpatch(0x841F13);
+	Unpatch(0x841F26);
+	Unpatch(0x841F39);
 }
 
 // NOTE: Doesn't actually always show the cursor, as it depends on whether the ImGui menu is open or not, which is handled in the WindowProcess callback
@@ -76,4 +87,18 @@ void patches::FastBootFlow()
 	// Patch out everything but STATE_SPLASH and STATE_AUTOLOAD in FEBFSM::ShowEverythingElse() (STATE_EA_LOGO, STATE_PSA and STATE_ATTRACT)
 	PatchNop(0x716583, 34);
 	PatchNop(0x7165B1, 12);
+}
+
+void patches::DebugCarCustomizeHelp()
+{
+	// Patch FEDebugCarCustomizeScreen::sInstance->mHelpGroupShowing check to always show help
+	PatchNop(0x841ED3, 6);
+
+	//PatchMemory<const char*>(0x841F67, "[?] Help");
+	PatchMemory<const char*>(0x841EDA, ""); // [?] Hide
+	PatchMemory<const char*>(0x841EED, "[Enter] Inst.");
+	PatchMemory<const char*>(0x841F00, "[2] Uninst. Part");
+	PatchMemory<const char*>(0x841F13, "[1] Free Roam");
+	PatchMemory<const char*>(0x841F26, "[3] Save Alias");
+	PatchMemory<const char*>(0x841F39, "[4] Dump Preset");
 }

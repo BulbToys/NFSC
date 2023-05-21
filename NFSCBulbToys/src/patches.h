@@ -7,6 +7,7 @@ namespace patches
 
 	inline void AlwaysShowCursor();
 	inline void FastBootFlow();
+	inline void DebugCarCustomizeHelp();
 
 	struct no_busted {
 		/*
