@@ -183,20 +183,20 @@ void gui::Render()
 		auto width = ImGui::GetWindowWidth() - 30.0f;
 		ImGui::PushItemWidth(width);
 
-		// Confirm & detach
+		// Detach & Confirm
 		static bool confirm_close = false;
 		if (!exitMainLoop && ImGui::Button("Detach"))
 		{
 			if (confirm_close)
 			{
-				gui::menuOpen = false;
+				gui::menu_open = false;
 				exitMainLoop = true;
 			}
 		}
 		ImGui::SameLine();
 		ImGui::Checkbox("Confirm", &confirm_close);
 
-		// New Memory Editor
+		// New Memory Editor & + 0000
 		static char input_addr[9];
 		ImGui::InputText("##addr", input_addr, IM_ARRAYSIZE(input_addr), ImGuiInputTextFlags_CharsHexadecimal);
 		if (ImGui::Button("New Memory Editor"))
@@ -204,13 +204,16 @@ void gui::Render()
 			uintptr_t addr;
 			if (sscanf_s(input_addr, "%IX", &addr) == 1)
 			{
-				// Weak safety precaution in case of mistypes. Any non-readable memory will cause a crash, as well as writing to non-writable memory
-				if (addr >= 0x400000)
-				{
-					char* window_name = new char[25];
-					sprintf_s(window_name, 25, "Memory Editor 0x%08X", addr);
-					mem_windows.push_back(MemoryWindow(window_name, reinterpret_cast<void*>(addr), 0x10000));
-				}
+				CreateMemoryWindow(addr);
+			}
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("+ 0000"))
+		{
+			uintptr_t addr;
+			if (sscanf_s(input_addr, "%IX", &addr) == 1 && addr < 0xFFFF)
+			{
+				CreateMemoryWindow(addr * 0x10000);
 			}
 		}
 
@@ -352,10 +355,26 @@ void gui::Render()
 			}
 		}
 
-		// DebugCamera
+		// DebugCamera + Shortcut
 		if (ImGui::Button("DebugCamera"))
 		{
 			nfsc::CameraAI_SetAction(1, "CDActionDebug");
+		}
+		ImGui::SameLine();
+		ImGui::Checkbox("Shortcut", &debug_shortcut);
+
+		// Change vehicle
+		static char vehicle[32];
+		ImGui::InputText("##vehicle", vehicle, IM_ARRAYSIZE(vehicle));
+		if (ImGui::Button("Change vehicle") && state == nfsc::gameflow_state::racing)
+		{
+			// fucks shit up horribly (apparently it nulls the rigidbody lmfao ???)
+			if (nfsc::DebugVehicleSelection_SwitchPlayerVehicle(ReadMemory<void*>(0xB74BE8), vehicle))
+			{
+				nfsc::EAXSound_StartNewGamePlay(ReadMemory<void*>(0xA8BA38));
+				nfsc::LocalPlayer_ResetHUDType(ReadMemory<void*>(ReadMemory<uintptr_t>(0xA9FF58 + 4)), 1);
+				//nfsc::CameraAI_SetAction(1, "CDActionTrackCop");
+			}
 		}
 
 		// AutoDrive
@@ -510,15 +529,37 @@ void gui::Render()
 	ImGui_ImplDX9_RenderDrawData(ImGui::GetDrawData());
 }
 
+void gui::CreateMemoryWindow(int addr)
+{
+	// Add a unique ID "##ME<id>" to each memory editor to allow duplicate windows
+	static uint32_t id = 0;
+
+	// Weak safety precaution in case of mistypes. Any non-readable memory will cause a crash, as well as writing to non-writable memory
+	if (addr >= 0x400000)
+	{
+		char* window_name = new char[38];
+		sprintf_s(window_name, 38, "Memory Editor 0x%08X##ME%u", addr, id);
+
+		mem_windows.push_back(MemoryWindow(window_name, reinterpret_cast<void*>(addr), 0x10000));
+
+		id++;
+	}
+}
+
 LRESULT CALLBACK WindowProcess(HWND window, UINT message, WPARAM wideParam, LPARAM longParam)
 {
 	if (GetAsyncKeyState(MENU_KEY) & 1)
 	{
-		gui::menuOpen = !gui::menuOpen;
-		ShowCursor(gui::menuOpen);
+		gui::menu_open = !gui::menu_open;
+		ShowCursor(gui::menu_open);
 	}
 
-	if (gui::menuOpen && ImGui_ImplWin32_WndProcHandler(window, message, wideParam, longParam))
+	if (gui::debug_shortcut && GetAsyncKeyState(VK_BACK) & 1)
+	{
+		nfsc::CameraAI_SetAction(1, "CDActionDebug");
+	}
+
+	if (gui::menu_open && ImGui_ImplWin32_WndProcHandler(window, message, wideParam, longParam))
 	{
 		return 1L;
 	}

@@ -61,13 +61,14 @@ namespace nfsc
 
 	constexpr uintptr_t IVehicleList_begin = 0xA9F158 + 0x04;
 
-	//inline void(__thiscall* AITarget_Acquire)(void* ai_target, vector3* target) = reinterpret_cast<void(__thiscall*)(void*, vector3*)>(0x429CD0);
-
-	//inline void (__thiscall* AIVehicle_SetDriveTarget)(void* ai_vehicle, vector3* target) = reinterpret_cast<void(__thiscall*)(void*, vector3*)>(0x406710);
-
 	inline unsigned int (*bStringHash)(const char* string) = reinterpret_cast<unsigned int(*)(const char*)>(0x471050);
 
 	inline void (*CameraAI_SetAction)(int eview, const char* name) = reinterpret_cast<void(*)(int, const char*)>(0x48D620);
+
+	inline bool (__thiscall* DebugVehicleSelection_SwitchPlayerVehicle)(void* debug_veh_sel, char* name) =
+		reinterpret_cast<bool(__thiscall*)(void*, char*)>(0x7D4E40);
+
+	inline void (__thiscall* EAXSound_StartNewGamePlay)(void* eax_sound) = reinterpret_cast<void(__thiscall*)(void*)>(0x5227F0);
 
 	inline void (*FE_Object_GetCenter)(void* object, float* x, float* y) = reinterpret_cast<void(*)(void*, float*, float*)>(0x597900);
 
@@ -84,6 +85,8 @@ namespace nfsc
 	inline bool (*GPS_Engage)(vector3* target, float max_deviation, bool always_re_establish) = reinterpret_cast<bool(*)(vector3*, float, bool)>(0x433AB0);
 
 	inline void (*KillSkidsOnRaceRestart)(void) = reinterpret_cast<void(*)(void)>(0x7BF9B0);
+
+	inline void (__thiscall* LocalPlayer_ResetHUDType)(void* local_player, int hud_type) = reinterpret_cast<void(__thiscall*)(void*, int)>(0x75DA60);
 
 	inline void* (__thiscall* PhysicsObject_GetRigidBody)(void* physics_object) = reinterpret_cast<void* (__thiscall*)(void*)>(0x6D6CD0);
 

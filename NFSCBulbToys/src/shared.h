@@ -20,6 +20,8 @@ inline bool exitMainLoop = false;
 
 /* === Utility === */
 
+#define ASSERT(cond) if (!cond) *((int*)0) = 0
+
 struct Patch
 {
 	char* bytes = nullptr;
@@ -96,6 +98,7 @@ inline void Unpatch(uintptr_t address)
 	if (patch_map.find(address) == patch_map.end())
 	{
 		Error("Tried to Unpatch() non-existent patch %08X.", address);
+		ASSERT(0);
 	}
 
 	Patch* p = patch_map.at(address);
@@ -103,6 +106,12 @@ inline void Unpatch(uintptr_t address)
 
 	memcpy(reinterpret_cast<void*>(address), p->bytes, p->len);
 	delete p;
+}
+
+inline void PurecallHandler()
+{
+	Error("Pure virtual function call.");
+	ASSERT(0);
 }
 
 /* === Shared hook/gui data (Globals) === */

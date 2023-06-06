@@ -6,6 +6,13 @@ void patches::Do()
 	AlwaysShowCursor();
 	FastBootFlow();
 	DebugCarCustomizeHelp();
+
+	// PurecallHandler
+	PatchMemory<void*>(0x9C1218, &PurecallHandler);
+
+	// EnableSoloPursuitQR
+	PatchNop(0x4B9545, 6);
+	PatchNop(0x4B9557, 6);
 }
 
 void patches::Undo()
@@ -30,6 +37,13 @@ void patches::Undo()
 	Unpatch(0x841F13);
 	Unpatch(0x841F26);
 	Unpatch(0x841F39);
+
+	// PurecallHandler
+	Unpatch(0x9C1218);
+
+	// EnableSoloPursuitQR
+	Unpatch(0x4B9545);
+	Unpatch(0x4B9557);
 }
 
 // NOTE: Doesn't actually always show the cursor, as it depends on whether the ImGui menu is open or not, which is handled in the WindowProcess callback

@@ -141,7 +141,7 @@ long __stdcall hooks::EndSceneHook(IDirect3DDevice9* device)
 {
 	const auto result = EndScene(device);
 
-	if (gui::menuOpen)
+	if (gui::menu_open)
 	{
 		gui::Render();
 	}

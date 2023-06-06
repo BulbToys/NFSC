@@ -8,7 +8,8 @@
 
 namespace gui
 {
-	inline bool menuOpen = false;
+	inline bool menu_open = false;
+	inline bool debug_shortcut = false;
 
 	inline HWND window = nullptr;
 	inline WNDPROC originalWindowProcess = nullptr;
@@ -17,6 +18,7 @@ namespace gui
 	void SetupMenu(LPDIRECT3DDEVICE9 device);
 	void Destroy();
 	void Render();
+	void CreateMemoryWindow(int addr);
 
 	struct MemoryWindow
 	{
