@@ -48,6 +48,9 @@
     <ClCompile Include="src\hooks.cpp" />
     <ClCompile Include="src\patches.cpp" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="cpp.hint" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>

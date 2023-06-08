@@ -42,4 +42,7 @@
     <ClCompile Include="src\hooks.cpp" />
     <ClCompile Include="src\patches.cpp" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="cpp.hint" />
+  </ItemGroup>
 </Project>

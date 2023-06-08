@@ -538,11 +538,9 @@ void gui::CreateMemoryWindow(int addr)
 	if (addr >= 0x400000)
 	{
 		char* window_name = new char[38];
-		sprintf_s(window_name, 38, "Memory Editor 0x%08X##ME%u", addr, id);
+		sprintf_s(window_name, 38, "Memory Editor 0x%08X##ME%u", addr, id++);
 
 		mem_windows.push_back(MemoryWindow(window_name, reinterpret_cast<void*>(addr), 0x10000));
-
-		id++;
 	}
 }
 

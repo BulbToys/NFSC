@@ -1,5 +1,7 @@
 #pragma once
 
+#define FUNC(address, return_t, callconv, name, ...) inline return_t (callconv* name)(__VA_ARGS__) = reinterpret_cast<return_t(callconv*)(__VA_ARGS__)>(address)
+
 namespace nfsc
 {
 	struct vector3
@@ -61,50 +63,45 @@ namespace nfsc
 
 	constexpr uintptr_t IVehicleList_begin = 0xA9F158 + 0x04;
 
-	inline unsigned int (*bStringHash)(const char* string) = reinterpret_cast<unsigned int(*)(const char*)>(0x471050);
+	FUNC(0x471050, unsigned int, , bStringHash, const char* string);
 
-	inline void (*CameraAI_SetAction)(int eview, const char* name) = reinterpret_cast<void(*)(int, const char*)>(0x48D620);
+	FUNC(0x48D620, void, , CameraAI_SetAction, int eview, const char* name);
 
-	inline bool (__thiscall* DebugVehicleSelection_SwitchPlayerVehicle)(void* debug_veh_sel, char* name) =
-		reinterpret_cast<bool(__thiscall*)(void*, char*)>(0x7D4E40);
+	FUNC(0x7D4E40, bool, __thiscall, DebugVehicleSelection_SwitchPlayerVehicle, void* debug_veh_sel, char* name);
 
-	inline void (__thiscall* EAXSound_StartNewGamePlay)(void* eax_sound) = reinterpret_cast<void(__thiscall*)(void*)>(0x5227F0);
+	FUNC(0x5227F0, void, __thiscall, EAXSound_StartNewGamePlay, void* eax_sound);
 
-	inline void (*FE_Object_GetCenter)(void* object, float* x, float* y) = reinterpret_cast<void(*)(void*, float*, float*)>(0x597900);
+	FUNC(0x597900, void, , FE_Object_GetCenter, void* object, float* x, float* y);
 
-	inline void (*Game_ForceAIControl)(int unk) = reinterpret_cast<void(*)(int)>(0x65C2C0);
-	inline void (*Game_ClearAIControl)(int unk) = reinterpret_cast<void(*)(int)>(0x65C330);
-	inline void (*Game_SetCopsEnabled)(bool enable) = reinterpret_cast<void(*)(bool)>(0x6513E0);
-	inline void (*Game_UnlockNikki)(void) = reinterpret_cast<void(*)(void)>(0x667FF0);
+	FUNC(0x65C330, void, , Game_ClearAIControl, int unk);
+	FUNC(0x65C2C0, void, , Game_ForceAIControl, int unk);
+	FUNC(0x6513E0, void, , Game_SetCopsEnabled, bool enable);
+	FUNC(0x667FF0, void, , Game_UnlockNikki);
 
-	inline void(__thiscall* GIcon_Spawn)(void* icon) = reinterpret_cast<void(__thiscall*)(void*)>(0x627840);
+	FUNC(0x627840, void, __thiscall, GIcon_Spawn);
+	
+	FUNC(0x626F90, void*, __thiscall, GManager_AllocIcon, void* g_manager, char type, vector3* position, float rotation, bool is_disposable);
+	
+	FUNC(0x433AB0, bool, , GPS_Engage, vector3* target, float max_deviation, bool always_re_establish);
+	
+	FUNC(0x7BF9B0, void, , KillSkidsOnRaceRestart);
 
-	inline void* (__thiscall* GManager_AllocIcon)(void* g_manager, char type, vector3* position, float rotation, bool is_disposable) =
-		reinterpret_cast<void* (__thiscall*)(void*, char, vector3*, float, bool)>(0x626F90);
+	FUNC(0x75DA60, void, __thiscall, LocalPlayer_ResetHUDType, void* local_player, int hud_type);
 
-	inline bool (*GPS_Engage)(vector3* target, float max_deviation, bool always_re_establish) = reinterpret_cast<bool(*)(vector3*, float, bool)>(0x433AB0);
+	FUNC(0x6D6CD0, void*, __thiscall, PhysicsObject_GetRigidBody, void* physics_object);
+	
+	FUNC(0x6D8110, void*, __thiscall, PVehicle_GetAIVehiclePtr, void* pvehicle);
+	FUNC(0x6D8070, float, __thiscall, PVehicle_GetSpeed, void* pvehicle);
+	FUNC(0x6D7EC0, void*, __thiscall, PVehicle_GetSimable, void* pvehicle);
+	
+	FUNC(0x6E8210, void, __thiscall, RigidBody_SetPosition, void* rigid_body, vector3* position);
 
-	inline void (*KillSkidsOnRaceRestart)(void) = reinterpret_cast<void(*)(void)>(0x7BF9B0);
+	FUNC(0x816DF0, bool, __thiscall, WCollisionMgr_GetWorldHeightAtPointRigorous, WCollisionMgr mgr, vector3* point, float height, vector3* normal);
+	
+	FUNC(0x7CA1A0, void, , World_RestoreProps);
 
-	inline void (__thiscall* LocalPlayer_ResetHUDType)(void* local_player, int hud_type) = reinterpret_cast<void(__thiscall*)(void*, int)>(0x75DA60);
+	FUNC(0x5ACA90, void, __thiscall, WorldMap_GetPanFromMapCoordLocation, void* world_map, vector2* output, vector2* input);
+	FUNC(0x582C30, void, , WorldMap_SetGPSIng, void* icon);
 
-	inline void* (__thiscall* PhysicsObject_GetRigidBody)(void* physics_object) = reinterpret_cast<void* (__thiscall*)(void*)>(0x6D6CD0);
-
-	inline void* (__thiscall* PVehicle_GetAIVehiclePtr)(void* pvehicle) = reinterpret_cast<void* (__thiscall*)(void*)>(0x6D8110);
-	inline float (__thiscall* PVehicle_GetSpeed)(void* pvehicle) = reinterpret_cast<float(__thiscall*)(void*)>(0x6D8070);
-	inline void* (__thiscall* PVehicle_GetSimable)(void* pvehicle) = reinterpret_cast<void* (__thiscall*)(void*)>(0x6D7EC0);
-
-	inline void (__thiscall* RigidBody_SetPosition)(void* rigid_body, vector3* position) = reinterpret_cast<void(__thiscall*)(void*, vector3*)>(0x6E8210);
-
-	inline bool(__thiscall* WCollisionMgr_GetWorldHeightAtPointRigorous)(WCollisionMgr* mgr, vector3* point, float* height, vector3* normal) =
-		reinterpret_cast<bool(__thiscall*)(WCollisionMgr*, vector3*, float*, vector3*)>(0x816DF0);
-
-	inline void (*World_RestoreProps)(void) = reinterpret_cast<void(*)(void)>(0x7CA1A0);
-
-	inline void(__thiscall* WorldMap_GetPanFromMapCoordLocation)(void* world_map, vector2* output, vector2* input) =
-		reinterpret_cast<void(__thiscall*)(void*, vector2*, vector2*)>(0x5ACA90);
-	inline void (*WorldMap_SetGPSIng)(void* icon) = reinterpret_cast<void(*)(void*)>(0x582C30);
-
-	inline bool (__thiscall* WRoadNav_FindPath)(void* roadnav, vector3* vec3_goal_position, vector3* vec3_goal_direction, bool shortcuts_allowed) =
-		reinterpret_cast<bool(__thiscall*)(void*, vector3*, vector3*, bool)>(0x7FB090);
+	FUNC(0x7FB090, bool, __thiscall, WRoadNav_FindPath, void* roadnav, vector3* goal_position, vector3* goal_direction, bool shortcuts_allowed);
 }
