@@ -78,7 +78,7 @@ namespace nfsc
 	FUNC(0x6513E0, void, , Game_SetCopsEnabled, bool enable);
 	FUNC(0x667FF0, void, , Game_UnlockNikki);
 
-	FUNC(0x627840, void, __thiscall, GIcon_Spawn);
+	FUNC(0x627840, void, __thiscall, GIcon_Spawn, void* icon);
 	
 	FUNC(0x626F90, void*, __thiscall, GManager_AllocIcon, void* g_manager, char type, vector3* position, float rotation, bool is_disposable);
 	
@@ -96,7 +96,7 @@ namespace nfsc
 	
 	FUNC(0x6E8210, void, __thiscall, RigidBody_SetPosition, void* rigid_body, vector3* position);
 
-	FUNC(0x816DF0, bool, __thiscall, WCollisionMgr_GetWorldHeightAtPointRigorous, WCollisionMgr mgr, vector3* point, float height, vector3* normal);
+	FUNC(0x816DF0, bool, __thiscall, WCollisionMgr_GetWorldHeightAtPointRigorous, WCollisionMgr* mgr, vector3* point, float* height, vector3* normal);
 	
 	FUNC(0x7CA1A0, void, , World_RestoreProps);
 
