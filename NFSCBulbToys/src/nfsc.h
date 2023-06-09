@@ -81,9 +81,9 @@ namespace nfsc
 	FUNC(0x627840, void, __thiscall, GIcon_Spawn, void* icon);
 	
 	FUNC(0x626F90, void*, __thiscall, GManager_AllocIcon, void* g_manager, char type, vector3* position, float rotation, bool is_disposable);
-	
+
 	FUNC(0x433AB0, bool, , GPS_Engage, vector3* target, float max_deviation, bool always_re_establish);
-	
+
 	FUNC(0x7BF9B0, void, , KillSkidsOnRaceRestart);
 
 	FUNC(0x75DA60, void, __thiscall, LocalPlayer_ResetHUDType, void* local_player, int hud_type);
