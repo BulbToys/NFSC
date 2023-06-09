@@ -79,7 +79,7 @@ namespace nfsc
 	FUNC(0x667FF0, void, , Game_UnlockNikki);
 
 	FUNC(0x627840, void, __thiscall, GIcon_Spawn, void* icon);
-	
+
 	FUNC(0x626F90, void*, __thiscall, GManager_AllocIcon, void* g_manager, char type, vector3* position, float rotation, bool is_disposable);
 
 	FUNC(0x433AB0, bool, , GPS_Engage, vector3* target, float max_deviation, bool always_re_establish);
@@ -89,15 +89,15 @@ namespace nfsc
 	FUNC(0x75DA60, void, __thiscall, LocalPlayer_ResetHUDType, void* local_player, int hud_type);
 
 	FUNC(0x6D6CD0, void*, __thiscall, PhysicsObject_GetRigidBody, void* physics_object);
-	
+
 	FUNC(0x6D8110, void*, __thiscall, PVehicle_GetAIVehiclePtr, void* pvehicle);
 	FUNC(0x6D8070, float, __thiscall, PVehicle_GetSpeed, void* pvehicle);
 	FUNC(0x6D7EC0, void*, __thiscall, PVehicle_GetSimable, void* pvehicle);
-	
+
 	FUNC(0x6E8210, void, __thiscall, RigidBody_SetPosition, void* rigid_body, vector3* position);
 
 	FUNC(0x816DF0, bool, __thiscall, WCollisionMgr_GetWorldHeightAtPointRigorous, WCollisionMgr* mgr, vector3* point, float* height, vector3* normal);
-	
+
 	FUNC(0x7CA1A0, void, , World_RestoreProps);
 
 	FUNC(0x5ACA90, void, __thiscall, WorldMap_GetPanFromMapCoordLocation, void* world_map, vector2* output, vector2* input);
