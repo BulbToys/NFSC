@@ -93,12 +93,20 @@ inline void PatchJmp(uintptr_t address, void* jump_to, size_t length = 5)
 	memset(reinterpret_cast<void*>(address + 5), 0x90, length - 5);
 }
 
-inline void Unpatch(uintptr_t address)
+inline void Unpatch(uintptr_t address, bool low_priority = false)
 {
 	if (patch_map.find(address) == patch_map.end())
 	{
-		Error("Tried to Unpatch() non-existent patch %08X.", address);
-		ASSERT(0);
+		if (!low_priority)
+		{
+			Error("Tried to Unpatch() non-existent patch %08X.", address);
+			ASSERT(0);
+		}
+
+		// Low priority unpatching - ignore non-existent patch error
+		// Only use for dynamic patches such as No Busted
+		// For static patches, it's better not to ignore these errors
+		return;
 	}
 
 	Patch* p = patch_map.at(address);
