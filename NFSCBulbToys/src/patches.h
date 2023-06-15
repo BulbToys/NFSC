@@ -26,6 +26,6 @@ namespace patches
 		/*
 			jmp     83D63C
 		*/
-		uint8_t bytes[64] = { 0xE9, 0x34, 0x01 };
+		uint8_t bytes[3] = { 0xE9, 0x34, 0x01/*, 0x00, 0x00*/ };
 	};
 }
