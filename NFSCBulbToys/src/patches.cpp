@@ -130,14 +130,14 @@ void patches::DebugCarCustomizeHelp()
 
 	SetupCareerNotStarted (what the Career menu looks like if the current save DIDN'T finish the first dday race):
 	- Resume Career (0x87F93B15) - UnlockAll only, puts you in the safehouse without a vehicle
-	- Start Career 0xFED69AF2) - starts career
+	- Start Career (0xFED69AF2) - starts career
 	- Load (0x1EFAD2E4) - load memcard
 	- Save (0x17F1F5F2) - save memcard
 
 	This patch just makes SetupCareerNotStarted jump to SetupCareerStarted (which are nearly identical functions)
 	SCNS adds its first two buttons, then SCS adds its last three, and the SCNS variant of the Career menu looks like this:
 	- Resume Career (0x87F93B15) - UnlockAll only, puts you in the safehouse without a vehicle
-	- Start Career 0xFED69AF2) - starts career
+	- Start Career (0xFED69AF2) - starts career
 	- New Career (0x93C674EC) - create new memcard
 	- Load (0x1EFAD2E4) - load memcard
 	- Save (0x17F1F5F2) - save memcard
