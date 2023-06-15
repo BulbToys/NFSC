@@ -6,6 +6,7 @@ void patches::Do()
 	AlwaysShowCursor();
 	FastBootFlow();
 	DebugCarCustomizeHelp();
+	AlwaysShowStartNewCareer();
 
 	// PurecallHandler
 	PatchMemory<void*>(0x9C1218, &PurecallHandler);
@@ -37,6 +38,9 @@ void patches::Undo()
 	Unpatch(0x841F13);
 	Unpatch(0x841F26);
 	Unpatch(0x841F39);
+
+	// AlwaysShowStartNewCareer
+	Unpatch(0x83D503);
 
 	// PurecallHandler
 	Unpatch(0x9C1218);
@@ -115,4 +119,34 @@ void patches::DebugCarCustomizeHelp()
 	PatchMemory<const char*>(0x841F13, "[1] Free Roam");
 	PatchMemory<const char*>(0x841F26, "[3] Save Alias");
 	PatchMemory<const char*>(0x841F39, "[4] Dump Preset");
+}
+
+/*
+	SetupCareerStarted (what the Career menu looks like if the current save finished the first dday race):
+	- Resume Career (0x87F93B15) - resumes career
+	- New Career (0x93C674EC) - create new memcard
+	- Load (0x1EFAD2E4) - load memcard
+	- Save (0x17F1F5F2) - save memcard
+
+	SetupCareerNotStarted (what the Career menu looks like if the current save DIDN'T finish the first dday race):
+	- Resume Career (0x87F93B15) - UnlockAll only, puts you in the safehouse without a vehicle
+	- Start Career 0xFED69AF2) - starts career
+	- Load (0x1EFAD2E4) - load memcard
+	- Save (0x17F1F5F2) - save memcard
+
+	This patch just makes SetupCareerNotStarted jump to SetupCareerStarted (which are nearly identical functions)
+	SCNS adds its first two buttons, then SCS adds its last three, and the SCNS variant of the Career menu looks like this:
+	- Resume Career (0x87F93B15) - UnlockAll only, puts you in the safehouse without a vehicle
+	- Start Career 0xFED69AF2) - starts career
+	- New Career (0x93C674EC) - create new memcard
+	- Load (0x1EFAD2E4) - load memcard
+	- Save (0x17F1F5F2) - save memcard
+
+	This makes it so that you can always create a new save at any point
+	TODO: disable it auto-playing DDay races?
+*/
+void patches::AlwaysShowStartNewCareer()
+{
+	// 68 98 00 (00 00) -> E9 34 01 (00 00)
+	PatchMemory<patches::always_show_snc>(0x83D503, patches::always_show_snc());
 }
