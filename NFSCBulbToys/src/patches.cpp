@@ -17,6 +17,9 @@ void patches::Do()
 
 	// DontAutoResumeCareerForFirstLoadedSave (jnz -> jmp)
 	PatchMemory<uint8_t>(0x5BD9D3, 0xEB);
+
+	// DontAutoResumeCareerForNewSave
+	PatchMemory<uint8_t>(0x5BD6E6, 0x0F);
 }
 
 void patches::Undo()
@@ -54,6 +57,9 @@ void patches::Undo()
 
 	// DontAutoResumeCareerForFirstLoadedSave
 	Unpatch(0x5BD9D3);
+
+	// DontAutoResumeCareerForNewSave
+	Unpatch(0x5BD6E6);
 }
 
 // NOTE: Doesn't actually always show the cursor, as it depends on whether the ImGui menu is open or not, which is handled in the WindowProcess callback
