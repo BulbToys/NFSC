@@ -7,6 +7,7 @@ void patches::Do()
 	FastBootFlow();
 	DebugCarCustomizeHelp();
 	AlwaysShowStartNewCareer();
+	SavegameManagement();
 
 	// PurecallHandler
 	PatchMemory<void*>(0x9C1218, &PurecallHandler);
@@ -15,11 +16,7 @@ void patches::Do()
 	PatchNop(0x4B9545, 6);
 	PatchNop(0x4B9557, 6);
 
-	// DontAutoResumeCareerForFirstLoadedSave (jnz -> jmp)
-	PatchMemory<uint8_t>(0x5BD9D3, 0xEB);
 
-	// DontAutoResumeCareerForNewSave
-	PatchMemory<uint8_t>(0x5BD6E6, 0x0F);
 }
 
 void patches::Undo()
@@ -48,18 +45,17 @@ void patches::Undo()
 	// AlwaysShowStartNewCareer
 	Unpatch(0x83D503);
 
+	// SavegameManagement
+	Unpatch(0xA97BD4);
+	Unpatch(0x5BD9D3);
+	Unpatch(0x5BD6E6);
+
 	// PurecallHandler
 	Unpatch(0x9C1218);
 
 	// EnableSoloPursuitQR
 	Unpatch(0x4B9545);
 	Unpatch(0x4B9557);
-
-	// DontAutoResumeCareerForFirstLoadedSave
-	Unpatch(0x5BD9D3);
-
-	// DontAutoResumeCareerForNewSave
-	Unpatch(0x5BD6E6);
 }
 
 // NOTE: Doesn't actually always show the cursor, as it depends on whether the ImGui menu is open or not, which is handled in the WindowProcess callback
@@ -161,4 +157,17 @@ void patches::AlwaysShowStartNewCareer()
 {
 	// 68 98 00 (00 00) -> E9 34 01 (00 00)
 	PatchMemory<patches::always_show_snc>(0x83D503, patches::always_show_snc());
+}
+
+void patches::SavegameManagement()
+{
+	// Set global bool (which dictates whether savegame deletion is allowed) to true
+	// Press 1 while in the selection menu to delete the selected savegame
+	PatchMemory<uint8_t>(0xA97BD4, 1);
+
+	// Prevent automatically resuming Career if we load the first savegame in the list (jnz -> jmp)
+	PatchMemory<uint8_t>(0x5BD9D3, 0xEB);
+
+	// Prevent automatically resuming Career if we create a new save
+	PatchMemory<uint8_t>(0x5BD6E6, 0x0F);
 }

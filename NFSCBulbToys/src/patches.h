@@ -9,6 +9,7 @@ namespace patches
 	inline void FastBootFlow();
 	inline void DebugCarCustomizeHelp();
 	inline void AlwaysShowStartNewCareer();
+	inline void SavegameManagement();
 
 	struct no_busted {
 		/*
