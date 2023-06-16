@@ -14,6 +14,9 @@ void patches::Do()
 	// EnableSoloPursuitQR
 	PatchNop(0x4B9545, 6);
 	PatchNop(0x4B9557, 6);
+
+	// DontAutoResumeCareerForFirstLoadedSave (jnz -> jmp)
+	PatchMemory<uint8_t>(0x5BD9D3, 0xEB);
 }
 
 void patches::Undo()
@@ -48,6 +51,9 @@ void patches::Undo()
 	// EnableSoloPursuitQR
 	Unpatch(0x4B9545);
 	Unpatch(0x4B9557);
+
+	// DontAutoResumeCareerForFirstLoadedSave
+	Unpatch(0x5BD9D3);
 }
 
 // NOTE: Doesn't actually always show the cursor, as it depends on whether the ImGui menu is open or not, which is handled in the WindowProcess callback

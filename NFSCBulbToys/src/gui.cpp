@@ -282,6 +282,9 @@ void gui::Render()
 
 				g::move_vinyl::step_size = step_size;
 			}
+
+			// Allow alias deletion [1]
+			ImGui::Checkbox("Allow alias deletion [1]", reinterpret_cast<bool*>(0xA97BD4));
 		}
 
 		/* ===== PLAYER ===== */
