@@ -6,8 +6,7 @@ void patches::Do()
 	AlwaysShowCursor();
 	FastBootFlow();
 	DebugCarCustomizeHelp();
-	AlwaysShowStartNewCareer();
-	SavegameManagement();
+	MemcardManagement();
 
 	// PurecallHandler
 	PatchMemory<void*>(0x9C1218, &PurecallHandler);
@@ -15,8 +14,6 @@ void patches::Do()
 	// EnableSoloPursuitQR
 	PatchNop(0x4B9545, 6);
 	PatchNop(0x4B9557, 6);
-
-
 }
 
 void patches::Undo()
@@ -42,13 +39,11 @@ void patches::Undo()
 	Unpatch(0x841F26);
 	Unpatch(0x841F39);
 
-	// AlwaysShowStartNewCareer
-	Unpatch(0x83D503);
-
-	// SavegameManagement
+	// MemcardManagement
 	Unpatch(0xA97BD4);
 	Unpatch(0x5BD9D3);
 	Unpatch(0x5BD6E6);
+	Unpatch(0x83D503);
 
 	// PurecallHandler
 	Unpatch(0x9C1218);
@@ -130,19 +125,19 @@ void patches::DebugCarCustomizeHelp()
 }
 
 /*
-	SetupCareerStarted (what the Career menu looks like if the current save finished the first dday race):
+	Original SetupCareerStarted (what the Career menu looks like if the current save finished the first dday race) is as follows:
 	- Resume Career (0x87F93B15) - resumes career
 	- New Career (0x93C674EC) - create new memcard
 	- Load (0x1EFAD2E4) - load memcard
 	- Save (0x17F1F5F2) - save memcard
 
-	SetupCareerNotStarted (what the Career menu looks like if the current save DIDN'T finish the first dday race):
+	Original SetupCareerNotStarted (what the Career menu looks like if the current save DIDN'T finish the first dday race) is as follows:
 	- Resume Career (0x87F93B15) - UnlockAll only, puts you in the safehouse without a vehicle
 	- Start Career (0xFED69AF2) - starts career
 	- Load (0x1EFAD2E4) - load memcard
 	- Save (0x17F1F5F2) - save memcard
 
-	This patch just makes SetupCareerNotStarted jump to SetupCareerStarted (which are nearly identical functions)
+	Always_show_snc just makes SetupCareerNotStarted jump to SetupCareerStarted (which are nearly identical functions)
 	SCNS adds its first two buttons, then SCS adds its last three, and the SCNS variant of the Career menu looks like this:
 	- Resume Career (0x87F93B15) - UnlockAll only, puts you in the safehouse without a vehicle
 	- Start Career (0xFED69AF2) - starts career
@@ -150,24 +145,20 @@ void patches::DebugCarCustomizeHelp()
 	- Load (0x1EFAD2E4) - load memcard
 	- Save (0x17F1F5F2) - save memcard
 
-	This makes it so that you can always create a new save at any point
-	TODO: disable it auto-playing DDay races?
+	TLDR: The always_show_snc patch ultimately makes it so that the New Career button always shows (allows memcard creation at any point)
 */
-void patches::AlwaysShowStartNewCareer()
+void patches::MemcardManagement()
 {
-	// 68 98 00 (00 00) -> E9 34 01 (00 00)
-	PatchMemory<patches::always_show_snc>(0x83D503, patches::always_show_snc());
-}
-
-void patches::SavegameManagement()
-{
-	// Set global bool (which dictates whether savegame deletion is allowed) to true
-	// Press 1 while in the selection menu to delete the selected savegame
+	// Set global bool (which dictates whether memcard deletion is allowed) to true
+	// Press 1 while in the selection menu to delete the selected memcard
 	PatchMemory<uint8_t>(0xA97BD4, 1);
 
-	// Prevent automatically resuming Career if we load the first savegame in the list (jnz -> jmp)
+	// Prevent automatically resuming Career if we load the first memcard in the list (jnz -> jmp)
 	PatchMemory<uint8_t>(0x5BD9D3, 0xEB);
 
-	// Prevent automatically resuming Career if we create a new save
+	// Prevent automatically resuming Career if we create a new memcard
 	PatchMemory<uint8_t>(0x5BD6E6, 0x0F);
+
+	// 68 98 00 (00 00) -> E9 34 01 (00 00)
+	PatchMemory<patches::always_show_snc>(0x83D503, patches::always_show_snc());
 }

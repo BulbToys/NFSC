@@ -8,8 +8,7 @@ namespace patches
 	inline void AlwaysShowCursor();
 	inline void FastBootFlow();
 	inline void DebugCarCustomizeHelp();
-	inline void AlwaysShowStartNewCareer();
-	inline void SavegameManagement();
+	inline void MemcardManagement();
 
 	struct no_busted {
 		/*
