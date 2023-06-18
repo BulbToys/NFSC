@@ -28,7 +28,7 @@ namespace hooks
 	bool __fastcall NeedsTrafficHook(void* traffic_manager);
 	static inline decltype(&NeedsTrafficHook) NeedsTraffic;
 
-	bool __fastcall GpsEngageHook(void* gps, void* edx, nfsc::vector3* vec3target, float max_deviation, bool re_engage, bool always_re_establish);
+	bool __fastcall GpsEngageHook(void* gps, void* edx, nfsc::Vector3* vec3target, float max_deviation, bool re_engage, bool always_re_establish);
 	static inline decltype(&GpsEngageHook) GpsEngage;
 
 	void __fastcall WorldMapPadAcceptHook(void* fe_state_manager);
@@ -43,4 +43,5 @@ namespace hooks
 	//void UpdateRoadBlocksHook();
 	void MoveVinylVerticalHook();
 	void MoveVinylHorizontalHook();
+	void VehicleChangeCacheHook();
 }

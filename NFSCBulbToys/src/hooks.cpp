@@ -103,6 +103,9 @@ bool hooks::SetupPart2(IDirect3DDevice9* device)
 	// Add ability to increase vinyl move step size to move vinyls faster
 	PatchJmp(0x7B0F63, MoveVinylVerticalHook, 9);
 	PatchJmp(0x7B0F94, MoveVinylHorizontalHook, 9);
+
+	// Use "GRaceStatus" as vehicle cache for NFSCO compatibility
+	PatchJmp(0x7D4EBB, VehicleChangeCacheHook, 7);
 	
 	return true;
 }
@@ -113,6 +116,7 @@ void hooks::Destroy()
 	Unpatch(0x5D8CFB);
 	Unpatch(0x7B0F63);
 	Unpatch(0x7B0F94);
+	Unpatch(0x7D4EBB);
 
 	MH_DisableHook(MH_ALL_HOOKS);
 	MH_RemoveHook(MH_ALL_HOOKS);
@@ -167,7 +171,7 @@ bool __fastcall hooks::NeedsTrafficHook(void* traffic_manager)
 	return g::needs_traffic::overridden ? g::needs_traffic::value : NeedsTraffic(traffic_manager);
 }
 
-bool __fastcall hooks::GpsEngageHook(void* gps, void* edx, nfsc::vector3* target, float max_deviation, bool re_engage, bool always_re_establish)
+bool __fastcall hooks::GpsEngageHook(void* gps, void* edx, nfsc::Vector3* target, float max_deviation, bool re_engage, bool always_re_establish)
 {
 	bool result = GpsEngage(gps, edx, target, max_deviation, re_engage, always_re_establish);
 
@@ -247,7 +251,7 @@ void __fastcall hooks::WorldMapPadAcceptHook(void* fe_state_manager)
 	nfsc::FE_Object_GetCenter(ReadMemory<void*>(reinterpret_cast<uintptr_t>(world_map) + 0x28), &x, &y);
 
 	// Account for WorldMap pan
-	nfsc::vector2 temp;
+	nfsc::Vector2 temp;
 	temp.x = x;
 	temp.y = y;
 
@@ -257,8 +261,8 @@ void __fastcall hooks::WorldMapPadAcceptHook(void* fe_state_manager)
 	y = temp.y;
 
 	// Account for WorldMap zoom
-	nfsc::vector2 top_left = ReadMemory<nfsc::vector2>(reinterpret_cast<uintptr_t>(world_map) + 0x44);
-	nfsc::vector2 size = ReadMemory<nfsc::vector2>(reinterpret_cast<uintptr_t>(world_map) + 0x4C);
+	nfsc::Vector2 top_left = ReadMemory<nfsc::Vector2>(reinterpret_cast<uintptr_t>(world_map) + 0x44);
+	nfsc::Vector2 size = ReadMemory<nfsc::Vector2>(reinterpret_cast<uintptr_t>(world_map) + 0x4C);
 
 	x = x * size.x + top_left.x;
 	y = y * size.y + top_left.y;
@@ -280,7 +284,7 @@ void __fastcall hooks::WorldMapPadAcceptHook(void* fe_state_manager)
 	y = y - calibration_offset_y - calibration_width;
 
 	// Inverse GetVehicleVectors to get position from world coordinates
-	nfsc::vector3 position;
+	nfsc::Vector3 position;
 	position.x = -y;
 	position.y = 0; // z
 	position.z = x;
@@ -484,6 +488,25 @@ __declspec(naked) void hooks::MoveVinylHorizontalHook()
 		// Redo what we've overwritten
 		cmp     eax, 0xFFFFFE00
 		push    0x7B0F9D
+		ret
+	}
+}
+
+__declspec(naked) void hooks::VehicleChangeCacheHook()
+{
+	__asm
+	{
+		// Redo what we've overwritten
+		add     esp, 4
+		push    eax
+		push    0
+
+		// use GRaceStatus::fObj instead of DVS as cache
+		mov     ecx, 0xA98284 
+		mov     ecx, [ecx]
+		push    ecx
+
+		push    0x7D4EC2
 		ret
 	}
 }

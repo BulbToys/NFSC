@@ -11,6 +11,8 @@ namespace gui
 	inline bool menu_open = false;
 	inline bool debug_shortcut = false;
 
+	inline char input_addr[9];
+
 	inline HWND window = nullptr;
 	inline WNDPROC originalWindowProcess = nullptr;
 
@@ -38,4 +40,5 @@ namespace ImGui
 	inline bool MyListBox(const char* text, const char* id, int* current_item, const char* const* items, int items_count, int height_in_items);
 	inline bool MySliderFloat(const char* text, const char* id, float* v, float v_min, float v_max, const char* format);
 	inline bool MyMenu(const char* text, bool* show);
+	inline void AddyLabel(void* addy, const char* fmt, ...);
 }

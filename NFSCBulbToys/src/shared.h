@@ -148,7 +148,7 @@ namespace g
 	namespace smart_ai
 	{
 		inline bool hooked = false;
-		inline nfsc::vector3 target = { 0, 0, 0 };
+		inline nfsc::Vector3 target = { 0, 0, 0 };
 
 		// TODO Needs more testing:
 		// - Path might not match GPS

@@ -7,7 +7,7 @@ LRESULT CALLBACK WindowProcess(HWND window, UINT message, WPARAM wideParam, LPAR
 inline bool ImGui::MyListBox(const char* text, const char* id, int* current_item, const char* const *items, int items_count, int height_in_items = -1)
 {
 	ImGui::Text(text);
-	return ImGui::ListBox(id, current_item, items, items_count, height_in_items);;
+	return ImGui::ListBox(id, current_item, items, items_count, items_count);
 }
 
 inline bool ImGui::MySliderFloat(const char* text, const char* id, float* v, float v_min, float v_max, const char* format = "%.3f")
@@ -37,6 +37,28 @@ inline bool ImGui::MyMenu(const char* text, bool* show)
 	}
 
 	return *show;
+}
+
+inline void ImGui::AddyLabel(void* addy, const char* fmt, ...)
+{
+	// Format label text
+	char name[64];
+	va_list va;
+	va_start(va, fmt);
+	vsprintf_s(name, 64, fmt, va);
+
+	// Append address
+	ImGui::Text("%s: %p", name, addy);
+
+	char button[16];
+	sprintf_s(button, 16, "copy##%p", addy);
+
+	ImGui::SameLine();
+	if (ImGui::Button(button))
+	{
+		// Copy to MemEdit input field
+		sprintf_s(gui::input_addr, 9, "%p", addy);
+	}
 }
 
 void gui::SetupStyle()
@@ -189,7 +211,8 @@ void gui::Render()
 	// TODO: tabs
 	if (ImGui::Begin(PROJECT_NAME, NULL, ImGuiWindowFlags_NoScrollbar))
 	{
-		static bool menu[4]{ false };
+		static bool menu[5] { false };
+		int id = 0;
 
 		// Grab necessary game info here
 		auto state = ReadMemory<nfsc::gameflow_state>(0xA99BBC);
@@ -208,7 +231,7 @@ void gui::Render()
 		ImGui::PushItemWidth(width);
 
 		/* ===== MAIN ===== */
-		if (ImGui::MyMenu("Main", &menu[0]))
+		if (ImGui::MyMenu("Main", &menu[id++]))
 		{
 			// Detach & Confirm
 			static bool confirm_close = false;
@@ -227,12 +250,11 @@ void gui::Render()
 			ImGui::Checkbox("Confirm", &confirm_close);
 
 			// New Memory Editor & + 0000
-			static char input_addr[9];
-			ImGui::InputText("##addr", input_addr, IM_ARRAYSIZE(input_addr), ImGuiInputTextFlags_CharsHexadecimal);
+			ImGui::InputText("##addr", gui::input_addr, IM_ARRAYSIZE(gui::input_addr), ImGuiInputTextFlags_CharsHexadecimal);
 			if (ImGui::Button("New Memory Editor"))
 			{
 				uintptr_t addr;
-				if (sscanf_s(input_addr, "%IX", &addr) == 1)
+				if (sscanf_s(gui::input_addr, "%IX", &addr) == 1)
 				{
 					CreateMemoryWindow(addr);
 				}
@@ -241,7 +263,7 @@ void gui::Render()
 			if (ImGui::Button("+ 0000"))
 			{
 				uintptr_t addr;
-				if (sscanf_s(input_addr, "%IX", &addr) == 1 && addr < 0xFFFF)
+				if (sscanf_s(gui::input_addr, "%IX", &addr) == 1 && addr < 0xFFFF)
 				{
 					CreateMemoryWindow(addr * 0x10000);
 				}
@@ -249,7 +271,7 @@ void gui::Render()
 		}
 
 		/* ===== FRONTEND ===== */
-		if (ImGui::MyMenu("Frontend", &menu[1]))
+		if (ImGui::MyMenu("Frontend", &menu[id++]))
 		{
 			// UnlockAll
 			ImGui::Checkbox("UnlockAll", reinterpret_cast<bool*>(0xA9E6C0));
@@ -285,16 +307,38 @@ void gui::Render()
 		}
 
 		/* ===== PLAYER ===== */
-		if (ImGui::MyMenu("Player", &menu[2]))
+		if (ImGui::MyMenu("Player", &menu[id++]))
 		{
 			// PVehicle
-			ImGui::Text("PVehicle: %p", p_vehicle);
+			ImGui::AddyLabel(p_vehicle, "PVehicle");
 
 			// Speed
 			ImGui::Text("Speed: %.2fkm/h", p_vehicle ? nfsc::PVehicle_GetSpeed(p_vehicle) * 3.5999999 : 0.0f);
 
+			ImGui::Separator();
+
+			// Vehicle name
+			ImGui::Text("Vehicle name:");
+			static char vehicle[32];
+			ImGui::InputText("##vehicle1", vehicle, IM_ARRAYSIZE(vehicle));
+
+			// Switch to vehicle
+			if (ImGui::Button("Switch to vehicle") && state == nfsc::gameflow_state::racing)
+			{
+				// fucks shit up horribly (apparently it nulls the rigidbody lmfao ???)
+				if (nfsc::DebugVehicleSelection_SwitchPlayerVehicle(ReadMemory<void*>(0xB74BE8), vehicle))
+				{
+					nfsc::EAXSound_StartNewGamePlay(ReadMemory<void*>(0xA8BA38));
+					nfsc::LocalPlayer_ResetHUDType(ReadMemory<void*>(ReadMemory<uintptr_t>(0xA9FF58 + 4)), 1);
+					//nfsc::CameraAI_SetAction(1, "CDActionTrackCop");
+				}
+			}
+
+			ImGui::Separator();
+
 			// Location
-			ImGui::InputFloat3("#Location", g::location);
+			ImGui::Text("Location:");
+			ImGui::InputFloat3("##Location1", g::location);
 
 			// Teleport to location
 			if (ImGui::Button("Teleport to location"))
@@ -307,7 +351,7 @@ void gui::Render()
 						void* rigid_body = nfsc::PhysicsObject_GetRigidBody(simable);
 						if (rigid_body)
 						{
-							nfsc::vector3 position;
+							nfsc::Vector3 position;
 							position.x = g::location[0];
 							position.y = g::location[1];
 							position.z = g::location[2];
@@ -321,7 +365,7 @@ void gui::Render()
 			// GPS to location
 			if (ImGui::Button("GPS to location"))
 			{
-				nfsc::vector3 position;
+				nfsc::Vector3 position;
 				position.x = g::location[0];
 				position.y = g::location[1];
 				position.z = g::location[2];
@@ -356,6 +400,8 @@ void gui::Render()
 					WriteMemory<uint8_t>(icon_addr + 1, 0x8F);
 				}
 			}
+
+			ImGui::Separator();
 
 			// Tires 0-4
 			static bool tire_popped[4] = { false };
@@ -401,27 +447,7 @@ void gui::Render()
 				}
 			}
 
-			// DebugCamera + Shortcut
-			if (ImGui::Button("DebugCamera"))
-			{
-				nfsc::CameraAI_SetAction(1, "CDActionDebug");
-			}
-			ImGui::SameLine();
-			ImGui::Checkbox("Shortcut", &debug_shortcut);
-
-			// Change vehicle
-			static char vehicle[32];
-			ImGui::InputText("##vehicle", vehicle, IM_ARRAYSIZE(vehicle));
-			if (ImGui::Button("Change vehicle") && state == nfsc::gameflow_state::racing)
-			{
-				// fucks shit up horribly (apparently it nulls the rigidbody lmfao ???)
-				if (nfsc::DebugVehicleSelection_SwitchPlayerVehicle(ReadMemory<void*>(0xB74BE8), vehicle))
-				{
-					nfsc::EAXSound_StartNewGamePlay(ReadMemory<void*>(0xA8BA38));
-					nfsc::LocalPlayer_ResetHUDType(ReadMemory<void*>(ReadMemory<uintptr_t>(0xA9FF58 + 4)), 1);
-					//nfsc::CameraAI_SetAction(1, "CDActionTrackCop");
-				}
-			}
+			ImGui::Separator();
 
 			// AutoDrive
 			static bool autodrive = false;
@@ -476,6 +502,16 @@ void gui::Render()
 				WriteMemory<const char*>(0x4194F9, nfsc::goals[autodrive_type]);
 			}
 
+			ImGui::Separator();
+
+			// DebugCamera + Shortcut
+			if (ImGui::Button("DebugCamera"))
+			{
+				nfsc::CameraAI_SetAction(1, "CDActionDebug");
+			}
+			ImGui::SameLine();
+			ImGui::Checkbox("Shortcut", &debug_shortcut);
+
 			// No Busted
 			static bool no_busted = false;
 			if (ImGui::Checkbox("No Busted", &no_busted))
@@ -492,7 +528,7 @@ void gui::Render()
 		}
 
 		/* ===== AI/WORLD ===== */
-		if (ImGui::MyMenu("AI/World", &menu[3]))
+		if (ImGui::MyMenu("AI/World", &menu[id++]))
 		{
 			// Vehicles (count)
 			ImGui::Text("Vehicles: %u/%u", ReadMemory<uint32_t>(0xA83AE8 + 0xC), ReadMemory<uint32_t>(0xA83AE8 + 0x8));
@@ -543,6 +579,169 @@ void gui::Render()
 			if (ImGui::Button("Restore props"))
 			{
 				nfsc::World_RestoreProps();
+			}
+		}
+
+		/* ===== PKO/PTAG TEST ===== */
+		if (ImGui::MyMenu("PKO/PTag Test", &menu[id++]))
+		{
+			struct eight_cars {
+				uintptr_t car[8] = {0};
+			};
+			static int racer_index[2] = { 0, 0 };
+			static bool bust = false;
+
+			// Calculate PursuitSimables count
+			int count = 0;
+			for (int i = 0; i < 8; i++)
+			{
+				if (ReadMemory<uintptr_t>(nfsc::ThePursuitSimables + i * 4))
+				{
+					count++;
+				}
+			}
+
+			// ThePursuitSimables (count)
+			ImGui::AddyLabel(reinterpret_cast<void*>(nfsc::ThePursuitSimables), "ThePursuitSimables (%d/8)", count);
+
+			// Populate ThePursuitSimables
+			if (ImGui::Button("Populate ThePursuitSimables"))
+			{
+				nfsc::Vector3 p = { 0, 0, 0 };
+				nfsc::Vector3 r = { 1, 0, 0 };
+
+				auto ivehicle_list_first = ReadMemory<uintptr_t>(nfsc::IVehicleList_begin);
+				uint32_t pursuit_vehicle_key = nfsc::GKnockoutRacer_GetPursuitVehicleKey(0);
+				eight_cars ec;
+
+				for (int i = 0; i < 8; i++)
+				{
+					ec.car[i] = reinterpret_cast<uintptr_t>(nfsc::BulbToys_CreateSimable(ReadMemory<void*>(0xA98284),
+						nfsc::driver_class::none, pursuit_vehicle_key, &r, &p, 0, nullptr, nullptr));
+
+					// todo: deactivate simable?
+					// todo: reverse this for ptag
+				}
+
+				WriteMemory<eight_cars>(nfsc::ThePursuitSimables, ec);
+			}
+
+			// Clear ThePursuitSimables
+			if (ImGui::Button("Clear ThePursuitSimables"))
+			{
+				WriteMemory<eight_cars>(nfsc::ThePursuitSimables, eight_cars());
+			}
+
+			// Racer index 1
+			ImGui::Text("Index 1:");
+			if (ImGui::InputInt("##RIndex1", &racer_index[0]))
+			{
+				if (racer_index[0] < 0)
+				{
+					racer_index[0] = 0;
+				}
+				else if (racer_index[0] > 7)
+				{
+					racer_index[0] = 7;
+				}
+			}
+
+			// KnockoutPursuit 1
+			if (ImGui::Button("KnockoutPursuit 1"))
+			{
+				gui::menu_open = false;
+				reinterpret_cast<void(*)(int)>(0x65D9F0)(racer_index[0]);
+			}
+
+			// Racer index 2
+			if (ImGui::InputInt("##RIndex2", &racer_index[1]))
+			{
+				if (racer_index[1] < 0)
+				{
+					racer_index[1] = 0;
+				}
+				else if (racer_index[1] > 7)
+				{
+					racer_index[1] = 7;
+				}
+			}
+
+			// TagPursuit 1 & 2 + Busted?
+			if (ImGui::Button("TagPursuit 1 & 2"))
+			{
+				gui::menu_open = false;
+				reinterpret_cast<void(*)(int, int, bool)>(0x65DD60)(racer_index[0], racer_index[1], bust);
+			}
+			ImGui::SameLine();
+			ImGui::Checkbox("Busted?", &bust);
+		}
+
+		/* ===== SPAWNING ===== */
+		if (ImGui::MyMenu("Spawning", &menu[id++]))
+		{
+			// Vehicle name
+			static char vehicle[32];
+			ImGui::Text("Vehicle name:");
+			ImGui::InputText("##vehicle2", vehicle, IM_ARRAYSIZE(vehicle));
+
+			// Vehicle location & Copy & Mine
+			static float location[3] = { 0, 0, 0 };
+			ImGui::Text("Vehicle location:");
+			ImGui::SameLine();
+			if (ImGui::Button("Copy"))
+			{
+				location[0] = g::location[0];
+				location[1] = g::location[1];
+				location[2] = g::location[1];
+			}
+			ImGui::SameLine();
+			if (ImGui::Button("Mine"))
+			{
+				if (p_vehicle)
+				{
+					void* simable = nfsc::PVehicle_GetSimable(p_vehicle);
+					if (simable)
+					{
+						void* rigid_body = nfsc::PhysicsObject_GetRigidBody(simable);
+						if (rigid_body)
+						{
+							nfsc::Vector3* position = nfsc::RigidBody_GetPosition(rigid_body);
+							location[0] = position->x;
+							location[1] = position->y;
+							location[2] = position->z;
+						}
+					}
+				}
+			}
+			ImGui::InputFloat3("##Location2", location);
+
+			// Spawn type
+			static int spawn_type = 0;
+			ImGui::MyListBox("Spawn type:", "##SType", &spawn_type, nfsc::driver_classes, IM_ARRAYSIZE(nfsc::driver_classes));
+
+			// Spawn goal & Ignore/use default
+			static int spawn_goal = 0;
+			static bool ignore = true;
+			ImGui::MyListBox("Spawn goal:", "##SGoal", &spawn_goal, nfsc::goals, IM_ARRAYSIZE(nfsc::goals));
+			ImGui::Checkbox("Ignore (use default) goal", &ignore);
+
+			// Spawn vehicle
+			if (ImGui::Button("Spawn vehicle") && state == nfsc::gameflow_state::racing)
+			{
+				nfsc::Vector3 r = { 1, 0, 0 };
+				nfsc::Vector3 p;
+				p.x = location[0];
+				p.y = location[1];
+				p.z = location[2];
+
+				void* simable = nfsc::BulbToys_CreateSimable(ReadMemory<void*>(0xA98284), (nfsc::driver_class)(spawn_type + 1),
+					nfsc::Attrib_StringToKey(vehicle),&r, &p, 0, nullptr, nullptr);
+
+				if (!ignore && simable)
+				{
+					// dont tihnk this does shit
+					nfsc::Game_SetAIGoal(simable, nfsc::goals[spawn_goal]);
+				}
 			}
 		}
 
