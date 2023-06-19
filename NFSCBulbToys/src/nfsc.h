@@ -4,6 +4,22 @@
 
 namespace nfsc
 {
+	/* ===== NAMESPACES ===== */
+
+	namespace events
+	{
+		/*struct EventDef
+		{
+			uint32_t id;
+			const char* name;
+			uint32_t properties;
+			EventSys::Event* (__cdecl* Construct)(EventSys::StaticData*, EventSys::DynamicData*);
+			unsigned int StaticFieldsCount;
+			EventSys::FieldDef* StaticFields;
+			unsigned int StaticDataSize;
+		};*/
+	}
+
 	/* ===== GAME ENUMS ===== */
 
 	inline const char* goals[] = { "AIGoalEncounterPursuit", "AIGoalNone", "AIGoalRacer", "AIGoalTraffic", "AIGoalPatrol"};

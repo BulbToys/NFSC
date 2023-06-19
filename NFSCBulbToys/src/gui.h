@@ -20,19 +20,48 @@ namespace gui
 	void SetupMenu(LPDIRECT3DDEVICE9 device);
 	void Destroy();
 	void Render();
-	void CreateMemoryWindow(int addr);
+	void CreateMemoryWindow(uintptr_t addr);
 
 	struct MemoryWindow
 	{
-		MemoryEditor* mem_edit;
-		const char* title;
-		void* addr;
-		size_t size;
-		bool open;
+	private:
+		static uint32_t id;
+		bool malloc;
 
-		MemoryWindow(const char* title, void* addr, size_t size) : mem_edit(new MemoryEditor()), title(title), addr(addr), size(size), open(true) {}
+	public:
+		MemoryEditor* mem_edit;
+		bool open;
+		char* title;
+		char* addr;
+		size_t size;
+
+		MemoryWindow(uintptr_t address, size_t size) : mem_edit(new MemoryEditor()), open(true), malloc(address == -1),
+			addr(malloc? new char[size] {0} : reinterpret_cast<char*>(address)), size(size)
+		{
+			title = new char[48];
+			if (malloc)
+			{
+				sprintf_s(title, 48, "Playground 0x%p##ME%u", addr, id++);
+			}
+			else
+			{
+				sprintf_s(title, 48, "Memory Editor 0x%p##ME%u", addr, id++);
+			}
+		}
+
+		~MemoryWindow()
+		{
+			delete mem_edit;
+			delete title;
+
+			if (malloc)
+			{
+				delete[] addr;
+			}
+		}
 	};
-	inline std::vector<MemoryWindow> mem_windows;
+	inline uint32_t MemoryWindow::id = 0;
+	inline std::vector<MemoryWindow*> mem_windows;
 }
 
 namespace ImGui

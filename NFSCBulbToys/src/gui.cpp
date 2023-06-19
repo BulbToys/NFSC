@@ -188,18 +188,19 @@ void gui::Render()
 	auto iter = mem_windows.begin();
 	while (iter != mem_windows.end())
 	{
-		if (ImGui::Begin(iter->title, &iter->open, ImGuiWindowFlags_NoSavedSettings))
+		MemoryWindow* mw = *iter;
+
+		if (ImGui::Begin(mw->title, &mw->open, ImGuiWindowFlags_NoSavedSettings))
 		{
-			iter->mem_edit->DrawContents(iter->addr, iter->size);
+			mw->mem_edit->DrawContents(mw->addr, mw->size);
 			ImGui::End();
 		}
 
 		// If we've closed the window with X, deallocate
-		if (!iter->open)
+		if (!mw->open)
 		{
-			delete iter->title;
-			delete iter->mem_edit;
-			iter = mem_windows.erase(iter);
+			mem_windows.erase(iter);
+			delete mw;
 		}
 		else
 		{
@@ -267,6 +268,12 @@ void gui::Render()
 				{
 					CreateMemoryWindow(addr * 0x10000);
 				}
+			}
+
+			// New Playground
+			if (ImGui::Button("New Playground"))
+			{
+				CreateMemoryWindow(-1);
 			}
 		}
 
@@ -530,9 +537,6 @@ void gui::Render()
 		/* ===== AI/WORLD ===== */
 		if (ImGui::MyMenu("AI/World", &menu[id++]))
 		{
-			// Vehicles (count)
-			ImGui::Text("Vehicles: %u/%u", ReadMemory<uint32_t>(0xA83AE8 + 0xC), ReadMemory<uint32_t>(0xA83AE8 + 0x8));
-
 			// Traffic crash speed
 			ImGui::MySliderFloat("Traffic crash speed:", "##TCSpeed", reinterpret_cast<float*>(0x9C1790), 1.0, 1000.0);
 
@@ -745,6 +749,60 @@ void gui::Render()
 			}
 		}
 
+		char vehicles[32];
+		sprintf_s(vehicles, 32, "Vehicles: %u/%u", ReadMemory<uint32_t>(0xA83AE8 + 0xC), ReadMemory<uint32_t>(0xA83AE8 + 0x8));
+
+		/* ===== VEHICLES ===== */
+		if (ImGui::MyMenu(vehicles, &menu[id++]))
+		{
+			uintptr_t iter = ReadMemory<uintptr_t>(nfsc::IVehicleList_begin);
+			int size = ReadMemory<int>(nfsc::IVehicleList_begin + 8);
+
+			if (size == 0)
+			{
+				ImGui::Text("No vehicles.");
+			}
+
+			for (int i = 0; i < size; i++, iter += 4)
+			{
+				if (i != 0)
+				{
+					ImGui::Separator();
+				}
+
+				auto vehicle = ReadMemory<void*>(iter);
+				if (!vehicle)
+				{
+					break;
+				}
+
+				ImGui::AddyLabel(vehicle, "%d. Vehicle", i + 1);
+
+				auto simable = nfsc::PVehicle_GetSimable(vehicle);
+				ImGui::AddyLabel(simable, "- Simable");
+
+				if (!simable)
+				{
+					break;
+				}
+
+				auto entity = reinterpret_cast<void* (__thiscall*)(void*)>(0x6D6C20)(simable);
+				ImGui::AddyLabel(entity, " - Entity");
+
+				auto player = reinterpret_cast<void* (__thiscall*)(void*)>(0x6D6C30)(simable);
+				ImGui::AddyLabel(player, " - Player");
+
+				auto owner = reinterpret_cast<void* (__thiscall*)(void*)>(0x6D6CC0)(simable);
+				ImGui::AddyLabel(owner, " - Owner");
+			}
+		}
+
+		/* ===== EVENTS ===== */
+		/*if (ImGui::MyMenu("Events", &menu[id++]))
+		{
+
+		}*/
+
 		// NOTE: SkipMovies is NOT hotswappable, guaranteed crash upon game exit in CleanupTextures!
 
 		ImGui::PopItemWidth();
@@ -756,18 +814,16 @@ void gui::Render()
 	ImGui_ImplDX9_RenderDrawData(ImGui::GetDrawData());
 }
 
-void gui::CreateMemoryWindow(int addr)
+// Pass 0xFFFFFFFF (-1) as the address to make a Playground (memory allocated memory editor) instead
+void gui::CreateMemoryWindow(uintptr_t address)
 {
 	// Add a unique ID "##ME<id>" to each memory editor to allow duplicate windows
 	static uint32_t id = 0;
 
 	// Weak safety precaution in case of mistypes. Any non-readable memory will cause a crash, as well as writing to non-writable memory
-	if (addr >= 0x400000)
+	if (address >= 0x400000)
 	{
-		char* window_name = new char[38];
-		sprintf_s(window_name, 38, "Memory Editor 0x%08X##ME%u", addr, id++);
-
-		mem_windows.push_back(MemoryWindow(window_name, reinterpret_cast<void*>(addr), 0x10000));
+		mem_windows.push_back(new MemoryWindow(address, 0x10000));
 	}
 }
 
