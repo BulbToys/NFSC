@@ -22,6 +22,12 @@ inline bool exitMainLoop = false;
 
 #define ASSERT(cond) if (!cond) *((int*)0) = 0
 
+template <size_t size>
+struct VTable
+{
+	uintptr_t f[size] = {0};
+};
+
 struct Patch
 {
 	char* bytes = nullptr;
@@ -126,6 +132,14 @@ inline void PurecallHandler()
 
 namespace g
 {
+	namespace ai_player
+	{
+		inline VTable<3>* iserviceable_vtbl;
+		inline VTable<10>* ientity_vtbl;
+		inline VTable<7>* iattachable_vtbl;
+		inline VTable<27>* iplayer_vtbl;
+	}
+
 	namespace move_vinyl
 	{
 		inline int step_size = 1;

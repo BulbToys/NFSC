@@ -7,6 +7,7 @@ void patches::Do()
 	FastBootFlow();
 	DebugCarCustomizeHelp();
 	MemcardManagement();
+	AIPlayer();
 
 	// PurecallHandler
 	PatchMemory<void*>(0x9C1218, &PurecallHandler);
@@ -44,6 +45,12 @@ void patches::Undo()
 	Unpatch(0x5BD9D3);
 	Unpatch(0x5BD6E6);
 	Unpatch(0x83D503);
+
+	// AIPlayer
+	delete g::ai_player::iserviceable_vtbl;
+	delete g::ai_player::ientity_vtbl;
+	delete g::ai_player::iattachable_vtbl;
+	delete g::ai_player::iplayer_vtbl;
 
 	// PurecallHandler
 	Unpatch(0x9C1218);
@@ -161,4 +168,38 @@ void patches::MemcardManagement()
 
 	// 68 98 00 (00 00) -> E9 34 01 (00 00)
 	PatchMemory<patches::always_show_snc>(0x83D503, patches::always_show_snc());
+}
+
+void patches::AIPlayer()
+{
+	/* ===== ISERVICEABLE ===== */
+
+	// OnlineLocalAI::`vftable'{for `Sim::IServiceable'}
+	g::ai_player::iserviceable_vtbl = new VTable<3>(ReadMemory<VTable<3>>(0x9EC9D8));
+
+	g::ai_player::iserviceable_vtbl->f[1] = reinterpret_cast<uintptr_t>(nfsc::AIPlayer::VecDelDtor);
+
+	/* ===== IENTITY ===== */
+
+	// OnlineLocalAI::`vftable'{for `Sim::IEntity'}
+	g::ai_player::ientity_vtbl = new VTable<10>(ReadMemory<VTable<10>>(0x9EC9AC));
+
+	g::ai_player::ientity_vtbl->f[0] = reinterpret_cast<uintptr_t>(nfsc::AIPlayer::VecDelDtorAdj<36>);
+
+	/* ===== IATTACHABLE =====*/
+	
+	// OnlineLocalAI::`vftable'{for `IAttachable'}
+	g::ai_player::iattachable_vtbl = new VTable<7>(ReadMemory<VTable<7>>(0x9EC990));
+
+	g::ai_player::iattachable_vtbl->f[0] = reinterpret_cast<uintptr_t>(nfsc::AIPlayer::VecDelDtorAdj<48>);
+
+	/* ===== IPLAYER ===== */
+
+	// OnlineRemotePlayer::`vftable'{for `IPlayer'}
+	g::ai_player::iplayer_vtbl = new VTable<27>(ReadMemory<VTable<27>>(0x9ECB20));
+
+	g::ai_player::iplayer_vtbl->f[0] = reinterpret_cast<uintptr_t>(nfsc::AIPlayer::VecDelDtorAdj<68>);
+	g::ai_player::iplayer_vtbl->f[1] = reinterpret_cast<uintptr_t>(nfsc::AIPlayer::GetSimable_IPlayer);
+	g::ai_player::iplayer_vtbl->f[3] = reinterpret_cast<uintptr_t>(nfsc::AIPlayer::GetPosition_IPlayer);
+	g::ai_player::iplayer_vtbl->f[4] = reinterpret_cast<uintptr_t>(nfsc::AIPlayer::SetPosition_IPlayer);
 }

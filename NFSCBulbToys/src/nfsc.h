@@ -2,6 +2,8 @@
 
 #define FUNC(address, return_t, callconv, name, ...) inline return_t (callconv* name)(__VA_ARGS__) = reinterpret_cast<decltype(name)>(address)
 
+#define LS(address, name, type) inline ListableSet<type>* name = reinterpret_cast<decltype(name)>(address)
+
 namespace nfsc
 {
 	/* ===== NAMESPACES ===== */
@@ -54,6 +56,29 @@ namespace nfsc
 		racing      = 6
 	};
 
+	enum class race_type : int
+	{
+		none              = -1,
+		sprint            = 0x0,
+		circuit           = 0x1,
+		drag              = 0x2,
+		ko                = 0x3,
+		tollbooth         = 0x4,
+		speedtrap         = 0x5,
+		checkpoint        = 0x6,
+		cash_grab         = 0x7,
+		challenge_series  = 0x8,
+		jump_to_speedtrap = 0x9,
+		jump_to_milestone = 0xA,
+		drift             = 0xB,
+		canyon_drift      = 0xC,
+		canyon            = 0xD,
+		pursuit_tag       = 0xE,
+		pursuit_ko        = 0xF,
+		encounter         = 0x10,
+		max               = 0x11,
+	};
+
 	enum class rbelem_t : int
 	{
 		none       = 0,
@@ -75,6 +100,15 @@ namespace nfsc
 	};
 
 	/* ===== GAME OBJECTS ===== */
+
+	template <typename T>
+	struct ListableSet
+	{
+		uintptr_t vtbl;
+		T* begin;
+		uint32_t capacity;
+		uint32_t size;
+	};
 
 	struct RoadblockElement
 	{
@@ -112,11 +146,25 @@ namespace nfsc
 
 	/* ===== GAME CONSTANTS ===== */
 
+	// Globals
+	constexpr uintptr_t GRaceStatus = 0xA98284;
+	constexpr uintptr_t ThePursuitSimables = 0xA98140;
+
+	// FastMem is an OBJECT
+	constexpr uintptr_t FastMem = 0xA99720;
+
+	// Interfaces
 	constexpr uintptr_t IVehicle = 0x403D30;
 
-	constexpr uintptr_t IVehicleList_begin = 0xA9F158 + 0x04;
+	// ListableSets
+	LS(0xA9F158, IVehicleList, void*);
 
-	constexpr uintptr_t ThePursuitSimables = 0xA98140;
+	LS(0xA9FE98, EntityList, void*);
+
+	LS(0xA9FF28, IPlayerList, void*);
+
+	// Misc
+	inline Vector3* ZeroV3 = reinterpret_cast<Vector3*>(0x9D780C);
 
 	/* ===== GAME FUNCTIONS ===== */
 
@@ -136,6 +184,7 @@ namespace nfsc
 	FUNC(0x65C2C0, void, , Game_ForceAIControl, int unk);
 	FUNC(0x651750, void, , Game_SetAIGoal, void* simable, const char* goal);
 	FUNC(0x6513E0, void, , Game_SetCopsEnabled, bool enable);
+	FUNC(0x6517A0, void, , Game_SetPursuitTarget, void* chaser_simable, void* target_simable);
 	FUNC(0x667FF0, void, , Game_UnlockNikki);
 
 	FUNC(0x627840, void, __thiscall, GIcon_Spawn, void* icon);
@@ -145,6 +194,10 @@ namespace nfsc
 	FUNC(0x626F90, void*, __thiscall, GManager_AllocIcon, void* g_manager, char type, Vector3* position, float rotation, bool is_disposable);
 
 	FUNC(0x433AB0, bool, , GPS_Engage, Vector3* target, float max_deviation, bool always_re_establish);
+
+	FUNC(0x422730, void*, __thiscall, GRacerInfo_GetSimable, void* g_racer_info);
+
+	FUNC(0x6121E0, void*, __thiscall, GRaceStatus_GetRacerInfo, void* g_race_status, int index);
 
 	FUNC(0x7BF9B0, void, , KillSkidsOnRaceRestart);
 
@@ -180,7 +233,6 @@ namespace nfsc
 	inline void* BulbToys_CreateSimable(void* vehicle_cache, driver_class dc, uint32_t key, Vector3* rotation, Vector3* position, uint32_t vpf,
 		void* customization_record, void* performance_matching)
 	{
-		
 		struct VehicleParams { uint8_t _[0x3C]; } params;
 
 		/*
@@ -206,4 +258,165 @@ namespace nfsc
 
 		return simable;
 	}
+
+	// fuck templates
+	uint32_t BulbToys_AddToListableSet_GetGrowSizeVirtually(uintptr_t vtable, void* ls, uint32_t amount);
+
+	template <typename T>
+	void BulbToys_AddToListableSet(nfsc::ListableSet<T>* ls, T elem, uintptr_t pfnPushback)
+	{
+		if (ls->capacity >= ls->size)
+		{
+			uint32_t offset = BulbToys_AddToListableSet_GetGrowSizeVirtually(ls->vtbl, ls, ls->size + 1);
+
+			reinterpret_cast<void(__thiscall*)(void*, uint32_t)>(pfnPushback)(ls, offset);
+		}
+
+		T* end = ls->begin + ls->size;
+		if (end)
+		{
+			*end = elem;
+		}
+
+		++ls->size;
+	}
+
+	race_type BulbToys_GetRaceType();
+
+	/* ===== AI PLAYER ===== */
+	struct AIPlayer
+	{
+		/* ===== DATA ===== */
+		struct
+		{
+			struct
+			{
+				struct
+				{
+					uintptr_t vtbl;
+				}
+				Sim_IServiceable;
+
+				struct
+				{
+					uintptr_t vtbl;
+				}
+				Sim_ITaskable;
+
+				struct
+				{
+					struct
+					{
+						uintptr_t mpBegin;
+						uintptr_t mpEnd;
+						uintptr_t mpCapacity;
+						char allocator[4];
+					}
+					IList;
+				}
+				UCOM_Object;
+
+				uint32_t count;
+				uint32_t task_count;
+				uint32_t service_count;
+			}
+			Sim_Object;
+
+			struct
+			{
+				struct
+				{
+					uintptr_t vtbl;
+					uintptr_t com_object;
+				}
+				UCOM_IUnknown;
+
+				char _[4];
+			}
+			Sim_IEntity;
+
+			struct
+			{
+				uintptr_t vtbl;
+				uintptr_t com_object;
+			}
+			IAttachable;
+
+			struct
+			{
+				bool dirty;
+			}
+			UTL_GarbageNode;
+
+			uintptr_t simable;
+			uintptr_t attachments;
+		}
+		Sim_Entity;
+
+		struct
+		{
+			uintptr_t vtbl;
+			uintptr_t com_object;
+		}
+		IPlayer;
+
+		int setting_index;
+
+		/* ===== FUNCTIONS ===== */
+
+		static AIPlayer* CreateInstance();
+
+		static void __fastcall Destructor(AIPlayer* ai_player)
+		{
+			// IPlayer::~IPlayer(&this->IPlayer)
+			reinterpret_cast<void(__thiscall*)(void*)>(0x76BCD0)(&ai_player->IPlayer);
+
+			// Sim::Entity::~Entity(this)
+			reinterpret_cast<void(__thiscall*)(void*)>(0x76C790)(ai_player);
+		}
+
+		static AIPlayer* __fastcall VecDelDtor(AIPlayer* ai_player, int edx, uint8_t flags);
+
+		template <ptrdiff_t offset>
+		static AIPlayer* __fastcall VecDelDtorAdj(AIPlayer* ai_player, int edx, uint8_t flags)
+		{
+			return VecDelDtor(reinterpret_cast<AIPlayer*>(reinterpret_cast<uintptr_t>(ai_player) - offset), edx, flags);
+		}
+
+		static void* __fastcall GetSimable_IPlayer(AIPlayer* ai_player);
+
+		static Vector3* __fastcall GetPosition_IPlayer(AIPlayer* ai_player)
+		{
+			void* simable = GetSimable_IPlayer(ai_player);
+			if (!simable)
+			{
+				return ZeroV3;
+			}
+
+			void* rigid_body = PhysicsObject_GetRigidBody(simable);
+			if (!rigid_body)
+			{
+				return ZeroV3;
+			}
+
+			return RigidBody_GetPosition(rigid_body);
+		}
+		static bool __fastcall SetPosition_IPlayer(AIPlayer* ai_player, int edx, Vector3* pos)
+		{
+			void* simable = GetSimable_IPlayer(ai_player);
+			if (!simable)
+			{
+				return false;
+			}
+
+			void* rigid_body = PhysicsObject_GetRigidBody(simable);
+			if (!rigid_body)
+			{
+				return false;
+			}
+
+			RigidBody_SetPosition(rigid_body, pos);
+			return true;
+		}
+	};
 }

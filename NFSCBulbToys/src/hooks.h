@@ -37,6 +37,9 @@ namespace hooks
 	void __fastcall ResetDriveToNavHook(void* ai_vehicle, void* edx, int lane_selection);
 	static inline decltype (&ResetDriveToNavHook) ResetDriveToNav;
 
+	void* __fastcall RacerInfoCreateVehicleHook(void* g_racer_info, void* edx, uint32_t key, int racer_index, uint32_t seed);
+	static inline decltype (&RacerInfoCreateVehicleHook) RacerInfoCreateVehicle;
+
 	//void CreateRoadBlockHook();
 	void UpdateCopElementsHook1();
 	void UpdateCopElementsHook2();

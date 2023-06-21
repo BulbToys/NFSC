@@ -224,7 +224,7 @@ void gui::Render()
 		}
 		else
 		{
-			p_vehicle = ReadMemory<void*>(ReadMemory<uintptr_t>(nfsc::IVehicleList_begin));
+			p_vehicle = *nfsc::IVehicleList->begin;
 		}
 
 		// GetWindowWidth() - GetStyle().WindowPadding
@@ -614,7 +614,7 @@ void gui::Render()
 				nfsc::Vector3 p = { 0, 0, 0 };
 				nfsc::Vector3 r = { 1, 0, 0 };
 
-				auto ivehicle_list_first = ReadMemory<uintptr_t>(nfsc::IVehicleList_begin);
+				auto ivehicle_list_first = *nfsc::IVehicleList->begin;
 				uint32_t pursuit_vehicle_key = nfsc::GKnockoutRacer_GetPursuitVehicleKey(0);
 				eight_cars ec;
 
@@ -655,6 +655,29 @@ void gui::Render()
 			{
 				gui::menu_open = false;
 				reinterpret_cast<void(*)(int)>(0x65D9F0)(racer_index[0]);
+
+				void* g_race_status = ReadMemory<void*>(nfsc::GRaceStatus);
+				if (g_race_status)
+				{
+					void* racer_info = nfsc::GRaceStatus_GetRacerInfo(g_race_status, racer_index[0]);
+
+					if (racer_info)
+					{
+						void* simable = nfsc::GRacerInfo_GetSimable(racer_info);
+
+						reinterpret_cast<void(*)(void*)>(0x65B4E0)(simable);
+
+						if (simable && p_vehicle)
+						{
+							void* player_simable = nfsc::PVehicle_GetSimable(p_vehicle);
+							if (player_simable && player_simable != simable)
+							{
+								nfsc::Game_SetAIGoal(simable, "AIGoalHassle");
+								nfsc::Game_SetPursuitTarget(simable, player_simable);
+							}
+						}
+					}
+				}
 			}
 
 			// Racer index 2
@@ -723,6 +746,14 @@ void gui::Render()
 			static int spawn_type = 0;
 			ImGui::MyListBox("Spawn type:", "##SType", &spawn_type, nfsc::driver_classes, IM_ARRAYSIZE(nfsc::driver_classes));
 
+			if (ImGui::Button("Set my own"))
+			{
+				if (p_vehicle)
+				{
+					reinterpret_cast<void(__thiscall*)(void*, int)>(0x6DA500)(p_vehicle, spawn_type + 1);
+				}
+			}
+
 			// Spawn goal & Ignore/use default
 			static int spawn_goal = 0;
 			static bool ignore = true;
@@ -755,8 +786,8 @@ void gui::Render()
 		/* ===== VEHICLES ===== */
 		if (ImGui::MyMenu(vehicles, &menu[id++]))
 		{
-			uintptr_t iter = ReadMemory<uintptr_t>(nfsc::IVehicleList_begin);
-			int size = ReadMemory<int>(nfsc::IVehicleList_begin + 8);
+			uintptr_t iter = reinterpret_cast<uintptr_t>(nfsc::IVehicleList->begin);
+			int size = nfsc::IVehicleList->size;
 
 			if (size == 0)
 			{
@@ -789,11 +820,8 @@ void gui::Render()
 				auto entity = reinterpret_cast<void* (__thiscall*)(void*)>(0x6D6C20)(simable);
 				ImGui::AddyLabel(entity, " - Entity");
 
-				auto player = reinterpret_cast<void* (__thiscall*)(void*)>(0x6D6C30)(simable);
+				auto player = reinterpret_cast<void* (__thiscall*)(void*)>(0x6D6C40)(simable);
 				ImGui::AddyLabel(player, " - Player");
-
-				auto owner = reinterpret_cast<void* (__thiscall*)(void*)>(0x6D6CC0)(simable);
-				ImGui::AddyLabel(owner, " - Owner");
 			}
 		}
 

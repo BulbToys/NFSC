@@ -5,10 +5,11 @@ namespace patches
 	void Do();
 	void Undo();
 
-	inline void AlwaysShowCursor();
-	inline void FastBootFlow();
-	inline void DebugCarCustomizeHelp();
-	inline void MemcardManagement();
+	void AlwaysShowCursor();
+	void FastBootFlow();
+	void DebugCarCustomizeHelp();
+	void MemcardManagement();
+	void AIPlayer();
 
 	struct no_busted {
 		/*

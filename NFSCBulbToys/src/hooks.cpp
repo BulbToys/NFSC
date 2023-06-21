@@ -84,6 +84,9 @@ bool hooks::SetupPart2(IDirect3DDevice9* device)
 	// Calculate world positions from map positions
 	CreateHook(0x5B3850, &WorldMapPadAcceptHook, &WorldMapPadAccept);
 
+	// Create player instances for AI
+	CreateHook(0x6298C0, &RacerInfoCreateVehicleHook, &RacerInfoCreateVehicle);
+
 	// Increment cop counter by 1 per roadblock vehicle
 	// TODO: if re-enabling this, make sure roadblock cops that get attached don't increment again
 	//WriteJmp(0x445A9D, CreateRoadBlockHook, 6);
@@ -181,7 +184,7 @@ bool __fastcall hooks::GpsEngageHook(void* gps, void* edx, nfsc::Vector3* target
 		return result;
 	}
 
-	auto p_vehicle = ReadMemory<void*>(ReadMemory<uintptr_t>(nfsc::IVehicleList_begin));
+	auto p_vehicle = *nfsc::IVehicleList->begin;
 	if (!p_vehicle)
 	{
 		return result;
@@ -210,7 +213,7 @@ void __fastcall hooks::ResetDriveToNavHook(void* ai_vehicle, void* edx, int lane
 		return;
 	}
 
-	auto p_vehicle = ReadMemory<void*>(ReadMemory<uintptr_t>(nfsc::IVehicleList_begin));
+	auto p_vehicle = *nfsc::IVehicleList->begin;
 	if (!p_vehicle)
 	{
 		return;
@@ -229,6 +232,28 @@ void __fastcall hooks::ResetDriveToNavHook(void* ai_vehicle, void* edx, int lane
 	}
 
 	g::smart_ai::PathToTarget(ai_vehicle);
+}
+
+void* __fastcall hooks::RacerInfoCreateVehicleHook(void* g_racer_info, void* edx, uint32_t key, int racer_index, uint32_t seed)
+{
+	auto i_vehicle = RacerInfoCreateVehicle(g_racer_info, edx, key, racer_index, seed);
+
+	if (i_vehicle)
+	{
+		void* simable = nfsc::PVehicle_GetSimable(i_vehicle);
+
+		if (simable)
+		{
+			nfsc::AIPlayer* ai_player = nfsc::AIPlayer::CreateInstance();
+
+			// (PhysicsObject) ISimable::Attach(ISimable*, IPlayer*)
+			bool success = reinterpret_cast<bool(__thiscall*)(void*, void*)>(0x6C6740)(simable, &ai_player->IPlayer);
+
+			Error("Race type %d. Racer index %d: ISimable::Attach(%p, %p) = %s", nfsc::BulbToys_GetRaceType(), racer_index, simable, &ai_player->IPlayer, success ? "true" : "false");
+		}
+	}
+
+	return i_vehicle;
 }
 
 void __fastcall hooks::WorldMapPadAcceptHook(void* fe_state_manager)

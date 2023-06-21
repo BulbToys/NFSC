@@ -41,6 +41,7 @@
     <ClCompile Include="src\gui.cpp" />
     <ClCompile Include="src\hooks.cpp" />
     <ClCompile Include="src\patches.cpp" />
+    <ClCompile Include="src\nfsc.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="cpp.hint" />
