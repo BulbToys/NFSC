@@ -37,8 +37,26 @@ namespace hooks
 	void __fastcall ResetDriveToNavHook(void* ai_vehicle, void* edx, int lane_selection);
 	static inline decltype (&ResetDriveToNavHook) ResetDriveToNav;
 
-	void* __fastcall RacerInfoCreateVehicleHook(void* g_racer_info, void* edx, uint32_t key, int racer_index, uint32_t seed);
+	void* __fastcall RacerInfoCreateVehicleHook(uintptr_t racer_info, void* edx, uint32_t key, int racer_index, uint32_t seed);
 	static inline decltype (&RacerInfoCreateVehicleHook) RacerInfoCreateVehicle;
+
+	const char* __cdecl GetPursuitVehicleNameHook(bool is_player);
+	static inline decltype (&GetPursuitVehicleNameHook) GetPursuitVehicleName;
+
+	void __fastcall RaceStatusUpdateHook(void* race_status, void* edx, float dt);
+	static inline decltype (&RaceStatusUpdateHook) RaceStatusUpdate;
+
+	void* __cdecl PursuitSwitchHook(int racer_index, bool is_busted, int* result);
+	static inline decltype (&PursuitSwitchHook) PursuitSwitch;
+
+	float __fastcall GetTimeLimitHook(void* race_parameters);
+	static inline decltype (&GetTimeLimitHook) GetTimeLimit;
+
+	void __cdecl ShowLosingScreenHook();
+	static inline decltype (&ShowLosingScreenHook) ShowLosingScreen;
+
+	void __cdecl ShowWinningScreenHook();
+	static inline decltype (&ShowWinningScreenHook) ShowWinningScreen;
 
 	//void CreateRoadBlockHook();
 	void UpdateCopElementsHook1();
@@ -47,4 +65,6 @@ namespace hooks
 	void MoveVinylVerticalHook();
 	void MoveVinylHorizontalHook();
 	void VehicleChangeCacheHook();
+	void UpdateAIPlayerListingHook();
+	void PTagBustedHook();
 }

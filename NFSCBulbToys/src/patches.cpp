@@ -15,6 +15,15 @@ void patches::Do()
 	// EnableSoloPursuitQR
 	PatchNop(0x4B9545, 6);
 	PatchNop(0x4B9557, 6);
+
+	// SixtyMinutePTag
+	PatchMemory<uint8_t>(0x4AC819, 60);
+	PatchMemory<uint8_t>(0x4AC82D, 60);
+
+	// sex
+	//PatchNop(0x42FCB4, 6);
+	//PatchNop(0x42FCF0, 6);
+	//PatchNop(0x42FCDE, 6);
 }
 
 void patches::Undo()
@@ -58,6 +67,10 @@ void patches::Undo()
 	// EnableSoloPursuitQR
 	Unpatch(0x4B9545);
 	Unpatch(0x4B9557);
+
+	// SixtyMinutePTag
+	Unpatch(0x4AC819);
+	Unpatch(0x4AC82D);
 }
 
 // NOTE: Doesn't actually always show the cursor, as it depends on whether the ImGui menu is open or not, which is handled in the WindowProcess callback
@@ -115,6 +128,8 @@ void patches::FastBootFlow()
 	// Patch out everything but STATE_SPLASH and STATE_AUTOLOAD in FEBFSM::ShowEverythingElse() (STATE_EA_LOGO, STATE_PSA and STATE_ATTRACT)
 	PatchNop(0x716583, 34);
 	PatchNop(0x7165B1, 12);
+
+	PatchNop(0x44A588, 6);
 }
 
 void patches::DebugCarCustomizeHelp()

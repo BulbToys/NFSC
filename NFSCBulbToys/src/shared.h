@@ -163,23 +163,12 @@ namespace g
 	{
 		inline bool hooked = false;
 		inline nfsc::Vector3 target = { 0, 0, 0 };
-
-		// TODO Needs more testing:
-		// - Path might not match GPS
-		inline void PathToTarget(void* ai_vehicle)
-		{
-			auto road_nav = ReadMemory<void*>(reinterpret_cast<uintptr_t>(ai_vehicle) + 0x38);
-			if (!road_nav)
-			{
-				return;
-			}
-
-			nfsc::WRoadNav_FindPath(road_nav, &target, nullptr, 1);
-		}
 	}
 
 	inline float location[3] = { 0, 0, 0 };
 	constexpr float extra_height = 1;
+
+	inline int ptag_tl = 0;
 
 	inline bool IsGPSDown()
 	{

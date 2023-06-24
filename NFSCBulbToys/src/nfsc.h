@@ -24,6 +24,8 @@ namespace nfsc
 
 	/* ===== GAME ENUMS ===== */
 
+	inline const char* player_cop_cars[] = { "player_cop", "player_cop_suv", "player_cop_gto" };
+
 	inline const char* goals[] = { "AIGoalEncounterPursuit", "AIGoalNone", "AIGoalRacer", "AIGoalTraffic", "AIGoalPatrol"};
 	enum class ai_goal : int
 	{
@@ -157,16 +159,21 @@ namespace nfsc
 	constexpr uintptr_t IVehicle = 0x403D30;
 
 	// ListableSets
-	LS(0xA9F158, IVehicleList, void*);
-
+	LS(0xA83E90, AIPursuitList, void*);
+	LS(0xA83AE8, AITargetsList, void*);
 	LS(0xA9FE98, EntityList, void*);
-
 	LS(0xA9FF28, IPlayerList, void*);
+	LS(0xA9F158, IVehicleList, void*);
 
 	// Misc
 	inline Vector3* ZeroV3 = reinterpret_cast<Vector3*>(0x9D780C);
+	inline bool* SkipNIS = reinterpret_cast<bool*>(0xA9E64E);
 
 	/* ===== GAME FUNCTIONS ===== */
+
+	FUNC(0x436820, void, __thiscall, AIGoal_AddAction, void* ai_goal, char const* name);
+	FUNC(0x42A2D0, void, __thiscall, AIGoal_ChooseAction, void* ai_goal, float dt);
+	FUNC(0x42A240, void, __thiscall, AIGoal_ClearAllActions, void* ai_goal);
 
 	FUNC(0x4639D0, uint32_t, , Attrib_StringToKey, const char* string);
 
@@ -182,9 +189,11 @@ namespace nfsc
 
 	FUNC(0x65C330, void, , Game_ClearAIControl, int unk);
 	FUNC(0x65C2C0, void, , Game_ForceAIControl, int unk);
+	FUNC(0x65D620, void*, , Game_PursuitSwitch, int racer_index, bool is_busted, int* result);
 	FUNC(0x651750, void, , Game_SetAIGoal, void* simable, const char* goal);
 	FUNC(0x6513E0, void, , Game_SetCopsEnabled, bool enable);
 	FUNC(0x6517A0, void, , Game_SetPursuitTarget, void* chaser_simable, void* target_simable);
+	FUNC(0x65DD60, void, , Game_TagPursuit, int index1, int index2, bool busted);
 	FUNC(0x667FF0, void, , Game_UnlockNikki);
 
 	FUNC(0x627840, void, __thiscall, GIcon_Spawn, void* icon);
@@ -197,6 +206,8 @@ namespace nfsc
 
 	FUNC(0x422730, void*, __thiscall, GRacerInfo_GetSimable, void* g_racer_info);
 
+	FUNC(0x624E80, void*, __thiscall, GRaceStatus_GetRacePursuitTarget, void* g_race_status, int* index);
+	FUNC(0x612230, int, __thiscall, GRaceStatus_GetRacerCount, void* g_race_status);
 	FUNC(0x6121E0, void*, __thiscall, GRaceStatus_GetRacerInfo, void* g_race_status, int index);
 
 	FUNC(0x7BF9B0, void, , KillSkidsOnRaceRestart);
@@ -205,9 +216,12 @@ namespace nfsc
 
 	FUNC(0x6D6CD0, void*, __thiscall, PhysicsObject_GetRigidBody, void* physics_object);
 
+	FUNC(0x6C0BE0, void, __thiscall, PVehicle_Activate, void* pvehicle);
+	FUNC(0x6C0C00, void, __thiscall, PVehicle_Deactivate, void* pvehicle);
 	FUNC(0x6D8110, void*, __thiscall, PVehicle_GetAIVehiclePtr, void* pvehicle);
 	FUNC(0x6D7EC0, void*, __thiscall, PVehicle_GetSimable, void* pvehicle);
 	FUNC(0x6D8070, float, __thiscall, PVehicle_GetSpeed, void* pvehicle);
+	FUNC(0x6DA500, void, __thiscall, PVehicle_SetDriverClass, void* pvehicle, driver_class dc);
 	
 	FUNC(0x6C6FF0, Vector3*, __thiscall, RigidBody_GetPosition, void* rigid_body);
 	FUNC(0x6E8210, void, __thiscall, RigidBody_SetPosition, void* rigid_body, Vector3* position);
@@ -224,10 +238,12 @@ namespace nfsc
 	/* ===== CUSTOM FUNCTIONS ===== */
 
 	template <uintptr_t handle>
-	inline void* BulbToys_FindInterface(uintptr_t ucom_object)
+	inline void* BulbToys_FindInterface(void* iface)
 	{
+		uintptr_t ucom_object = ReadMemory<uintptr_t>(reinterpret_cast<uintptr_t>(iface) + 4);
+
 		// IInterface* UTL::COM::Object::_IList::Find(UCOM::Object::_IList*, IInterface::IHandle);
-		return reinterpret_cast<void*(__thiscall*)(void*, void*)>(0x60CB50)(reinterpret_cast<void*>(ucom_object + 4), reinterpret_cast<void*>(handle));
+		return reinterpret_cast<void*(__thiscall*)(uintptr_t, uintptr_t)>(0x60CB50)(ucom_object, handle);
 	}
 
 	inline void* BulbToys_CreateSimable(void* vehicle_cache, driver_class dc, uint32_t key, Vector3* rotation, Vector3* position, uint32_t vpf,
@@ -282,6 +298,47 @@ namespace nfsc
 	}
 
 	race_type BulbToys_GetRaceType();
+
+	void* BulbToys_CreatePursuitSimable(nfsc::driver_class dc);
+
+	int BulbToys_GetPVehicleTier(void* pvehicle);
+
+	inline void BulbToys_SetRacerActions(void* ai_goal)
+	{
+		nfsc::AIGoal_ClearAllActions(ai_goal);
+
+		nfsc::AIGoal_AddAction(ai_goal, "AIActionRace");
+		nfsc::AIGoal_AddAction(ai_goal, "AIActionStunned");
+		nfsc::AIGoal_AddAction(ai_goal, "AIActionGetUnstuck");
+
+		nfsc::AIGoal_ChooseAction(ai_goal, 0.0);
+	}
+
+	inline void BulbToys_SetCopActions(void* ai_goal)
+	{
+		nfsc::AIGoal_ClearAllActions(ai_goal);
+
+		nfsc::AIGoal_AddAction(ai_goal, "AIActionPursuitOffRoad");
+		nfsc::AIGoal_AddAction(ai_goal, "AIActionStunned");
+		nfsc::AIGoal_AddAction(ai_goal, "AIActionGetUnstuck");
+
+		nfsc::AIGoal_ChooseAction(ai_goal, 0.0);
+	}
+
+	void* BulbToys_GetAIVehicleGoal(void* ai_vehicle_ivehicleai);
+
+	inline float BulbToys_GetDistanceBetween(void* simable1, void* simable2)
+	{
+		void* rb1 = nfsc::PhysicsObject_GetRigidBody(simable1);
+		void* rb2 = nfsc::PhysicsObject_GetRigidBody(simable2);
+
+		// UMath::Distance
+		return reinterpret_cast<float(*)(Vector3*, Vector3*)>(0x411FD0)(nfsc::RigidBody_GetPosition(rb1), nfsc::RigidBody_GetPosition(rb2));
+	}
+
+	void __fastcall BulbToys_SwitchPTagTarget(void* race_status, bool busted);
+
+	void BulbToys_PathToTarget(void* ai_vehicle, Vector3* target);
 
 	/* ===== AI PLAYER ===== */
 	struct AIPlayer

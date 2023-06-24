@@ -212,7 +212,7 @@ void gui::Render()
 	// TODO: tabs
 	if (ImGui::Begin(PROJECT_NAME, NULL, ImGuiWindowFlags_NoScrollbar))
 	{
-		static bool menu[5] { false };
+		static bool menu[5]{ false };
 		int id = 0;
 
 		// Grab necessary game info here
@@ -310,6 +310,18 @@ void gui::Render()
 				}
 
 				g::move_vinyl::step_size = step_size;
+			}
+
+			static int ptag_tl = 1;
+			ImGui::Text("Pursuit Tag time limit (min):");
+			if (ImGui::InputInt("##PTTL", &ptag_tl))
+			{
+				if (ptag_tl < 1)
+				{
+					ptag_tl = 1;
+				}
+
+				g::ptag_tl = ptag_tl;
 			}
 		}
 
@@ -490,7 +502,7 @@ void gui::Render()
 							{
 								if (!g::IsGPSDown())
 								{
-									g::smart_ai::PathToTarget(ai_vehicle);
+									nfsc::BulbToys_PathToTarget(ai_vehicle, &g::smart_ai::target);
 								}
 							}
 						}
@@ -590,7 +602,7 @@ void gui::Render()
 		if (ImGui::MyMenu("PKO/PTag Test", &menu[id++]))
 		{
 			struct eight_cars {
-				uintptr_t car[8] = {0};
+				uintptr_t car[8] = { 0 };
 			};
 			static int racer_index[2] = { 0, 0 };
 			static bool bust = false;
@@ -607,34 +619,6 @@ void gui::Render()
 
 			// ThePursuitSimables (count)
 			ImGui::AddyLabel(reinterpret_cast<void*>(nfsc::ThePursuitSimables), "ThePursuitSimables (%d/8)", count);
-
-			// Populate ThePursuitSimables
-			if (ImGui::Button("Populate ThePursuitSimables"))
-			{
-				nfsc::Vector3 p = { 0, 0, 0 };
-				nfsc::Vector3 r = { 1, 0, 0 };
-
-				auto ivehicle_list_first = *nfsc::IVehicleList->begin;
-				uint32_t pursuit_vehicle_key = nfsc::GKnockoutRacer_GetPursuitVehicleKey(0);
-				eight_cars ec;
-
-				for (int i = 0; i < 8; i++)
-				{
-					ec.car[i] = reinterpret_cast<uintptr_t>(nfsc::BulbToys_CreateSimable(ReadMemory<void*>(0xA98284),
-						nfsc::driver_class::none, pursuit_vehicle_key, &r, &p, 0, nullptr, nullptr));
-
-					// todo: deactivate simable?
-					// todo: reverse this for ptag
-				}
-
-				WriteMemory<eight_cars>(nfsc::ThePursuitSimables, ec);
-			}
-
-			// Clear ThePursuitSimables
-			if (ImGui::Button("Clear ThePursuitSimables"))
-			{
-				WriteMemory<eight_cars>(nfsc::ThePursuitSimables, eight_cars());
-			}
 
 			// Racer index 1
 			ImGui::Text("Index 1:");
@@ -654,6 +638,8 @@ void gui::Render()
 			if (ImGui::Button("KnockoutPursuit 1"))
 			{
 				gui::menu_open = false;
+
+				// game kopurs
 				reinterpret_cast<void(*)(int)>(0x65D9F0)(racer_index[0]);
 
 				void* g_race_status = ReadMemory<void*>(nfsc::GRaceStatus);
@@ -665,6 +651,7 @@ void gui::Render()
 					{
 						void* simable = nfsc::GRacerInfo_GetSimable(racer_info);
 
+						// game koracer
 						reinterpret_cast<void(*)(void*)>(0x65B4E0)(simable);
 
 						if (simable && p_vehicle)
@@ -696,8 +683,8 @@ void gui::Render()
 			// TagPursuit 1 & 2 + Busted?
 			if (ImGui::Button("TagPursuit 1 & 2"))
 			{
-				gui::menu_open = false;
-				reinterpret_cast<void(*)(int, int, bool)>(0x65DD60)(racer_index[0], racer_index[1], bust);
+				//gui::menu_open = false;
+				nfsc::Game_TagPursuit(racer_index[0], racer_index[1], bust);
 			}
 			ImGui::SameLine();
 			ImGui::Checkbox("Busted?", &bust);
@@ -750,6 +737,7 @@ void gui::Render()
 			{
 				if (p_vehicle)
 				{
+					// PVehicle::SetDriverClas
 					reinterpret_cast<void(__thiscall*)(void*, int)>(0x6DA500)(p_vehicle, spawn_type + 1);
 				}
 			}
@@ -770,7 +758,7 @@ void gui::Render()
 				p.z = location[2];
 
 				void* simable = nfsc::BulbToys_CreateSimable(ReadMemory<void*>(0xA98284), (nfsc::driver_class)(spawn_type + 1),
-					nfsc::Attrib_StringToKey(vehicle),&r, &p, 0, nullptr, nullptr);
+					nfsc::Attrib_StringToKey(vehicle), &r, &p, 0, nullptr, nullptr);
 
 				if (!ignore && simable)
 				{
@@ -781,7 +769,7 @@ void gui::Render()
 		}
 
 		char vehicles[32];
-		sprintf_s(vehicles, 32, "Vehicles: %u/%u", ReadMemory<uint32_t>(0xA83AE8 + 0xC), ReadMemory<uint32_t>(0xA83AE8 + 0x8));
+		sprintf_s(vehicles, 32, "Vehicles: %u/%u", nfsc::AITargetsList->size, nfsc::AITargetsList->capacity);
 
 		/* ===== VEHICLES ===== */
 		if (ImGui::MyMenu(vehicles, &menu[id++]))
@@ -809,6 +797,9 @@ void gui::Render()
 
 				ImGui::AddyLabel(vehicle, "%d. Vehicle", i + 1);
 
+				auto aivehicle = nfsc::PVehicle_GetAIVehiclePtr(vehicle);
+				ImGui::AddyLabel(aivehicle, "- AIVehicle");
+
 				auto simable = nfsc::PVehicle_GetSimable(vehicle);
 				ImGui::AddyLabel(simable, "- Simable");
 
@@ -822,6 +813,15 @@ void gui::Render()
 
 				auto player = reinterpret_cast<void* (__thiscall*)(void*)>(0x6D6C40)(simable);
 				ImGui::AddyLabel(player, " - Player");
+			}
+		}
+
+		void* race_status = ReadMemory<void*>(nfsc::GRaceStatus);
+		if (race_status)
+		{
+			for (int i = 0; i < 8; i++)
+			{
+				ImGui::AddyLabel(nfsc::GRaceStatus_GetRacerInfo(race_status, i), "Racer %d", i);
 			}
 		}
 

@@ -87,6 +87,17 @@ bool hooks::SetupPart2(IDirect3DDevice9* device)
 	// Create player instances for AI
 	CreateHook(0x6298C0, &RacerInfoCreateVehicleHook, &RacerInfoCreateVehicle);
 
+	CreateHook(0x616EF0, &GetPursuitVehicleNameHook, &GetPursuitVehicleName);
+
+	CreateHook(0x646B00, &RaceStatusUpdateHook, &RaceStatusUpdate);
+
+	CreateHook(0x65D620, &PursuitSwitchHook, &PursuitSwitch);
+
+	CreateHook(0x63E6C0, &GetTimeLimitHook, &GetTimeLimit);
+
+	CreateHook(0x65E240, &ShowLosingScreenHook, &ShowLosingScreen);
+	CreateHook(0x65E270, &ShowWinningScreenHook, &ShowWinningScreen);
+
 	// Increment cop counter by 1 per roadblock vehicle
 	// TODO: if re-enabling this, make sure roadblock cops that get attached don't increment again
 	//WriteJmp(0x445A9D, CreateRoadBlockHook, 6);
@@ -109,6 +120,11 @@ bool hooks::SetupPart2(IDirect3DDevice9* device)
 
 	// Use "GRaceStatus" as vehicle cache for NFSCO compatibility
 	PatchJmp(0x7D4EBB, VehicleChangeCacheHook, 7);
+
+	// Add AI Players to Player list
+	PatchJmp(0x6D40A6, UpdateAIPlayerListingHook, 5);
+
+	PatchJmp(0x44A596, PTagBustedHook, 5);
 	
 	return true;
 }
@@ -120,6 +136,7 @@ void hooks::Destroy()
 	Unpatch(0x7B0F63);
 	Unpatch(0x7B0F94);
 	Unpatch(0x7D4EBB);
+	Unpatch(0x44A596);
 
 	MH_DisableHook(MH_ALL_HOOKS);
 	MH_RemoveHook(MH_ALL_HOOKS);
@@ -199,7 +216,7 @@ bool __fastcall hooks::GpsEngageHook(void* gps, void* edx, nfsc::Vector3* target
 	g::smart_ai::target.x = target->x;
 	g::smart_ai::target.y = target->y;
 	g::smart_ai::target.z = target->z;
-	g::smart_ai::PathToTarget(ai_vehicle);
+	nfsc::BulbToys_PathToTarget(ai_vehicle, &g::smart_ai::target);
 
 	return result;
 }
@@ -231,30 +248,257 @@ void __fastcall hooks::ResetDriveToNavHook(void* ai_vehicle, void* edx, int lane
 		return;
 	}
 
-	g::smart_ai::PathToTarget(ai_vehicle);
+	nfsc::BulbToys_PathToTarget(ai_vehicle, &g::smart_ai::target);
 }
 
-void* __fastcall hooks::RacerInfoCreateVehicleHook(void* g_racer_info, void* edx, uint32_t key, int racer_index, uint32_t seed)
+/*
+void* __fastcall hooks::RacerInfoCreateVehicleHook(uintptr_t racer_info, void* edx, uint32_t key, int racer_index, uint32_t seed)
 {
-	auto i_vehicle = RacerInfoCreateVehicle(g_racer_info, edx, key, racer_index, seed);
+	nfsc::race_type type = nfsc::BulbToys_GetRaceType();
 
-	if (i_vehicle)
+	if (type == nfsc::race_type::pursuit_ko)
 	{
-		void* simable = nfsc::PVehicle_GetSimable(i_vehicle);
+		void* stored_vehicle = RacerInfoCreateVehicle(racer_info, edx, nfsc::GKnockoutRacer_GetPursuitVehicleKey(0), racer_index, seed);
+		Error("%p", stored_vehicle);
+		nfsc::PVehicle_SetDriverClass(stored_vehicle, nfsc::driver_class::none);
+		nfsc::PVehicle_Deactivate(stored_vehicle);
+		WriteMemory<void*>(nfsc::ThePursuitSimables + 4 * racer_index, nfsc::PVehicle_GetSimable(stored_vehicle));
 
-		if (simable)
+		return RacerInfoCreateVehicle(racer_info, edx, key, racer_index, seed);
+	}
+	else if (type == nfsc::race_type::pursuit_tag)
+	{
+		if (racer_index == 1)
 		{
-			nfsc::AIPlayer* ai_player = nfsc::AIPlayer::CreateInstance();
-
-			// (PhysicsObject) ISimable::Attach(ISimable*, IPlayer*)
-			bool success = reinterpret_cast<bool(__thiscall*)(void*, void*)>(0x6C6740)(simable, &ai_player->IPlayer);
-
-			Error("Race type %d. Racer index %d: ISimable::Attach(%p, %p) = %s", nfsc::BulbToys_GetRaceType(), racer_index, simable, &ai_player->IPlayer, success ? "true" : "false");
+			void* player_pursuit_simable = nfsc::BulbToys_CreatePursuitSimable(nfsc::driver_class::none);
+			WriteMemory<void*>(nfsc::ThePursuitSimables, player_pursuit_simable);
+			nfsc::PVehicle_Deactivate(nfsc::BulbToys_FindInterface<nfsc::IVehicle>(player_pursuit_simable));
 		}
+
+		void* stored_vehicle = RacerInfoCreateVehicle(racer_info, edx, key, racer_index, seed);
+		nfsc::PVehicle_SetDriverClass(stored_vehicle, nfsc::driver_class::none);
+		nfsc::PVehicle_Deactivate(stored_vehicle);
+		WriteMemory<void*>(nfsc::ThePursuitSimables + 4 * racer_index, nfsc::PVehicle_GetSimable(stored_vehicle));
+
+		return RacerInfoCreateVehicle(racer_info, edx, nfsc::GKnockoutRacer_GetPursuitVehicleKey(0), racer_index, seed);
 	}
 
-	return i_vehicle;
+	return RacerInfoCreateVehicle(racer_info, edx, key, racer_index, seed);
 }
+*/
+
+void* __fastcall hooks::RacerInfoCreateVehicleHook(uintptr_t racer_info, void* edx, uint32_t key, int racer_index, uint32_t seed)
+{
+	void* vehicle = nullptr;
+
+	nfsc::race_type type = nfsc::BulbToys_GetRaceType();
+
+	// Only create players/entities (using our in-house AIPlayer class) for racers if we're playing PKO/PTAG, since they're not really needed elsewhere
+	// NFSC uses player/entity related interfaces for attaching vehicles to (and detaching vehicles from) them
+	// Since AI does not implement any player/entity related interfaces, we must make our own instead
+	if (type == nfsc::race_type::pursuit_ko || type == nfsc::race_type::pursuit_tag)
+	{
+		// For PTAG, AI racers start as cops, so create our pursuit simables first (so the vehicle start grid warping works properly)
+		if (type == nfsc::race_type::pursuit_tag)
+		{
+			// Online gamemodes skip the intro NIS, but the main reason is because there is no suitable NIS ever made for PTAG's custom start grid positions
+			*nfsc::SkipNIS = true;
+
+			// Create our pursuit simables first (so the vehicle start grid warping works properly)
+			if (racer_index == 1)
+			{
+				// Create AI pursuit simables first
+				for (int i = 1; i < nfsc::GRaceStatus_GetRacerCount(ReadMemory<void*>(nfsc::GRaceStatus)); i++)
+				{
+					void* pursuit_simable = nfsc::BulbToys_CreatePursuitSimable(nfsc::driver_class::none);
+					WriteMemory<void*>(nfsc::ThePursuitSimables + 4 * i, pursuit_simable);
+
+					void* pursuit_vehicle = nfsc::BulbToys_FindInterface<nfsc::IVehicle>(pursuit_simable);
+					nfsc::PVehicle_Deactivate(pursuit_vehicle);
+				}
+
+				// Then our own pursuit simable
+				void* pursuit_simable = nfsc::BulbToys_CreatePursuitSimable(nfsc::driver_class::none);
+				WriteMemory<void*>(nfsc::ThePursuitSimables, pursuit_simable);
+
+				void* pursuit_vehicle = nfsc::BulbToys_FindInterface<nfsc::IVehicle>(pursuit_simable);
+				nfsc::PVehicle_Deactivate(pursuit_vehicle);
+			}
+
+			// We need to create our racer vehicle and player before switching first
+			void* racer_vehicle = RacerInfoCreateVehicle(racer_info, edx, key, racer_index, seed);
+			void* racer_simable = nfsc::PVehicle_GetSimable(racer_vehicle);
+
+			nfsc::AIPlayer* ai_player = nfsc::AIPlayer::CreateInstance();
+
+			// bool (PhysicsObject) ISimable::Attach(ISimable*, IPlayer*)
+			reinterpret_cast<bool(__thiscall*)(void*, void*)>(0x6C6740)(racer_simable, &ai_player->IPlayer);
+			
+			//void* vehicle = nfsc::BulbToys_FindInterface<nfsc::IVehicle>(racer_simable);
+
+			//reinterpret_cast<void(__thiscall*)(void*, uint32_t, uint32_t)>(0x6D8E10)(vehicle, 0x4F8F901C, 0x9F128A92);
+
+			//reinterpret_cast<void(__thiscall*)(void*)>(0x6DAA60)(vehicle);
+
+			// In PTAG, opponents start as cops first
+			int _;
+			vehicle = nfsc::Game_PursuitSwitch(racer_index, true, &_);
+
+			// Copy pursuit simable's handle into our racer info
+			void* simable = nfsc::PVehicle_GetSimable(vehicle);
+
+			// Make 'em chase us
+			//nfsc::Game_SetAIGoal(simable, "AIGoalHassle");
+
+			//void* player_simable = nfsc::PVehicle_GetSimable(*nfsc::IVehicleList->begin);
+			//nfsc::Game_SetPursuitTarget(simable, player_simable);
+		}
+
+		// For PKO, AI racers start as racers, so create our racer vehicles/simables first (so the vehicle start grid warping works properly)
+		else if (type == nfsc::race_type::pursuit_ko)
+		{
+			// Online gamemodes skip the intro NIS, but it's fine here since it starts off as a normal circuit race and thus the normal intro NIS fits
+			*nfsc::SkipNIS = false;
+
+			// Create and use our own racer vehicle and player
+			vehicle = RacerInfoCreateVehicle(racer_info, edx, key, racer_index, seed);
+
+			nfsc::AIPlayer* ai_player = nfsc::AIPlayer::CreateInstance();
+
+			// bool (PhysicsObject) ISimable::Attach(ISimable*, IPlayer*)
+			reinterpret_cast<bool(__thiscall*)(void*, void*)>(0x6C6740)(nfsc::PVehicle_GetSimable(vehicle), &ai_player->IPlayer);
+
+			int racer_count = nfsc::GRaceStatus_GetRacerCount(ReadMemory<void*>(nfsc::GRaceStatus));
+
+			// Final racer's vehicle was created, now we can create our pursuit simables
+			if (racer_index == racer_count - 1)
+			{
+				for (int i = 0; i < racer_count; i++)
+				{
+					void* pursuit_simable = nfsc::BulbToys_CreatePursuitSimable(nfsc::driver_class::none);
+					
+					// Store and deactivate
+					WriteMemory<void*>(nfsc::ThePursuitSimables + 4 * i, pursuit_simable);
+
+					void* pursuit_vehicle = nfsc::BulbToys_FindInterface<nfsc::IVehicle>(pursuit_simable);
+					nfsc::PVehicle_Deactivate(pursuit_vehicle);
+				}
+			}
+		}
+	}
+	else // Not a PKO/PTAG race
+	{
+		*nfsc::SkipNIS = false;
+		vehicle = RacerInfoCreateVehicle(racer_info, edx, key, racer_index, seed);
+	}
+
+	return vehicle;
+}
+
+const char* __cdecl hooks::GetPursuitVehicleNameHook(bool is_player)
+{
+	void* my_ivehicle = *nfsc::IVehicleList->begin;
+	if (!my_ivehicle)
+	{
+		// use fallback
+		return "player_cop";
+	}
+
+	void* my_pvehicle = reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(my_ivehicle) - 0xD0);
+
+	int tier = nfsc::BulbToys_GetPVehicleTier(my_pvehicle);
+	if (tier < 1 || tier > 3)
+	{
+		// use fallback
+		return "player_cop";
+	}
+
+	return nfsc::player_cop_cars[tier - 1];
+}
+
+void __fastcall hooks::RaceStatusUpdateHook(void* race_status, void* edx, float dt)
+{
+	RaceStatusUpdate(race_status, edx, dt);
+
+	nfsc::race_type type = nfsc::BulbToys_GetRaceType();
+
+	if (type == nfsc::race_type::pursuit_tag)
+	{
+		int runner_index = -1;
+		void* runner_simable = nfsc::GRaceStatus_GetRacePursuitTarget(race_status, &runner_index);
+
+
+		//hack
+		void* runner_rigidbody = nfsc::PhysicsObject_GetRigidBody(runner_simable);
+		nfsc::Vector3* runner_pos = nfsc::RigidBody_GetPosition(runner_rigidbody);
+
+		for (int i = 0; i < nfsc::GRaceStatus_GetRacerCount(race_status); i++)
+		{
+			if (i == runner_index)
+			{
+				continue;
+			}
+
+			void* racer_info = nfsc::GRaceStatus_GetRacerInfo(race_status, i);
+			void* simable = nfsc::GRacerInfo_GetSimable(racer_info);
+			void* vehicle = nfsc::BulbToys_FindInterface<nfsc::IVehicle>(simable);
+			void* ai_vehicle = nfsc::PVehicle_GetAIVehiclePtr(vehicle);
+			nfsc::BulbToys_PathToTarget(ai_vehicle, runner_pos);
+		}
+		//hack
+
+
+		float runner_timer = ReadMemory<float>(reinterpret_cast<uintptr_t>(race_status) + 0xBFB0);
+		if (runner_timer <= 0)
+		{
+			nfsc::BulbToys_SwitchPTagTarget(race_status, false);
+		}
+	}
+}
+
+
+void* __cdecl hooks::PursuitSwitchHook(int racer_index, bool is_busted, int* result)
+{
+	void* vehicle = PursuitSwitch(racer_index, is_busted, result);
+
+	void* simable = nfsc::PVehicle_GetSimable(vehicle);
+
+	void* player = reinterpret_cast<void* (__thiscall*)(void*)>(0x6D6C40)(simable);
+
+	//Error("SWITCH!\n\nIndex: %d\nBusted: %s\nResult: %d\n\nVehicle: %p\nPlayer: %p", racer_index, is_busted? "true" : "false", *result, vehicle, player);
+
+	return vehicle;
+}
+
+float __fastcall hooks::GetTimeLimitHook(void* race_parameters)
+{
+	uintptr_t user_profile = reinterpret_cast<uintptr_t(__thiscall*)(void*, int)>(0x572B90)(ReadMemory<void*>(0xA97A7C), 0);
+
+	//Error("%08X", user_profile);
+
+	// FEManager::GetUserProfile(FEManager::mInstance, 0)->mRaceSettings[11 (== PTag)].lap_count;
+	int num_laps = ReadMemory<uint8_t>(user_profile + 0x2B258);
+
+	return static_cast<float>(num_laps * 60);
+}
+
+void __cdecl hooks::ShowLosingScreenHook()
+{
+	if (nfsc::BulbToys_GetRaceType() != nfsc::race_type::pursuit_tag)
+	{
+		ShowLosingScreen();
+	}
+}
+
+void __cdecl hooks::ShowWinningScreenHook()
+{
+	if (nfsc::BulbToys_GetRaceType() != nfsc::race_type::pursuit_tag)
+	{
+		ShowWinningScreen();
+	}
+}
+
+//void __cdecl hooks::PursuitUpdateHook(int unk1, int unk2, int unk3)
 
 void __fastcall hooks::WorldMapPadAcceptHook(void* fe_state_manager)
 {
@@ -532,6 +776,54 @@ __declspec(naked) void hooks::VehicleChangeCacheHook()
 		push    ecx
 
 		push    0x7D4EC2
+		ret
+	}
+}
+
+constexpr uintptr_t PhysicsObject_IsPlayer = 0x6D6C30;
+constexpr uintptr_t PVehicle_GetSimable = 0x6D7EC0;
+// void __thiscall UTL::ListableSet<IVehicle,12,enum eVehicleList,12>::AddToList(char *this, eVehicleList list)
+constexpr uintptr_t AddToList = 0x6CFBA0;
+__declspec(naked) void hooks::UpdateAIPlayerListingHook()
+{
+	__asm
+	{
+		// Redo what we've overwritten
+		call    AddToList
+
+		lea     ecx, [esi - 8]
+		call    PVehicle_GetSimable
+		mov     ecx, eax
+		test    eax, eax
+		jz      skip
+
+		call    PhysicsObject_IsPlayer
+		test    eax, eax
+		jz      skip
+
+		// Add to player list
+		push    1
+		mov     ecx, esi
+		call    AddToList
+
+	skip:
+		push    0x6D40AB
+		ret
+	}
+}
+
+void hooks::PTagBustedHook()
+{
+	__asm
+	{
+		// No need to redo what we've overwritten cuz it's useless lol
+
+		mov     ecx, 0xA98284
+		mov     ecx, [ecx]
+		mov     edx, 1
+		call    nfsc::BulbToys_SwitchPTagTarget
+
+		push    0x44A59B
 		ret
 	}
 }
