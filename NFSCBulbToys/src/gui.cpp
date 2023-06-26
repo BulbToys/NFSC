@@ -311,18 +311,6 @@ void gui::Render()
 
 				g::move_vinyl::step_size = step_size;
 			}
-
-			static int ptag_tl = 1;
-			ImGui::Text("Pursuit Tag time limit (min):");
-			if (ImGui::InputInt("##PTTL", &ptag_tl))
-			{
-				if (ptag_tl < 1)
-				{
-					ptag_tl = 1;
-				}
-
-				g::ptag_tl = ptag_tl;
-			}
 		}
 
 		/* ===== PLAYER ===== */
@@ -500,7 +488,7 @@ void gui::Render()
 							auto ai_vehicle = nfsc::PVehicle_GetAIVehiclePtr(p_vehicle);
 							if (ai_vehicle)
 							{
-								if (!g::IsGPSDown())
+								if (!nfsc::BulbToys_IsGPSDown())
 								{
 									nfsc::BulbToys_PathToTarget(ai_vehicle, &g::smart_ai::target);
 								}
@@ -733,15 +721,6 @@ void gui::Render()
 			static int spawn_type = 0;
 			ImGui::MyListBox("Spawn type:", "##SType", &spawn_type, nfsc::driver_classes, IM_ARRAYSIZE(nfsc::driver_classes));
 
-			if (ImGui::Button("Set my own"))
-			{
-				if (p_vehicle)
-				{
-					// PVehicle::SetDriverClas
-					reinterpret_cast<void(__thiscall*)(void*, int)>(0x6DA500)(p_vehicle, spawn_type + 1);
-				}
-			}
-
 			// Spawn goal & Ignore/use default
 			static int spawn_goal = 0;
 			static bool ignore = true;
@@ -816,19 +795,10 @@ void gui::Render()
 			}
 		}
 
-		void* race_status = ReadMemory<void*>(nfsc::GRaceStatus);
-		if (race_status)
-		{
-			for (int i = 0; i < 8; i++)
-			{
-				ImGui::AddyLabel(nfsc::GRaceStatus_GetRacerInfo(race_status, i), "Racer %d", i);
-			}
-		}
-
 		/* ===== EVENTS ===== */
 		/*if (ImGui::MyMenu("Events", &menu[id++]))
 		{
-
+			// TODO
 		}*/
 
 		// NOTE: SkipMovies is NOT hotswappable, guaranteed crash upon game exit in CleanupTextures!

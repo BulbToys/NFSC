@@ -20,10 +20,8 @@ void patches::Do()
 	PatchMemory<uint8_t>(0x4AC819, 60);
 	PatchMemory<uint8_t>(0x4AC82D, 60);
 
-	// sex
-	//PatchNop(0x42FCB4, 6);
-	//PatchNop(0x42FCF0, 6);
-	//PatchNop(0x42FCDE, 6);
+	// AllowEndgameCreditsSkip
+	PatchMemory<uint8_t>(0x8484AC, 0);
 }
 
 void patches::Undo()
@@ -71,6 +69,9 @@ void patches::Undo()
 	// SixtyMinutePTag
 	Unpatch(0x4AC819);
 	Unpatch(0x4AC82D);
+
+	// AllowEndgameCreditsSkip
+	Unpatch(0x8484AC);
 }
 
 // NOTE: Doesn't actually always show the cursor, as it depends on whether the ImGui menu is open or not, which is handled in the WindowProcess callback

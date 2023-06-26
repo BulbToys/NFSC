@@ -46,8 +46,8 @@ namespace hooks
 	void __fastcall RaceStatusUpdateHook(void* race_status, void* edx, float dt);
 	static inline decltype (&RaceStatusUpdateHook) RaceStatusUpdate;
 
-	void* __cdecl PursuitSwitchHook(int racer_index, bool is_busted, int* result);
-	static inline decltype (&PursuitSwitchHook) PursuitSwitch;
+	//void* __cdecl PursuitSwitchHook(int racer_index, bool is_busted, int* result);
+	//static inline decltype (&PursuitSwitchHook) PursuitSwitch;
 
 	float __fastcall GetTimeLimitHook(void* race_parameters);
 	static inline decltype (&GetTimeLimitHook) GetTimeLimit;

@@ -167,14 +167,4 @@ namespace g
 
 	inline float location[3] = { 0, 0, 0 };
 	constexpr float extra_height = 1;
-
-	inline int ptag_tl = 0;
-
-	inline bool IsGPSDown()
-	{
-		auto gps = ReadMemory<uintptr_t>(0xA83E3C);
-
-		// Check if GPS state == GPS_DOWN
-		return !gps || ReadMemory<int>(gps + 0x6C) == 0;
-	}
 }

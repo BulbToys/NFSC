@@ -237,13 +237,27 @@ namespace nfsc
 
 	/* ===== CUSTOM FUNCTIONS ===== */
 
-	template <uintptr_t handle>
-	inline void* BulbToys_FindInterface(void* iface)
-	{
-		uintptr_t ucom_object = ReadMemory<uintptr_t>(reinterpret_cast<uintptr_t>(iface) + 4);
+	// fuck templates
+	uint32_t BulbToys_AddToListableSet_GetGrowSizeVirtually(uintptr_t vtable, void* ls, uint32_t amount);
 
-		// IInterface* UTL::COM::Object::_IList::Find(UCOM::Object::_IList*, IInterface::IHandle);
-		return reinterpret_cast<void*(__thiscall*)(uintptr_t, uintptr_t)>(0x60CB50)(ucom_object, handle);
+	template <typename T>
+	void BulbToys_AddToListableSet(nfsc::ListableSet<T>* ls, T elem, uintptr_t pfnPushback)
+	{
+		if (ls->capacity >= ls->size)
+		{
+			uint32_t offset = BulbToys_AddToListableSet_GetGrowSizeVirtually(ls->vtbl, ls, ls->size + 1);
+
+			// Calls its respective vector's push_back function. I don't think there is a way to get this information from the listable itself
+			reinterpret_cast<void(__thiscall*)(void*, uint32_t)>(pfnPushback)(ls, offset);
+		}
+
+		T* end = ls->begin + ls->size;
+		if (end)
+		{
+			*end = elem;
+		}
+
+		++ls->size;
 	}
 
 	inline void* BulbToys_CreateSimable(void* vehicle_cache, driver_class dc, uint32_t key, Vector3* rotation, Vector3* position, uint32_t vpf,
@@ -267,7 +281,7 @@ namespace nfsc
 			(params, vehicle_cache, dc, key, rotation, position, vpf, customization_record, performance_matching);
 
 		// ISimable* UCOM::Factory<Sim::Param,ISimable,UCrc32>::CreateInstance(stringhash32("PVehicle"), params);
-		void* simable = reinterpret_cast<void*(*)(uint32_t, VehicleParams)>(0x41F920)(0x1396EBE1, params);
+		void* simable = reinterpret_cast<void* (*)(uint32_t, VehicleParams)>(0x41F920)(0x1396EBE1, params);
 
 		// Attrib::Instance::~Instance(&params.attributes);
 		reinterpret_cast<void(__thiscall*)(uintptr_t)>(0x469870)(reinterpret_cast<uintptr_t>(&params) + 0x14);
@@ -275,54 +289,15 @@ namespace nfsc
 		return simable;
 	}
 
-	// fuck templates
-	uint32_t BulbToys_AddToListableSet_GetGrowSizeVirtually(uintptr_t vtable, void* ls, uint32_t amount);
-
-	template <typename T>
-	void BulbToys_AddToListableSet(nfsc::ListableSet<T>* ls, T elem, uintptr_t pfnPushback)
-	{
-		if (ls->capacity >= ls->size)
-		{
-			uint32_t offset = BulbToys_AddToListableSet_GetGrowSizeVirtually(ls->vtbl, ls, ls->size + 1);
-
-			reinterpret_cast<void(__thiscall*)(void*, uint32_t)>(pfnPushback)(ls, offset);
-		}
-
-		T* end = ls->begin + ls->size;
-		if (end)
-		{
-			*end = elem;
-		}
-
-		++ls->size;
-	}
-
-	race_type BulbToys_GetRaceType();
-
 	void* BulbToys_CreatePursuitSimable(nfsc::driver_class dc);
 
-	int BulbToys_GetPVehicleTier(void* pvehicle);
-
-	inline void BulbToys_SetRacerActions(void* ai_goal)
+	template <uintptr_t handle>
+	inline void* BulbToys_FindInterface(void* iface)
 	{
-		nfsc::AIGoal_ClearAllActions(ai_goal);
+		uintptr_t ucom_object = ReadMemory<uintptr_t>(reinterpret_cast<uintptr_t>(iface) + 4);
 
-		nfsc::AIGoal_AddAction(ai_goal, "AIActionRace");
-		nfsc::AIGoal_AddAction(ai_goal, "AIActionStunned");
-		nfsc::AIGoal_AddAction(ai_goal, "AIActionGetUnstuck");
-
-		nfsc::AIGoal_ChooseAction(ai_goal, 0.0);
-	}
-
-	inline void BulbToys_SetCopActions(void* ai_goal)
-	{
-		nfsc::AIGoal_ClearAllActions(ai_goal);
-
-		nfsc::AIGoal_AddAction(ai_goal, "AIActionPursuitOffRoad");
-		nfsc::AIGoal_AddAction(ai_goal, "AIActionStunned");
-		nfsc::AIGoal_AddAction(ai_goal, "AIActionGetUnstuck");
-
-		nfsc::AIGoal_ChooseAction(ai_goal, 0.0);
+		// IInterface* UTL::COM::Object::_IList::Find(UCOM::Object::_IList*, IInterface::IHandle);
+		return reinterpret_cast<void*(__thiscall*)(uintptr_t, uintptr_t)>(0x60CB50)(ucom_object, handle);
 	}
 
 	void* BulbToys_GetAIVehicleGoal(void* ai_vehicle_ivehicleai);
@@ -336,9 +311,39 @@ namespace nfsc
 		return reinterpret_cast<float(*)(Vector3*, Vector3*)>(0x411FD0)(nfsc::RigidBody_GetPosition(rb1), nfsc::RigidBody_GetPosition(rb2));
 	}
 
-	void __fastcall BulbToys_SwitchPTagTarget(void* race_status, bool busted);
+	int BulbToys_GetPVehicleTier(void* pvehicle);
+
+	race_type BulbToys_GetRaceType();
+
+	bool BulbToys_IsGPSDown();
 
 	void BulbToys_PathToTarget(void* ai_vehicle, Vector3* target);
+
+	/*
+	inline void BulbToys_SetCopActions(void* ai_goal)
+	{
+		nfsc::AIGoal_ClearAllActions(ai_goal);
+
+		nfsc::AIGoal_AddAction(ai_goal, "AIActionPursuitOffRoad");
+		nfsc::AIGoal_AddAction(ai_goal, "AIActionStunned");
+		nfsc::AIGoal_AddAction(ai_goal, "AIActionGetUnstuck");
+
+		nfsc::AIGoal_ChooseAction(ai_goal, 0.0);
+	}
+
+	inline void BulbToys_SetRacerActions(void* ai_goal)
+	{
+		nfsc::AIGoal_ClearAllActions(ai_goal);
+
+		nfsc::AIGoal_AddAction(ai_goal, "AIActionRace");
+		nfsc::AIGoal_AddAction(ai_goal, "AIActionStunned");
+		nfsc::AIGoal_AddAction(ai_goal, "AIActionGetUnstuck");
+
+		nfsc::AIGoal_ChooseAction(ai_goal, 0.0);
+	}
+	*/
+
+	void __fastcall BulbToys_SwitchPTagTarget(void* race_status, bool busted);
 
 	/* ===== AI PLAYER ===== */
 	struct AIPlayer
@@ -432,6 +437,8 @@ namespace nfsc
 			reinterpret_cast<void(__thiscall*)(void*)>(0x76C790)(ai_player);
 		}
 
+		// FIXME: Entities (and maybe IPlayers) created by AIPlayer (for PTag/PKO only) are not deallocated (garbage colleted?) properly
+		// This will result in the very small (max 8, 12 or 16?) entity vector overflowing, which will put the game in an unstable state and eventually crash
 		static AIPlayer* __fastcall VecDelDtor(AIPlayer* ai_player, int edx, uint8_t flags);
 
 		template <ptrdiff_t offset>

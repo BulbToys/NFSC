@@ -84,17 +84,23 @@ bool hooks::SetupPart2(IDirect3DDevice9* device)
 	// Calculate world positions from map positions
 	CreateHook(0x5B3850, &WorldMapPadAcceptHook, &WorldMapPadAccept);
 
-	// Create player instances for AI
+	// Create player (Sim::Entity, IPlayer) instances for AI if we're playing PTag/PKO, necessary for vehicle switching to work
 	CreateHook(0x6298C0, &RacerInfoCreateVehicleHook, &RacerInfoCreateVehicle);
 
+	// The original function checks GKnockoutRacer::mPursuitTier, which is always 0 and gives us a destroyable copmidsize every time
+	// Use our own hook to assign pursuit vehicles based on the local player (us) vehicle's car's tier, exactly how the game intended in the code
 	CreateHook(0x616EF0, &GetPursuitVehicleNameHook, &GetPursuitVehicleName);
 
+	// For PTag, check if the racer's 60 second timer has elapsed and switch vehicles accordingly
 	CreateHook(0x646B00, &RaceStatusUpdateHook, &RaceStatusUpdate);
 
-	CreateHook(0x65D620, &PursuitSwitchHook, &PursuitSwitch);
+	// For testing purposes
+	//CreateHook(0x65D620, &PursuitSwitchHook, &PursuitSwitch);
 
+	// Make sure it takes the Quick Race timelimit (race lap) setting into consideration, instead of that particular race's attributes (always 2 minutes iirc)
 	CreateHook(0x63E6C0, &GetTimeLimitHook, &GetTimeLimit);
 
+	// Prevent double race end screen softlock
 	CreateHook(0x65E240, &ShowLosingScreenHook, &ShowLosingScreen);
 	CreateHook(0x65E270, &ShowWinningScreenHook, &ShowWinningScreen);
 
@@ -124,6 +130,7 @@ bool hooks::SetupPart2(IDirect3DDevice9* device)
 	// Add AI Players to Player list
 	PatchJmp(0x6D40A6, UpdateAIPlayerListingHook, 5);
 
+	// Check who got busted in pursuit tag and switch vehicles accordingly
 	PatchJmp(0x44A596, PTagBustedHook, 5);
 	
 	return true;
@@ -131,11 +138,21 @@ bool hooks::SetupPart2(IDirect3DDevice9* device)
 
 void hooks::Destroy()
 {
+	// UpdateCopElements hooks
 	Unpatch(0x5D8C10);
 	Unpatch(0x5D8CFB);
+
+	// MoveVinyl hooks
 	Unpatch(0x7B0F63);
 	Unpatch(0x7B0F94);
+
+	// VehicleChangeCacheHook
 	Unpatch(0x7D4EBB);
+
+	// UpdateAIPlayerListingHook
+	Unpatch(0x6D40A6);
+
+	// PTagBustedHook
 	Unpatch(0x44A596);
 
 	MH_DisableHook(MH_ALL_HOOKS);
@@ -183,11 +200,13 @@ HRESULT __stdcall hooks::ResetHook(IDirect3DDevice9* device, D3DPRESENT_PARAMETE
 
 bool __fastcall hooks::NeedsEncounterHook(void* traffic_manager)
 {
+	// If we've overridden the value, use our own. Instead, let the game decide normally
 	return g::needs_encounter::overridden ? g::needs_encounter::value : NeedsEncounter(traffic_manager);
 }
 
 bool __fastcall hooks::NeedsTrafficHook(void* traffic_manager)
 {
+	// Ditto
 	return g::needs_traffic::overridden ? g::needs_traffic::value : NeedsTraffic(traffic_manager);
 }
 
@@ -225,7 +244,7 @@ void __fastcall hooks::ResetDriveToNavHook(void* ai_vehicle, void* edx, int lane
 {
 	ResetDriveToNav(ai_vehicle, edx, lane_selection);
 
-	if (g::IsGPSDown())
+	if (nfsc::BulbToys_IsGPSDown())
 	{
 		return;
 	}
@@ -334,24 +353,12 @@ void* __fastcall hooks::RacerInfoCreateVehicleHook(uintptr_t racer_info, void* e
 			// bool (PhysicsObject) ISimable::Attach(ISimable*, IPlayer*)
 			reinterpret_cast<bool(__thiscall*)(void*, void*)>(0x6C6740)(racer_simable, &ai_player->IPlayer);
 			
-			//void* vehicle = nfsc::BulbToys_FindInterface<nfsc::IVehicle>(racer_simable);
-
-			//reinterpret_cast<void(__thiscall*)(void*, uint32_t, uint32_t)>(0x6D8E10)(vehicle, 0x4F8F901C, 0x9F128A92);
-
-			//reinterpret_cast<void(__thiscall*)(void*)>(0x6DAA60)(vehicle);
-
 			// In PTAG, opponents start as cops first
 			int _;
 			vehicle = nfsc::Game_PursuitSwitch(racer_index, true, &_);
 
 			// Copy pursuit simable's handle into our racer info
 			void* simable = nfsc::PVehicle_GetSimable(vehicle);
-
-			// Make 'em chase us
-			//nfsc::Game_SetAIGoal(simable, "AIGoalHassle");
-
-			//void* player_simable = nfsc::PVehicle_GetSimable(*nfsc::IVehicleList->begin);
-			//nfsc::Game_SetPursuitTarget(simable, player_simable);
 		}
 
 		// For PKO, AI racers start as racers, so create our racer vehicles/simables first (so the vehicle start grid warping works properly)
@@ -371,6 +378,7 @@ void* __fastcall hooks::RacerInfoCreateVehicleHook(uintptr_t racer_info, void* e
 			int racer_count = nfsc::GRaceStatus_GetRacerCount(ReadMemory<void*>(nfsc::GRaceStatus));
 
 			// Final racer's vehicle was created, now we can create our pursuit simables
+			// If we created one per racer in this function, the start grid vehicles would get fucked
 			if (racer_index == racer_count - 1)
 			{
 				for (int i = 0; i < racer_count; i++)
@@ -400,7 +408,7 @@ const char* __cdecl hooks::GetPursuitVehicleNameHook(bool is_player)
 	void* my_ivehicle = *nfsc::IVehicleList->begin;
 	if (!my_ivehicle)
 	{
-		// use fallback
+		// Use fallback
 		return "player_cop";
 	}
 
@@ -409,10 +417,11 @@ const char* __cdecl hooks::GetPursuitVehicleNameHook(bool is_player)
 	int tier = nfsc::BulbToys_GetPVehicleTier(my_pvehicle);
 	if (tier < 1 || tier > 3)
 	{
-		// use fallback
+		// Use fallback
 		return "player_cop";
 	}
 
+	// TODO: apparently, PD2 is the T1 and PD1 is the T2 car, but that's not what game code dictates?
 	return nfsc::player_cop_cars[tier - 1];
 }
 
@@ -427,8 +436,12 @@ void __fastcall hooks::RaceStatusUpdateHook(void* race_status, void* edx, float 
 		int runner_index = -1;
 		void* runner_simable = nfsc::GRaceStatus_GetRacePursuitTarget(race_status, &runner_index);
 
-
-		//hack
+		// FIXME: AI does not pursue you under any of the following conditions
+		// - Goal set to AIGoalPursuit, AIGoalHassle, AIGoalPursuitEncounter, AIGoalRam, AIGoalPit; combined with Game_SetPursuitTarget
+		// - AIVehicle set to CopCar or Pursuit (using BEHAVIOR_MECHANIC_AI and committing)
+		// - AIAction manipulation, particularly removing AIActionRace (necessary for all non-traffic vehicles as it's directly responsible for their driving)
+		// - Probably a couple other things i forgot to mention here
+		// As a temporary horrible hack, we path to the pursuee every race update. This is very inaccurate and the AI does not behave properly
 		void* runner_rigidbody = nfsc::PhysicsObject_GetRigidBody(runner_simable);
 		nfsc::Vector3* runner_pos = nfsc::RigidBody_GetPosition(runner_rigidbody);
 
@@ -445,9 +458,9 @@ void __fastcall hooks::RaceStatusUpdateHook(void* race_status, void* edx, float 
 			void* ai_vehicle = nfsc::PVehicle_GetAIVehiclePtr(vehicle);
 			nfsc::BulbToys_PathToTarget(ai_vehicle, runner_pos);
 		}
-		//hack
 
-
+		// Check the racer's 60 second fleeing timer. If we've run out, switch to our nearest cop
+		// TODO: use pursuit contributions instead?
 		float runner_timer = ReadMemory<float>(reinterpret_cast<uintptr_t>(race_status) + 0xBFB0);
 		if (runner_timer <= 0)
 		{
@@ -456,7 +469,7 @@ void __fastcall hooks::RaceStatusUpdateHook(void* race_status, void* edx, float 
 	}
 }
 
-
+/*
 void* __cdecl hooks::PursuitSwitchHook(int racer_index, bool is_busted, int* result)
 {
 	void* vehicle = PursuitSwitch(racer_index, is_busted, result);
@@ -465,25 +478,29 @@ void* __cdecl hooks::PursuitSwitchHook(int racer_index, bool is_busted, int* res
 
 	void* player = reinterpret_cast<void* (__thiscall*)(void*)>(0x6D6C40)(simable);
 
-	//Error("SWITCH!\n\nIndex: %d\nBusted: %s\nResult: %d\n\nVehicle: %p\nPlayer: %p", racer_index, is_busted? "true" : "false", *result, vehicle, player);
+	Error("SWITCH!\n\nIndex: %d\nBusted: %s\nResult: %d\n\nVehicle: %p\nPlayer: %p", racer_index, is_busted? "true" : "false", *result, vehicle, player);
 
 	return vehicle;
 }
+*/
 
 float __fastcall hooks::GetTimeLimitHook(void* race_parameters)
 {
+	// FEManager::GetUserProfile(FEManager::mInstance, 0);
 	uintptr_t user_profile = reinterpret_cast<uintptr_t(__thiscall*)(void*, int)>(0x572B90)(ReadMemory<void*>(0xA97A7C), 0);
 
-	//Error("%08X", user_profile);
-
-	// FEManager::GetUserProfile(FEManager::mInstance, 0)->mRaceSettings[11 (== PTag)].lap_count;
+	// user_profile->mRaceSettings[11 (== PTag)].lap_count;
 	int num_laps = ReadMemory<uint8_t>(user_profile + 0x2B258);
 
+	// Time limit is in seconds, so we multiply by 60 to get minutes
 	return static_cast<float>(num_laps * 60);
 }
 
 void __cdecl hooks::ShowLosingScreenHook()
 {
+	// PTag appears to utilize FE_ShowLosingPostRaceScreen, which calls FE_ShowPostRaceScreen
+	// But FE_ShowPostRaceScreen also gets called in Game_EnterPostRaceFlow
+	// To prevent the infamous double end screen softlock, we're blocking this screen for the former function (this hook)
 	if (nfsc::BulbToys_GetRaceType() != nfsc::race_type::pursuit_tag)
 	{
 		ShowLosingScreen();
@@ -492,13 +509,12 @@ void __cdecl hooks::ShowLosingScreenHook()
 
 void __cdecl hooks::ShowWinningScreenHook()
 {
+	// Ditto, but for FE_ShowWinningPostRaceScreen
 	if (nfsc::BulbToys_GetRaceType() != nfsc::race_type::pursuit_tag)
 	{
 		ShowWinningScreen();
 	}
 }
-
-//void __cdecl hooks::PursuitUpdateHook(int unk1, int unk2, int unk3)
 
 void __fastcall hooks::WorldMapPadAcceptHook(void* fe_state_manager)
 {
@@ -600,6 +616,7 @@ __declspec(naked) void hooks::UpdateCopElementsHook1()
 		mov     edx, [esi]
 		mov     ecx, esi
 
+		// In the first part, we store the cop vehicle in question
 		mov     IVehicle_temp, ecx
 		push    0x5D8C16
 		ret
@@ -614,7 +631,7 @@ __declspec(naked) void hooks::UpdateCopElementsHook2()
 {
 	__asm
 	{
-		// Skip changing the color if the vehicle is destroyed
+		// Skip changing the color if the cop vehicle is destroyed
 		mov     ecx, IVehicle_temp
 		call    PVehicle_IsDestroyed
 		test    eax, eax
@@ -770,7 +787,7 @@ __declspec(naked) void hooks::VehicleChangeCacheHook()
 		push    eax
 		push    0
 
-		// use GRaceStatus::fObj instead of DVS as cache
+		// use GRaceStatus::fObj instead of DebugVehicleSelection as vehicle cache
 		mov     ecx, 0xA98284 
 		mov     ecx, [ecx]
 		push    ecx
@@ -806,6 +823,7 @@ __declspec(naked) void hooks::UpdateAIPlayerListingHook()
 		mov     ecx, esi
 		call    AddToList
 
+		// Skip adding to the player list if this vehicle doesn't have a simable and/or is not a player
 	skip:
 		push    0x6D40AB
 		ret
@@ -816,14 +834,20 @@ void hooks::PTagBustedHook()
 {
 	__asm
 	{
-		// No need to redo what we've overwritten cuz it's useless lol
+		// If we've been busted as a racer, switch vehicles with our nearest cop
+		// TODO: use pursuit contributions instead?
 
-		mov     ecx, 0xA98284
+		// In the __fastcall calling convention, the first argument is stored in ecx (pointer to GRaceStatus instance)
+		mov     ecx, nfsc::GRaceStatus
 		mov     ecx, [ecx]
+
+		// The second argument is stored in edx (is_busted (= true))
 		mov     edx, 1
 		call    nfsc::BulbToys_SwitchPTagTarget
 
 		push    0x44A59B
 		ret
+
+		// No need to redo what we've overwritten cuz it's useless lol (we overwrote some call to an online-related function)
 	}
 }
