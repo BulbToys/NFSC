@@ -137,7 +137,6 @@ bool nfsc::BulbToys_SwitchVehicle(void* simable, void* simable2, sv_mode mode)
 		}
 
 		// todo: fix pursuits here
-		// todo: might still be a bit fucked in nfsco?
 		// todo: fix camera
 
 		nfsc::PhysicsObject_Kill(simable);
