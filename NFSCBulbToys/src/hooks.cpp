@@ -182,7 +182,14 @@ long __stdcall hooks::EndSceneHook(IDirect3DDevice9* device)
 {
 	const auto result = EndScene(device);
 
-	if (gui::menu_open)
+	//static uint32_t frame_count[2] {0, 0};
+
+	//frame_count[0] = frame_count[1];
+	//frame_count[1] = ReadMemory<uint32_t>(0xA996F0); // RealLoopCounter
+
+	// Certain loading screens render the game twice, in which case we shouldn't render the GUI
+	// TODO: uncomment when i crash here ig lol (window will be null)
+	if (gui::menu_open/* && frame_count[0] != frame_count[1]*/)
 	{
 		gui::Render();
 	}
@@ -502,10 +509,12 @@ float __fastcall hooks::GetTimeLimitHook(void* race_parameters)
 
 void __cdecl hooks::ShowLosingScreenHook()
 {
+	nfsc::race_type type = nfsc::BulbToys_GetRaceType();
+
 	// PTag appears to utilize FE_ShowLosingPostRaceScreen, which calls FE_ShowPostRaceScreen
 	// But FE_ShowPostRaceScreen also gets called in Game_EnterPostRaceFlow
 	// To prevent the infamous double end screen softlock, we're blocking this screen for the former function (this hook)
-	if (nfsc::BulbToys_GetRaceType() != nfsc::race_type::pursuit_tag)
+	if (type != nfsc::race_type::pursuit_tag && type != nfsc::race_type::pursuit_ko)
 	{
 		ShowLosingScreen();
 	}
@@ -513,8 +522,10 @@ void __cdecl hooks::ShowLosingScreenHook()
 
 void __cdecl hooks::ShowWinningScreenHook()
 {
+	nfsc::race_type type = nfsc::BulbToys_GetRaceType();
+
 	// Ditto, but for FE_ShowWinningPostRaceScreen
-	if (nfsc::BulbToys_GetRaceType() != nfsc::race_type::pursuit_tag)
+	if (type != nfsc::race_type::pursuit_tag && type != nfsc::race_type::pursuit_ko)
 	{
 		ShowWinningScreen();
 	}

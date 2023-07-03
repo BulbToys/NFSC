@@ -1,6 +1,6 @@
 #include "shared.h"
 
-uint32_t nfsc::BulbToys_AddToListableSet_GetGrowSizeVirtually(void* ls, uint32_t amount)
+uint32_t nfsc::ListableSet_GetGrowSizeVirtually(void* ls, uint32_t amount)
 {
 	return reinterpret_cast<uint32_t(__thiscall*)(void*, uint32_t)>(VirtualFunction(ls, 3))(ls, amount);
 }
@@ -21,7 +21,7 @@ void* nfsc::BulbToys_GetAIVehicleGoal(void* ai_vehicle_ivehicleai)
 	return ReadMemory<void*>(reinterpret_cast<uintptr_t>(ai_vehicle_ivehicleai) + 0x94);
 }
 
-// NOTE: Returns 0 if the vehicle really is T0 (ie. Dump Truck) OR if it can't find its attributes!
+// NOTE: Returns tier 0 correctly (ie. Dump Truck). Returns -1 if it can't find its attributes.
 int nfsc::BulbToys_GetPVehicleTier(void* pvehicle)
 {
 	uintptr_t attributes = reinterpret_cast<uintptr_t>(pvehicle) + 0xF0;
@@ -30,7 +30,7 @@ int nfsc::BulbToys_GetPVehicleTier(void* pvehicle)
 
 	if (!layout_ptr)
 	{
-		return 0;
+		return -1;
 	}
 
 	return ReadMemory<int>(layout_ptr + 0x2C);
@@ -237,8 +237,8 @@ __declspec(noinline) nfsc::AIPlayer* nfsc::AIPlayer::CreateInstance()
 	ai_player->Sim_Entity.IAttachable.vtbl = reinterpret_cast<uintptr_t>(g::ai_player::iattachable_vtbl);
 	ai_player->IPlayer.vtbl = reinterpret_cast<uintptr_t>(g::ai_player::iplayer_vtbl);
 
-	BulbToys_AddToListableSet<void*>(nfsc::EntityList, &ai_player->Sim_Entity, 0x6C9900);
-	BulbToys_AddToListableSet<void*>(nfsc::IPlayerList, &ai_player->IPlayer, 0x6C9890);
+	nfsc::EntityList->Add(&ai_player->Sim_Entity.Sim_IEntity, 0x6C9900);
+	nfsc::IPlayerList->Add(&ai_player->IPlayer, 0x6C9890);
 
 	return ai_player;
 }

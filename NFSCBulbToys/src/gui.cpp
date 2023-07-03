@@ -212,7 +212,7 @@ void gui::Render()
 	// TODO: tabs
 	if (ImGui::Begin(PROJECT_NAME, NULL, ImGuiWindowFlags_NoScrollbar))
 	{
-		static bool menu[5]{ false };
+		static bool menu[32] { false };
 		int id = 0;
 
 		// Grab necessary game info here
@@ -655,9 +655,14 @@ void gui::Render()
 			// KnockoutPursuit 1
 			if (ImGui::Button("KnockoutPursuit 1"))
 			{
-				gui::menu_open = false;
+				// End any and all rendering immediately, and return afterwards, otherwise the game will crash due to double rendering
+				ImGui::PopItemWidth();
+				ImGui::End();
+				ImGui::EndFrame();
+				ImGui::Render();
+				ImGui_ImplDX9_RenderDrawData(ImGui::GetDrawData());
 
-				// game kopurs
+				// Game_KnockoutPursuit. NOTE: Its loading screen causes double rendering
 				reinterpret_cast<void(*)(int)>(0x65D9F0)(racer_index[0]);
 
 				void* g_race_status = ReadMemory<void*>(nfsc::GRaceStatus);
@@ -669,7 +674,7 @@ void gui::Render()
 					{
 						void* simable = nfsc::GRacerInfo_GetSimable(racer_info);
 
-						// game koracer
+						// Game_KnockoutRacer
 						reinterpret_cast<void(*)(void*)>(0x65B4E0)(simable);
 
 						if (simable && my_vehicle)
@@ -683,6 +688,8 @@ void gui::Render()
 						}
 					}
 				}
+
+				return;
 			}
 
 			// Racer index 2
@@ -777,10 +784,40 @@ void gui::Render()
 			}
 		}
 
+		/* ===== LISTS ===== */
+		ImGui::Separator();
+		ImGui::Text("Lists:");
+
+		static nfsc::ListableSet<void*>* lists[] = { nfsc::AIPursuitList, nfsc::AITargetsList, nfsc::EntityList, nfsc::IPlayerList, nfsc::IVehicleList };
+		static const char* list_names[] = { "AIPursuitList", "AITargetsList", "EntityList", "IPlayerList", "IVehicleList" };
+
+		for (int i = 0; i < IM_ARRAYSIZE(lists); i++)
+		{
+			char list_name[32];
+			sprintf_s(list_name, 32, "%s: %u/%u", list_names[i], lists[i]->size, lists[i]->capacity);
+
+			if (ImGui::MyMenu(list_name, &menu[id++]))
+			{
+				ImGui::AddyLabel(lists[i], "Address");
+
+				int size = lists[i]->size;
+
+				if (size == 0)
+				{
+					ImGui::Text("Empty.");
+				}
+
+				for (int j = 0; j < size; j++)
+				{
+					ImGui::AddyLabel(*(lists[i]->begin + j), "%d", j);
+				}
+			}
+		}
+
+		/*
 		char vehicles[32];
 		sprintf_s(vehicles, 32, "Vehicles: %u/%u", nfsc::AITargetsList->size, nfsc::AITargetsList->capacity);
 
-		/* ===== VEHICLES ===== */
 		if (ImGui::MyMenu(vehicles, &menu[id++]))
 		{
 			uintptr_t iter = reinterpret_cast<uintptr_t>(nfsc::IVehicleList->begin);
@@ -824,6 +861,7 @@ void gui::Render()
 				ImGui::AddyLabel(player, " - Player");
 			}
 		}
+		*/
 
 		/* ===== EVENTS ===== */
 		/*if (ImGui::MyMenu("Events", &menu[id++]))

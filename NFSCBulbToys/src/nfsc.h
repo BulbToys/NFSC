@@ -103,13 +103,59 @@ namespace nfsc
 
 	/* ===== GAME OBJECTS ===== */
 
+	// fuck templates
+	uint32_t ListableSet_GetGrowSizeVirtually(void* ls, uint32_t amount);
+
 	template <typename T>
 	struct ListableSet
 	{
 		uintptr_t vtbl;
 		T* begin;
-		uint32_t capacity;
-		uint32_t size;
+		size_t capacity;
+		size_t size;
+
+		/* ===== STRUCT END, HELPER FUNCTIONS BELOW ===== */
+
+		void Add(T elem, uintptr_t pfnPushback)
+		{
+			if (capacity >= size)
+			{
+				// Calling UTL::Vector<...>::GetGrowSize (ListableSet<T>::GetGrowSize) virtually
+				uint32_t offset = nfsc::ListableSet_GetGrowSizeVirtually(this, size + 1);
+
+				// Calls its respective vector's push_back function
+				// Pretty sure there is no way to get this information from the listable itself, definitely not virtually
+				reinterpret_cast<void(__thiscall*)(void*, uint32_t)>(pfnPushback)(this, offset);
+			}
+
+			T* end = begin + size;
+			if (end)
+			{
+				*end = elem;
+			}
+
+			++size;
+		}
+
+		// NOTE: Leaks memory!
+		bool Resize(size_t new_size)
+		{
+			// Allocate memory
+			T* memory = new T[new_size];
+
+			// Move elements
+			for (int i = 0; i < size; i++)
+			{
+				memory[i] = *(begin + i);
+			}
+
+			// Don't think we're allowed to do this for our first resize
+			//delete begin;
+
+			// Assign new properties
+			begin = memory;
+			capacity = new_size;
+		}
 	};
 
 	struct RoadblockElement
@@ -252,30 +298,7 @@ namespace nfsc
 
 	/* ===== CUSTOM FUNCTIONS ===== */
 
-	// fuck templates
-	uint32_t BulbToys_AddToListableSet_GetGrowSizeVirtually(void* ls, uint32_t amount);
 
-	template <typename T>
-	void BulbToys_AddToListableSet(nfsc::ListableSet<T>* ls, T elem, uintptr_t pfnPushback)
-	{
-		if (ls->capacity >= ls->size)
-		{
-			// Calling UTL::Vector<...>::GetGrowSize (ListableSet<T>::GetGrowSize) virtually
-			uint32_t offset = nfsc::BulbToys_AddToListableSet_GetGrowSizeVirtually(ls, ls->size + 1);
-
-			// Calls its respective vector's push_back function
-			// Pretty sure there is no way to get this information from the listable itself, definitely not virtually
-			reinterpret_cast<void(__thiscall*)(void*, uint32_t)>(pfnPushback)(ls, offset);
-		}
-
-		T* end = ls->begin + ls->size;
-		if (end)
-		{
-			*end = elem;
-		}
-
-		++ls->size;
-	}
 
 	inline void* BulbToys_CreateSimable(void* vehicle_cache, driver_class dc, uint32_t key, Vector3* rotation, Vector3* position, uint32_t vpf,
 		void* customization_record, void* performance_matching)
@@ -470,8 +493,6 @@ namespace nfsc
 			reinterpret_cast<void(__thiscall*)(void*)>(0x76C790)(ai_player);
 		}
 
-		// FIXME: Entities (and maybe IPlayers) created by AIPlayer (for PTag/PKO only) are not deallocated (garbage colleted?) properly
-		// This will result in the very small (max 8, 12 or 16?) entity vector overflowing, which will put the game in an unstable state and eventually crash
 		static AIPlayer* __fastcall VecDelDtor(AIPlayer* ai_player, int edx, uint8_t flags);
 
 		template <ptrdiff_t offset>
