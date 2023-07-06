@@ -276,6 +276,7 @@ namespace nfsc
 	FUNC(0x6D7F80, uint8_t, __thiscall, PVehicle_GetForceStop, void* pvehicle);
 	FUNC(0x6D7EC0, void*, __thiscall, PVehicle_GetSimable, void* pvehicle);
 	FUNC(0x6D8070, float, __thiscall, PVehicle_GetSpeed, void* pvehicle);
+	FUNC(0x6D7F20, char*, __thiscall, PVehicle_GetVehicleName, void* pvehicle);
 	FUNC(0x6C0BA0, void, __thiscall, PVehicle_GlareOn, void* pvehicle, uint32_t fx_id);
 	FUNC(0x6D43A0, void, __thiscall, PVehicle_Kill, void* pvehicle);
 	FUNC(0x6D4410, void, __thiscall, PVehicle_ReleaseBehaviorAudio, void* pvehicle);

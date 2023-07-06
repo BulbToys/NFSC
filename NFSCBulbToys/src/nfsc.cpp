@@ -138,6 +138,7 @@ bool nfsc::BulbToys_SwitchVehicle(void* simable, void* simable2, sv_mode mode)
 
 		// todo: fix pursuits here
 		// todo: fix camera
+		// todo: eloadingscreenoff/on
 
 		nfsc::PhysicsObject_Kill(simable);
 	}

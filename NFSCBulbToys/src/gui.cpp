@@ -209,7 +209,6 @@ void gui::Render()
 	}
 
 	// Main window
-	// TODO: tabs
 	if (ImGui::Begin(PROJECT_NAME, NULL, ImGuiWindowFlags_NoScrollbar))
 	{
 		static bool menu[32] { false };
@@ -809,7 +808,14 @@ void gui::Render()
 
 				for (int j = 0; j < size; j++)
 				{
-					ImGui::AddyLabel(*(lists[i]->begin + j), "%d", j);
+					void* element = *(lists[i]->begin + j);
+					ImGui::AddyLabel(element, "%d", j);
+
+					if (i == 4)
+					{
+						ImGui::SameLine();
+						ImGui::Text("%s", nfsc::PVehicle_GetVehicleName(element));
+					}
 				}
 			}
 		}

@@ -446,6 +446,7 @@ void __fastcall hooks::RaceStatusUpdateHook(void* race_status, void* edx, float 
 		// - Goal set to AIGoalPursuit, AIGoalHassle, AIGoalPursuitEncounter, AIGoalRam, AIGoalPit; combined with Game_SetPursuitTarget
 		// - AIVehicle set to CopCar or Pursuit (using BEHAVIOR_MECHANIC_AI and committing)
 		// - AIAction manipulation, particularly removing AIActionRace (necessary for all non-traffic vehicles as it's directly responsible for their driving)
+		// - Setting DriverClass to cop (game crashes by stack overflow in ExtrapolatedRacer dtor ?????)
 		// - Probably a couple other things i forgot to mention here
 		// As a temporary horrible hack, we path to the pursuee every race update. This is very inaccurate and the AI does not behave properly
 		void* runner_rigidbody = nfsc::PhysicsObject_GetRigidBody(runner_simable);
