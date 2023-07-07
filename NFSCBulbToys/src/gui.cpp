@@ -137,7 +137,7 @@ void gui::SetupStyle()
 	style.Colors[ImGuiCol_TabUnfocusedActive] = ImVec4(0.4235294163227081f, 0.2696519196033478f, 0.1328719705343246f, 1.0f);
 	style.Colors[ImGuiCol_PlotLines] = ImVec4(1.0f, 0.470588207244873f, 0.0f, 1.0f);
 	style.Colors[ImGuiCol_PlotLinesHovered] = ImVec4(1.0f, 0.470588207244873f, 0.0f, 1.0f);
-	style.Colors[ImGuiCol_PlotHistogram] = ImVec4(1.0f, 0.470588207244873f, 0.0f, 1.0f);
+	style.Colors[ImGuiCol_PlotHistogram] = ImVec4(0.6470588445663452f, 0.3044982552528381f, 0.0f, 0.4588235318660736f);
 	style.Colors[ImGuiCol_PlotHistogramHovered] = ImVec4(1.0f, 0.470588207244873f, 0.0f, 1.0f);
 	style.Colors[ImGuiCol_TableHeaderBg] = ImVec4(0.1882352977991104f, 0.1882352977991104f, 0.2000000029802322f, 1.0f);
 	style.Colors[ImGuiCol_TableBorderStrong] = ImVec4(0.3098039329051971f, 0.3098039329051971f, 0.3490196168422699f, 1.0f);
@@ -218,6 +218,7 @@ void gui::Render()
 		auto state = ReadMemory<nfsc::gameflow_state>(0xA99BBC);
 
 		void* my_vehicle = nullptr;
+		void* my_simable = nullptr;
 		if (state == nfsc::gameflow_state::racing)
 		{
 			for (int i = 0; i < (int)nfsc::IVehicleList->size; i++)
@@ -236,6 +237,7 @@ void gui::Render()
 						if (player && ReadMemory<uintptr_t>(reinterpret_cast<uintptr_t>(player)) == 0x9EC8C0)
 						{
 							my_vehicle = vehicle;
+							my_simable = simable;
 						}
 					}
 				}
@@ -357,16 +359,17 @@ void gui::Render()
 					//nfsc::CameraAI_SetAction(1, "CDActionTrackCop");
 				}*/
 
-				void* current_simable = nfsc::PVehicle_GetSimable(my_vehicle);
-
-				nfsc::Vector3 p = { 0, 0, 0 };
-				nfsc::Vector3 r = { 1, 0, 0 };
-
-				void* new_simable = nfsc::BulbToys_CreateSimable(ReadMemory<void*>(0xA98284), nfsc::driver_class::human, nfsc::Attrib_StringToKey(vehicle), &r, &p, 0, 0, 0);
-
-				if (current_simable && new_simable)
+				if (my_simable)
 				{
-					nfsc::BulbToys_SwitchVehicle(current_simable, new_simable, nfsc::sv_mode::one_way);
+					nfsc::Vector3 p = { 0, 0, 0 };
+					nfsc::Vector3 r = { 1, 0, 0 };
+
+					void* new_simable = nfsc::BulbToys_CreateSimable(ReadMemory<void*>(0xA98284), nfsc::driver_class::human, nfsc::Attrib_StringToKey(vehicle), &r, &p, 0, 0, 0);
+
+					if (new_simable)
+					{
+						nfsc::BulbToys_SwitchVehicle(my_simable, new_simable, nfsc::sv_mode::one_way);
+					}
 				}
 			}
 
@@ -379,21 +382,17 @@ void gui::Render()
 			// Teleport to location
 			if (ImGui::Button("Teleport to location"))
 			{
-				if (my_vehicle)
+				if (my_simable)
 				{
-					void* simable = nfsc::PVehicle_GetSimable(my_vehicle);
-					if (simable)
+					void* rigid_body = nfsc::PhysicsObject_GetRigidBody(my_simable);
+					if (rigid_body)
 					{
-						void* rigid_body = nfsc::PhysicsObject_GetRigidBody(simable);
-						if (rigid_body)
-						{
-							nfsc::Vector3 position;
-							position.x = g::location[0];
-							position.y = g::location[1];
-							position.z = g::location[2];
+						nfsc::Vector3 position;
+						position.x = g::location[0];
+						position.y = g::location[1];
+						position.z = g::location[2];
 
-							nfsc::RigidBody_SetPosition(rigid_body, &position);
-						}
+						nfsc::RigidBody_SetPosition(rigid_body, &position);
 					}
 				}
 			}
@@ -735,19 +734,15 @@ void gui::Render()
 			ImGui::SameLine();
 			if (ImGui::Button("Mine"))
 			{
-				if (my_vehicle)
+				if (my_simable)
 				{
-					void* simable = nfsc::PVehicle_GetSimable(my_vehicle);
-					if (simable)
+					void* rigid_body = nfsc::PhysicsObject_GetRigidBody(my_simable);
+					if (rigid_body)
 					{
-						void* rigid_body = nfsc::PhysicsObject_GetRigidBody(simable);
-						if (rigid_body)
-						{
-							nfsc::Vector3* position = nfsc::RigidBody_GetPosition(rigid_body);
-							location[0] = position->x;
-							location[1] = position->y;
-							location[2] = position->z;
-						}
+						nfsc::Vector3* position = nfsc::RigidBody_GetPosition(rigid_body);
+						location[0] = position->x;
+						location[1] = position->y;
+						location[2] = position->z;
 					}
 				}
 			}
@@ -813,8 +808,54 @@ void gui::Render()
 
 					if (i == 4)
 					{
+						ImVec4 color;
+
+						bool is_active = reinterpret_cast<bool(__thiscall*)(void*)>(0x6D80C0)(element);
+
+						nfsc::driver_class dc = nfsc::PVehicle_GetDriverClass(element);
+						switch (dc)
+						{
+							case nfsc::driver_class::human:        color = ImVec4(0, 1, 1, 1); break;          // cyan
+							case nfsc::driver_class::traffic:      color = ImVec4(.6f, .4f, 0, 1); break;      // brown
+							case nfsc::driver_class::cop:          color = ImVec4(.25f, .25f, 1, 1); break;    // light blue
+							case nfsc::driver_class::racer:        color = ImVec4(1, .6f, 0, 1); break;        // orange
+							case nfsc::driver_class::none:         color = ImVec4(1, 1, 1, 1); break;          // white
+							case nfsc::driver_class::nis:          color = ImVec4(1, 1, 0, 1); break;          // yellow
+							case nfsc::driver_class::remote:       color = ImVec4(0, .75f, 0, 1); break;       // darker green
+							case nfsc::driver_class::remote_racer: color = ImVec4(0, 1, 0, 1); break;          // green
+							case nfsc::driver_class::ghost:        color = ImVec4(.75f, .75f, .75f, 1); break; // gray
+							default: /* hub */                     color = ImVec4(1, 0, 1, 1); break;          // magenta
+						}
+
+						float distance = 0;
+						
+						void* simable = nfsc::PVehicle_GetSimable(element);
+						if (my_simable && simable && simable != my_simable)
+						{
+							distance = nfsc::BulbToys_GetDistanceBetween(my_simable, simable);
+						}
+
+						// PVehicle::IsActive
+						if (!reinterpret_cast<bool(__thiscall*)(void*)>(0x6D80C0)(element))
+						{
+							ImGui::SameLine();
+							ImGui::TextColored(ImVec4(1, 0, 0, 1), "X");
+						}
 						ImGui::SameLine();
-						ImGui::Text("%s", nfsc::PVehicle_GetVehicleName(element));
+						ImGui::TextColored(color, "%s", nfsc::PVehicle_GetVehicleName(element));
+
+						char overlay[8];
+						if (distance > 99999)
+						{
+							sprintf_s(overlay, 8, "99999+");
+						}
+						else
+						{
+							sprintf_s(overlay, 8, "%.0f", distance);
+						}
+
+						ImGui::SameLine();
+						ImGui::ProgressBar(distance / 1000, ImVec2(50, 14), overlay);
 					}
 				}
 			}
