@@ -53,6 +53,32 @@ nfsc::race_type nfsc::BulbToys_GetRaceType()
 	return reinterpret_cast<nfsc::race_type(__thiscall*)(uintptr_t)>(0x6136A0)(race_parameters);
 }
 
+bool nfsc::BulbToys_GetDebugCamCoords(nfsc::Vector3& coords)
+{
+	uintptr_t first_camera_director = ReadMemory<uintptr_t>(0xA8ACC4 + 4);
+
+	uintptr_t camera_director = ReadMemory<uintptr_t>(first_camera_director);
+
+	uintptr_t cd_action = ReadMemory<uintptr_t>(camera_director + 0x18);
+
+	// Check if we're in CDActionDebug
+	if (ReadMemory<uintptr_t>(cd_action) != 0x9C7EE0)
+	{
+		return false;
+	}
+
+	uintptr_t camera_mover = ReadMemory<uintptr_t>(cd_action + 0x2BC);
+
+	uintptr_t camera = ReadMemory<uintptr_t>(camera_mover + 0x1C);
+
+	// z, -x, y -> x, y, z
+	coords.x = -ReadMemory<float>(camera + 0x44);
+	coords.y = ReadMemory<float>(camera + 0x48);
+	coords.z = ReadMemory<float>(camera + 0x40);
+
+	return true;
+}
+
 bool nfsc::BulbToys_IsGPSDown()
 {
 	auto gps = ReadMemory<uintptr_t>(0xA83E3C);

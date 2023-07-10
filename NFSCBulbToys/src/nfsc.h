@@ -299,8 +299,6 @@ namespace nfsc
 
 	/* ===== CUSTOM FUNCTIONS ===== */
 
-
-
 	inline void* BulbToys_CreateSimable(void* vehicle_cache, driver_class dc, uint32_t key, Vector3* rotation, Vector3* position, uint32_t vpf,
 		void* customization_record, void* performance_matching)
 	{
@@ -352,9 +350,19 @@ namespace nfsc
 		return reinterpret_cast<float(*)(Vector3*, Vector3*)>(0x411FD0)(nfsc::RigidBody_GetPosition(rb1), nfsc::RigidBody_GetPosition(rb2));
 	}
 
+	inline float BulbToys_GetDistanceBetween(void* simable, Vector3* pos)
+	{
+		void* rb = nfsc::PhysicsObject_GetRigidBody(simable);
+
+		// UMath::Distance
+		return reinterpret_cast<float(*)(Vector3*, Vector3*)>(0x411FD0)(nfsc::RigidBody_GetPosition(rb), pos);
+	}
+
 	int BulbToys_GetPVehicleTier(void* pvehicle);
 
 	race_type BulbToys_GetRaceType();
+
+	bool BulbToys_GetDebugCamCoords(Vector3& coords);
 
 	bool BulbToys_IsGPSDown();
 

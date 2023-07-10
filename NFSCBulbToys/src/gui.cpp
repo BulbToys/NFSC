@@ -61,6 +61,22 @@ inline void ImGui::AddyLabel(void* addy, const char* fmt, ...)
 	}
 }
 
+inline void ImGui::DistanceBar(float distance)
+{
+	char overlay[8];
+	if (distance > 99999)
+	{
+		sprintf_s(overlay, 8, "99999+");
+	}
+	else
+	{
+		sprintf_s(overlay, 8, "%.0f", distance);
+	}
+
+	ImGui::SameLine();
+	ImGui::ProgressBar(distance / 1000, ImVec2(50, 14), overlay);
+}
+
 void gui::SetupStyle()
 {
 	// Orange Enemymouse style from ImThemes
@@ -709,6 +725,8 @@ void gui::Render()
 							{
 								nfsc::Game_SetAIGoal(simable, "AIGoalHassle");
 								nfsc::Game_SetPursuitTarget(simable, player_simable);
+
+								// 0x004149E4 - loses track of the fucking pursued vehicle ?!?!?!?!?!?!?!
 							}
 						}
 					}
@@ -833,12 +851,11 @@ void gui::Render()
 					void* element = *(lists[i]->begin + j);
 					ImGui::AddyLabel(element, "%d", j);
 
+					// Fancier IVehicleList
 					if (i == 4)
 					{
+						// Set text color depending on driver class
 						ImVec4 color;
-
-						bool is_active = reinterpret_cast<bool(__thiscall*)(void*)>(0x6D80C0)(element);
-
 						nfsc::driver_class dc = nfsc::PVehicle_GetDriverClass(element);
 						switch (dc)
 						{
@@ -854,35 +871,43 @@ void gui::Render()
 							default: /* hub */                     color = ImVec4(1, 0, 1, 1); break;          // magenta
 						}
 
-						float distance = 0;
-						
-						void* simable = nfsc::PVehicle_GetSimable(element);
-						if (my_simable && simable && simable != my_simable)
-						{
-							distance = nfsc::BulbToys_GetDistanceBetween(my_simable, simable);
-						}
-
-						// PVehicle::IsActive
+						// PVehicle::IsActive (add a red X if the vehicle is inactive)
 						if (!reinterpret_cast<bool(__thiscall*)(void*)>(0x6D80C0)(element))
 						{
 							ImGui::SameLine();
 							ImGui::TextColored(ImVec4(1, 0, 0, 1), "X");
 						}
+
+						// Then print the vehicle name
 						ImGui::SameLine();
 						ImGui::TextColored(color, "%s", nfsc::PVehicle_GetVehicleName(element));
 
-						char overlay[8];
-						if (distance > 99999)
+						// Get distance between us and the other simable. Add distance progress bars at the end
+						void* simable = nfsc::PVehicle_GetSimable(element);
+						if (simable)
 						{
-							sprintf_s(overlay, 8, "99999+");
-						}
-						else
-						{
-							sprintf_s(overlay, 8, "%.0f", distance);
-						}
+							// 1. Distance from our simable to the other simable
+							if (my_simable)
+							{
+								if (simable == my_simable)
+								{
+									ImGui::DistanceBar(0);
+								}
 
-						ImGui::SameLine();
-						ImGui::ProgressBar(distance / 1000, ImVec2(50, 14), overlay);
+								else
+								{
+									ImGui::DistanceBar(nfsc::BulbToys_GetDistanceBetween(my_simable, simable));
+								}
+							}
+
+							nfsc::Vector3 pos;
+
+							// 2. Distance from our debug camera position to the other simable (if active)
+							if (nfsc::BulbToys_GetDebugCamCoords(pos))
+							{
+								ImGui::DistanceBar(nfsc::BulbToys_GetDistanceBetween(simable, &pos));
+							}
+						}
 					}
 				}
 			}

@@ -70,4 +70,5 @@ namespace ImGui
 	inline bool MySliderFloat(const char* text, const char* id, float* v, float v_min, float v_max, const char* format);
 	inline bool MyMenu(const char* text, bool* show);
 	inline void AddyLabel(void* addy, const char* fmt, ...);
+	inline void DistanceBar(float distance);
 }
