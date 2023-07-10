@@ -262,6 +262,9 @@ void gui::Render()
 
 					// No Busted
 					Unpatch(0x449836, true);
+
+					// No wingman speech
+					Unpatch(0x79390D, true);
 				}
 			}
 			ImGui::SameLine();
@@ -306,10 +309,34 @@ void gui::Render()
 			// ShowAllPresetsInFE
 			ImGui::Checkbox("ShowAllPresetsInFE", reinterpret_cast<bool*>(0xA9E6C3));
 
-			// UnlockNikki
-			if (ImGui::Button("UnlockNikki"))
+			ImGui::Text("Character key:");
+			static char character[64];
+			ImGui::InputText("##charkey", character, IM_ARRAYSIZE(character));
+
+			// Add to crew
+			if (ImGui::Button("Add to crew"))
 			{
+				uintptr_t KEY_NIKKI = 0xA982BC;
+				uint32_t nikki = ReadMemory<uint32_t>(KEY_NIKKI);
+
+				WriteMemory<uint32_t>(KEY_NIKKI, nfsc::Attrib_StringToKey(character));
 				nfsc::Game_UnlockNikki();
+
+				WriteMemory<uint32_t>(KEY_NIKKI, nikki);
+			}
+
+			// No wingman speech
+			static bool no_speech = false;
+			if (ImGui::Checkbox("No wingman speech", &no_speech))
+			{
+				if (no_speech)
+				{
+					PatchNop(0x79390D, 22);
+				}
+				else
+				{
+					Unpatch(0x79390D);
+				}
 			}
 
 			// Move vinyl step size
@@ -942,15 +969,18 @@ void gui::CreateMemoryWindow(uintptr_t address)
 
 LRESULT CALLBACK WindowProcess(HWND window, UINT message, WPARAM wideParam, LPARAM longParam)
 {
-	if (GetAsyncKeyState(MENU_KEY) & 1)
+	if (message == WM_KEYDOWN)
 	{
-		gui::menu_open = !gui::menu_open;
-		ShowCursor(gui::menu_open);
-	}
+		if (wideParam == MENU_KEY)
+		{
+			gui::menu_open = !gui::menu_open;
+			ShowCursor(gui::menu_open);
+		}
 
-	if (gui::debug_shortcut && GetAsyncKeyState(VK_BACK) & 1)
-	{
-		nfsc::CameraAI_SetAction(1, "CDActionDebug");
+		if (gui::debug_shortcut && wideParam == VK_BACK)
+		{
+			nfsc::CameraAI_SetAction(1, "CDActionDebug");
+		}
 	}
 
 	if (gui::menu_open && ImGui_ImplWin32_WndProcHandler(window, message, wideParam, longParam))
