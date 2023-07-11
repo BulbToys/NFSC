@@ -231,11 +231,9 @@ void gui::Render()
 		int id = 0;
 
 		// Grab necessary game info here
-		auto state = ReadMemory<nfsc::gameflow_state>(0xA99BBC);
-
 		void* my_vehicle = nullptr;
 		void* my_simable = nullptr;
-		if (state == nfsc::gameflow_state::racing)
+		if (*nfsc::GameFlowManager_State == nfsc::gameflow_state::racing)
 		{
 			for (int i = 0; i < (int)nfsc::IVehicleList->size; i++)
 			{
@@ -371,6 +369,8 @@ void gui::Render()
 
 				g::move_vinyl::step_size = step_size;
 			}
+
+			ImGui::Checkbox("World map GPS only", &g::world_map::gps_only);
 		}
 
 		/* ===== PLAYER ===== */
@@ -390,7 +390,7 @@ void gui::Render()
 			ImGui::InputText("##vehicle1", vehicle, IM_ARRAYSIZE(vehicle));
 
 			// Switch to vehicle
-			if (ImGui::Button("Switch to vehicle") && state == nfsc::gameflow_state::racing)
+			if (ImGui::Button("Switch to vehicle") && *nfsc::GameFlowManager_State == nfsc::gameflow_state::racing)
 			{
 				
 				// fucks shit up horribly (apparently it nulls the rigidbody lmfao ???)
@@ -804,7 +804,7 @@ void gui::Render()
 			ImGui::Checkbox("Ignore (use default) goal", &ignore);
 
 			// Spawn vehicle
-			if (ImGui::Button("Spawn vehicle") && state == nfsc::gameflow_state::racing)
+			if (ImGui::Button("Spawn vehicle") && *nfsc::GameFlowManager_State == nfsc::gameflow_state::racing)
 			{
 				nfsc::Vector3 r = { 1, 0, 0 };
 				nfsc::Vector3 p;

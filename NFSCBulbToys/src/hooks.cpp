@@ -107,6 +107,9 @@ bool hooks::SetupPart2(IDirect3DDevice9* device)
 	// Instead of resuming career, reload the Career menu if we load a save (or if we create a new one (patches::MemcardManagement))
 	CreateHook(0x5BD860, &CareerManagerChildFlowDoneHook, &CareerManagerChildFlowDone);
 
+	CreateHook(0x5CF890, &WorldMapShowDialogHook, &WorldMapShowDialog);
+	CreateHook(0x5B3570, &WorldMapButtonPressedHook, &WorldMapButtonPressed);
+
 	// Increment cop counter by 1 per roadblock vehicle
 	// TODO: if re-enabling this, make sure roadblock cops that get attached don't increment again
 	//WriteJmp(0x445A9D, CreateRoadBlockHook, 6);
@@ -621,6 +624,56 @@ void __fastcall hooks::WorldMapPadAcceptHook(void* fe_state_manager)
 	g::location[0] = position.x;
 	g::location[1] = position.y + g::extra_height;
 	g::location[2] = position.z;
+}
+
+void __fastcall hooks::WorldMapButtonPressedHook(uintptr_t fe_state_manager, void* edx, int unk)
+{
+	// Only offer GPS if the option is enabled and we're not in FE
+	if (g::world_map::gps_only && *nfsc::GameFlowManager_State == nfsc::gameflow_state::racing)
+	{
+		// mCurrentState
+		auto type = ReadMemory<g::world_map::dialog_type>(fe_state_manager + 4);
+
+		if (type == g::world_map::dialog_type::race_event || type == g::world_map::dialog_type::car_lot || type == g::world_map::dialog_type::safehouse)
+		{
+			// For these types of dialogs, use the button hashes of the GPS to safehouse prompt during pursuits
+			WriteMemory<int>(fe_state_manager + 4, 18);
+		}
+	}
+
+	WorldMapButtonPressed(fe_state_manager, edx, unk);
+}
+
+void __fastcall hooks::WorldMapShowDialogHook(uintptr_t fe_state_manager)
+{
+	// Only offer GPS if the option is enabled and we're not in FE
+	if (g::world_map::gps_only && *nfsc::GameFlowManager_State == nfsc::gameflow_state::racing)
+	{
+		// mCurrentState
+		auto type = ReadMemory<g::world_map::dialog_type>(fe_state_manager + 4);
+
+		if (type == g::world_map::dialog_type::race_event)
+		{
+			// Unhide the cursor and show the dialog with its respective string
+			WriteMemory<bool>(0xA97B38, false);
+			nfsc::FEDialogScreen_ShowOKCancel(nfsc::GetLocalizedString(0xCF93709B));
+			return;
+		}
+		else if (type == g::world_map::dialog_type::car_lot)
+		{
+			WriteMemory<bool>(0xA97B38, false);
+			nfsc::FEDialogScreen_ShowOKCancel(nfsc::GetLocalizedString(0xBBE2483E));
+			return;
+		}
+		else if (type == g::world_map::dialog_type::safehouse)
+		{
+			WriteMemory<bool>(0xA97B38, false);
+			nfsc::FEDialogScreen_ShowOKCancel(nfsc::GetLocalizedString(0x67E91382));
+			return;
+		}
+	}
+
+	WorldMapShowDialog(fe_state_manager);
 }
 
 /*__declspec(naked) void hooks::CreateRoadBlockHook()

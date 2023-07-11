@@ -29,6 +29,12 @@ namespace hooks
 	void __fastcall WorldMapPadAcceptHook(void* fe_state_manager);
 	static inline decltype(&WorldMapPadAcceptHook) WorldMapPadAccept;
 
+	void __fastcall WorldMapButtonPressedHook(uintptr_t fe_state_manager, void* edx, int unk);
+	static inline decltype(&WorldMapButtonPressedHook) WorldMapButtonPressed;
+
+	void __fastcall WorldMapShowDialogHook(uintptr_t fe_state_manager);
+	static inline decltype(&WorldMapShowDialogHook) WorldMapShowDialog;
+
 	void __fastcall ResetDriveToNavHook(void* ai_vehicle, void* edx, int lane_selection);
 	static inline decltype (&ResetDriveToNavHook) ResetDriveToNav;
 

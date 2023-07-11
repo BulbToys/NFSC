@@ -197,6 +197,7 @@ namespace nfsc
 	// Globals
 	constexpr uintptr_t GRaceStatus = 0xA98284;
 	constexpr uintptr_t ThePursuitSimables = 0xA98140;
+	inline gameflow_state* GameFlowManager_State = reinterpret_cast<gameflow_state*>(0xA99BBC);
 
 	// FastMem is an OBJECT
 	constexpr uintptr_t FastMem = 0xA99720;
@@ -236,6 +237,8 @@ namespace nfsc
 
 	FUNC(0x597900, void, , FE_Object_GetCenter, void* object, float* x, float* y);
 
+	FUNC(0x5CF460, void, , FEDialogScreen_ShowOKCancel, char* message);
+
 	FUNC(0x65C330, void, , Game_ClearAIControl, int unk);
 	FUNC(0x65C2C0, void, , Game_ForceAIControl, int unk);
 	FUNC(0x65D620, void*, , Game_PursuitSwitch, int racer_index, bool is_busted, int* result);
@@ -244,6 +247,8 @@ namespace nfsc
 	FUNC(0x6517A0, void, , Game_SetPursuitTarget, void* chaser_simable, void* target_simable);
 	FUNC(0x65DD60, void, , Game_TagPursuit, int index1, int index2, bool busted);
 	FUNC(0x667FF0, void, , Game_UnlockNikki);
+
+	FUNC(0x578830, char*, , GetLocalizedString, uint32_t key);
 
 	FUNC(0x627840, void, __thiscall, GIcon_Spawn, void* icon);
 

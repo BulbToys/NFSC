@@ -175,6 +175,18 @@ namespace g
 		inline nfsc::Vector3 target = { 0, 0, 0 };
 	}
 
+	namespace world_map
+	{
+		inline bool gps_only = false;
+
+		enum class dialog_type : int
+		{
+			race_event = 13,
+			car_lot    = 16,
+			safehouse  = 17
+		};
+	}
+
 	// Float3 element location
 	inline float location[3] = { 0, 0, 0 };
 
