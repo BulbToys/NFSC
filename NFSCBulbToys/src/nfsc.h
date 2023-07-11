@@ -221,6 +221,9 @@ namespace nfsc
 	FUNC(0x42A2D0, void, __thiscall, AIGoal_ChooseAction, void* ai_goal, float dt);
 	FUNC(0x42A240, void, __thiscall, AIGoal_ClearAllActions, void* ai_goal);
 
+	FUNC(0x40EBC0, bool, __thiscall, AITarget_GetVehicleInterface, void* ai_target, void** ivehicle);
+	FUNC(0x429C80, void, __thiscall, AITarget_Acquire, void* ai_target, void* simable);
+
 	FUNC(0x4639D0, uint32_t, , Attrib_StringToKey, const char* string);
 
 	FUNC(0x471050, unsigned int, , bStringHash, const char* string);

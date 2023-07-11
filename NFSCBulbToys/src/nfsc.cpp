@@ -162,6 +162,26 @@ bool nfsc::BulbToys_SwitchVehicle(void* simable, void* simable2, sv_mode mode)
 			nfsc::GRacerInfo_SetSimable(racer_info, simable2);
 		}
 
+		/*
+		int c = 0;
+
+		// Retarget all necessary AITargets to our new vehicle
+		for (int i = 0; i < nfsc::AITargetsList->size; i++)
+		{
+			void* ai_target = *(nfsc::AITargetsList->begin + i);
+
+			void* ai_target_vehicle = nullptr;
+			nfsc::AITarget_GetVehicleInterface(ai_target, &ai_target_vehicle);
+			if (vehicle == ai_target_vehicle)
+			{
+				nfsc::AITarget_Acquire(ai_target, simable2);
+				c++;
+			}
+		}
+
+		Error("Retargeted %d/%d", c, nfsc::AITargetsList->size);
+		*/
+
 		// todo: fix pursuits here
 		// todo: fix camera
 		// todo: eloadingscreenoff/on
@@ -227,8 +247,7 @@ void __fastcall nfsc::BulbToys_SwitchPTagTarget(void* race_status, bool busted)
 __declspec(noinline) nfsc::AIPlayer* nfsc::AIPlayer::CreateInstance()
 {
 	// void* FastMem::Alloc(&FastMem, size, 0);
-	auto malloc = reinterpret_cast<uintptr_t(__thiscall*)(uintptr_t, uint32_t, const char*)>(0x60BA70)
-		(nfsc::FastMem, sizeof(nfsc::AIPlayer), 0);
+	auto malloc = reinterpret_cast<uintptr_t(__thiscall*)(uintptr_t, uint32_t, const char*)>(0x60BA70)(nfsc::FastMem, sizeof(nfsc::AIPlayer), 0);
 	if (!malloc)
 	{
 		return nullptr;
