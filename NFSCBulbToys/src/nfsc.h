@@ -237,7 +237,7 @@ namespace nfsc
 
 	FUNC(0x597900, void, , FE_Object_GetCenter, void* object, float* x, float* y);
 
-	FUNC(0x5CF460, void, , FEDialogScreen_ShowOKCancel, char* message);
+	FUNC(0x5CF460, void, , FEDialogScreen_ShowOKCancel, const char* message);
 
 	FUNC(0x65C330, void, , Game_ClearAIControl, int unk);
 	FUNC(0x65C2C0, void, , Game_ForceAIControl, int unk);
@@ -248,7 +248,7 @@ namespace nfsc
 	FUNC(0x65DD60, void, , Game_TagPursuit, int index1, int index2, bool busted);
 	FUNC(0x667FF0, void, , Game_UnlockNikki);
 
-	FUNC(0x578830, char*, , GetLocalizedString, uint32_t key);
+	FUNC(0x578830, const char*, , GetLocalizedString, uint32_t key);
 
 	FUNC(0x627840, void, __thiscall, GIcon_Spawn, void* icon);
 

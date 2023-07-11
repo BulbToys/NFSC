@@ -175,9 +175,9 @@ namespace g
 		inline nfsc::Vector3 target = { 0, 0, 0 };
 	}
 
-	namespace world_map
+	namespace gps_only
 	{
-		inline bool gps_only = false;
+		inline bool enabled = false;
 
 		enum class dialog_type : int
 		{

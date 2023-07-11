@@ -274,6 +274,9 @@ void gui::Render()
 					gui::menu_open = false;
 					exitMainLoop = true;
 
+					// GPS only
+					Unpatch(0x5D59F4, true);
+
 					// No Busted
 					Unpatch(0x449836, true);
 
@@ -370,7 +373,19 @@ void gui::Render()
 				g::move_vinyl::step_size = step_size;
 			}
 
-			ImGui::Checkbox("World map GPS only", &g::world_map::gps_only);
+			// World map GPS only
+			if (ImGui::Checkbox("GPS only", &g::gps_only::enabled))
+			{
+				if (g::gps_only::enabled)
+				{
+					// Remove the "Jump to Safehouse" button from the pause menu
+					PatchMemory<uint8_t>(0x5D59F4, 0xEB);
+				}
+				else
+				{
+					Unpatch(0x5D59F4);
+				}
+			}
 		}
 
 		/* ===== PLAYER ===== */
