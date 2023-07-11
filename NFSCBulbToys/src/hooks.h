@@ -53,6 +53,9 @@ namespace hooks
 	void __cdecl ShowWinningScreenHook();
 	static inline decltype (&ShowWinningScreenHook) ShowWinningScreen;
 
+	void __fastcall CareerManagerChildFlowDoneHook(uintptr_t fe_career_state_manager, void* edx, int unk);
+	static inline decltype (&CareerManagerChildFlowDoneHook) CareerManagerChildFlowDone;
+
 	//void CreateRoadBlockHook();
 	void UpdateCopElementsHook1();
 	void UpdateCopElementsHook2();

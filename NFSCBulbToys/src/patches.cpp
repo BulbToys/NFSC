@@ -176,10 +176,8 @@ void patches::MemcardManagement()
 	// Press 1 while in the selection menu to delete the selected memcard
 	PatchMemory<uint8_t>(0xA97BD4, 1);
 
-	// Prevent automatically resuming Career if we load the first memcard in the list (jnz -> jmp)
-	PatchMemory<uint8_t>(0x5BD9D3, 0xEB);
-
 	// Prevent automatically resuming Career if we create a new memcard
+	// This sets the current state to the same one Load uses (which gets hooked and reloads the Career menu afterwards)
 	PatchMemory<uint8_t>(0x5BD6E6, 0x0F);
 
 	// 68 98 00 (00 00) -> E9 34 01 (00 00)

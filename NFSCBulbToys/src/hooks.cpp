@@ -104,6 +104,9 @@ bool hooks::SetupPart2(IDirect3DDevice9* device)
 	CreateHook(0x65E240, &ShowLosingScreenHook, &ShowLosingScreen);
 	CreateHook(0x65E270, &ShowWinningScreenHook, &ShowWinningScreen);
 
+	// Instead of resuming career, reload the Career menu if we load a save (or if we create a new one (patches::MemcardManagement))
+	CreateHook(0x5BD860, &CareerManagerChildFlowDoneHook, &CareerManagerChildFlowDone);
+
 	// Increment cop counter by 1 per roadblock vehicle
 	// TODO: if re-enabling this, make sure roadblock cops that get attached don't increment again
 	//WriteJmp(0x445A9D, CreateRoadBlockHook, 6);
@@ -529,6 +532,21 @@ void __cdecl hooks::ShowWinningScreenHook()
 	if (type != nfsc::race_type::pursuit_tag && type != nfsc::race_type::pursuit_ko)
 	{
 		ShowWinningScreen();
+	}
+}
+
+void __fastcall hooks::CareerManagerChildFlowDoneHook(uintptr_t fe_career_state_manager, void* edx, int unk)
+{
+	int cur_state = ReadMemory<uintptr_t>(fe_career_state_manager + 4);
+
+	if (cur_state == 15)
+	{
+		// FEStateManager::Switch(this, "FeMainMenu_Sub.fng", 0x93E8A57C, 1, 1);
+		reinterpret_cast<void(__thiscall*)(uintptr_t, const char*, uint32_t, int, int)>(0x59B140)(fe_career_state_manager, "FeMainMenu_Sub.fng", 0x93E8A57C, 1, 1);
+	}
+	else
+	{
+		CareerManagerChildFlowDone(fe_career_state_manager, edx, unk);
 	}
 }
 
