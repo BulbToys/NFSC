@@ -146,7 +146,7 @@ namespace nfsc
 			// Move elements
 			for (int i = 0; i < size; i++)
 			{
-				memory[i] = *(begin + i);
+				memory[i] = begin[i];
 			}
 
 			// Don't think we're allowed to do this for our first resize

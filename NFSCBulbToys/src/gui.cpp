@@ -237,7 +237,7 @@ void gui::Render()
 		{
 			for (int i = 0; i < (int)nfsc::IVehicleList->size; i++)
 			{
-				void* vehicle = *(nfsc::IVehicleList->begin + i);
+				void* vehicle = nfsc::IVehicleList->begin[i];
 
 				if (vehicle)
 				{

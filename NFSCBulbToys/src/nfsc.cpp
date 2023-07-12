@@ -168,7 +168,7 @@ bool nfsc::BulbToys_SwitchVehicle(void* simable, void* simable2, sv_mode mode)
 		// Retarget all necessary AITargets to our new vehicle
 		for (int i = 0; i < nfsc::AITargetsList->size; i++)
 		{
-			void* ai_target = *(nfsc::AITargetsList->begin + i);
+			void* ai_target = nfsc::AITargetsList->begin[i];
 
 			void* ai_target_vehicle = nullptr;
 			nfsc::AITarget_GetVehicleInterface(ai_target, &ai_target_vehicle);

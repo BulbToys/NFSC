@@ -233,7 +233,7 @@ bool __fastcall hooks::GpsEngageHook(void* gps, void* edx, nfsc::Vector3* target
 		return result;
 	}
 
-	auto p_vehicle = *nfsc::IVehicleList->begin;
+	auto p_vehicle = nfsc::IVehicleList->begin[0];
 	if (!p_vehicle)
 	{
 		return result;
@@ -262,7 +262,7 @@ void __fastcall hooks::ResetDriveToNavHook(void* ai_vehicle, void* edx, int lane
 		return;
 	}
 
-	auto p_vehicle = *nfsc::IVehicleList->begin;
+	auto p_vehicle = nfsc::IVehicleList->begin[0];
 	if (!p_vehicle)
 	{
 		return;
@@ -417,7 +417,7 @@ void* __fastcall hooks::RacerInfoCreateVehicleHook(uintptr_t racer_info, void* e
 
 const char* __cdecl hooks::GetPursuitVehicleNameHook(bool is_player)
 {
-	void* my_ivehicle = *nfsc::IVehicleList->begin;
+	void* my_ivehicle = nfsc::IVehicleList->begin[0];
 	if (!my_ivehicle)
 	{
 		// Use fallback
