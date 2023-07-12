@@ -39,7 +39,7 @@ inline bool ImGui::MyMenu(const char* text, bool* show)
 	return *show;
 }
 
-inline void ImGui::AddyLabel(void* addy, const char* fmt, ...)
+inline void ImGui::AddyLabel(uintptr_t addy, const char* fmt, ...)
 {
 	// Format label text
 	char name[64];
@@ -231,24 +231,24 @@ void gui::Render()
 		int id = 0;
 
 		// Grab necessary game info here
-		void* my_vehicle = nullptr;
-		void* my_simable = nullptr;
+		uintptr_t my_vehicle = 0;
+		uintptr_t my_simable = 0;
 		if (*nfsc::GameFlowManager_State == nfsc::gameflow_state::racing)
 		{
 			for (int i = 0; i < (int)nfsc::IVehicleList->size; i++)
 			{
-				void* vehicle = nfsc::IVehicleList->begin[i];
+				uintptr_t vehicle = nfsc::IVehicleList->begin[i];
 
 				if (vehicle)
 				{
-					void* simable = nfsc::PVehicle_GetSimable(vehicle);
+					uintptr_t simable = nfsc::PVehicle_GetSimable(vehicle);
 
 					if (simable)
 					{
-						void* player = nfsc::PhysicsObject_GetPlayer(simable);
+						uintptr_t player = nfsc::PhysicsObject_GetPlayer(simable);
 
 						// RecordablePlayer::`vftable'{for `IPlayer'}
-						if (player && ReadMemory<uintptr_t>(reinterpret_cast<uintptr_t>(player)) == 0x9EC8C0)
+						if (player && ReadMemory<uintptr_t>(player) == 0x9EC8C0)
 						{
 							my_vehicle = vehicle;
 							my_simable = simable;
@@ -410,10 +410,10 @@ void gui::Render()
 				
 				// fucks shit up horribly (apparently it nulls the rigidbody lmfao ???)
 				
-				/*if (nfsc::DebugVehicleSelection_SwitchPlayerVehicle(ReadMemory<void*>(0xB74BE8), vehicle))
+				/*if (nfsc::DebugVehicleSelection_SwitchPlayerVehicle(ReadMemory<uintptr_t>(0xB74BE8), vehicle))
 				{
-					nfsc::EAXSound_StartNewGamePlay(ReadMemory<void*>(0xA8BA38));
-					nfsc::LocalPlayer_ResetHUDType(ReadMemory<void*>(ReadMemory<uintptr_t>(0xA9FF58 + 4)), 1);
+					nfsc::EAXSound_StartNewGamePlay(ReadMemory<uintptr_t>(0xA8BA38));
+					nfsc::LocalPlayer_ResetHUDType(ReadMemory<uintptr_t>(ReadMemory<uintptr_t>(0xA9FF58 + 4)), 1);
 					//nfsc::CameraAI_SetAction(1, "CDActionTrackCop");
 				}*/
 
@@ -422,7 +422,7 @@ void gui::Render()
 					nfsc::Vector3 p = { 0, 0, 0 };
 					nfsc::Vector3 r = { 1, 0, 0 };
 
-					void* new_simable = nfsc::BulbToys_CreateSimable(ReadMemory<void*>(0xA98284), nfsc::driver_class::human, nfsc::Attrib_StringToKey(vehicle), &r, &p, 0, 0, 0);
+					uintptr_t new_simable = nfsc::BulbToys_CreateSimable(ReadMemory<uintptr_t>(0xA98284), nfsc::driver_class::human, nfsc::Attrib_StringToKey(vehicle), &r, &p, 0, 0, 0);
 
 					if (new_simable)
 					{
@@ -442,7 +442,7 @@ void gui::Render()
 			{
 				if (my_simable)
 				{
-					void* rigid_body = nfsc::PhysicsObject_GetRigidBody(my_simable);
+					uintptr_t rigid_body = nfsc::PhysicsObject_GetRigidBody(my_simable);
 					if (rigid_body)
 					{
 						nfsc::Vector3 position;
@@ -465,32 +465,31 @@ void gui::Render()
 
 				if (nfsc::GPS_Engage(&position, 0.0, false))
 				{
-					auto g_manager_base = ReadMemory<void*>(0xA98294);
+					auto g_manager_base = ReadMemory<uintptr_t>(0xA98294);
 
 					position.x = g::location[2];
 					position.y = -g::location[0];
 					position.z = g::location[1];
 
 					auto icon = nfsc::GManager_AllocIcon(g_manager_base, 0x15, &position, 0, false);
-					auto icon_addr = reinterpret_cast<uintptr_t>(icon);
 
 					// Set flag to ShowOnSpawn
 					//WriteMemory<uint8_t>(icon_addr + 1, 0x40);
 
 					// Set flag to ShowInWorld + ShowOnMap
-					WriteMemory<uint8_t>(icon_addr + 1, 3);
+					WriteMemory<uint8_t>(icon + 0x1, 3);
 
 					// Set color to white
-					WriteMemory<uint32_t>(icon_addr + 0x20, 0xFFFFFFFF);
+					WriteMemory<uint32_t>(icon + 0x20, 0xFFFFFFFF);
 
 					// Set tex hash
-					WriteMemory<uint32_t>(icon_addr + 0x24, nfsc::bStringHash("MINIMAP_ICON_EVENT"));
+					WriteMemory<uint32_t>(icon + 0x24, nfsc::bStringHash("MINIMAP_ICON_EVENT"));
 
 					nfsc::GIcon_Spawn(icon);
 					nfsc::WorldMap_SetGPSIng(icon);
 
 					// Set flag to previous + Spawned + Enabled + GPSing
-					WriteMemory<uint8_t>(icon_addr + 1, 0x8F);
+					WriteMemory<uint8_t>(icon + 1, 0x8F);
 				}
 			}
 
@@ -501,7 +500,7 @@ void gui::Render()
 			static uintptr_t i_damageable = 0;
 			if (my_vehicle)
 			{
-				i_damageable = ReadMemory<uintptr_t>(reinterpret_cast<uintptr_t>(my_vehicle) + 0x44);
+				i_damageable = ReadMemory<uintptr_t>(my_vehicle + 0x44);
 
 				// Make sure our IDamageable is of type DamageRacer
 				if (i_damageable && ReadMemory<uintptr_t>(i_damageable) != 0x9E6868)
@@ -550,7 +549,7 @@ void gui::Render()
 				if (ai_vehicle)
 				{
 					// bool AIVehicleHuman::bAIControl
-					autodrive = ReadMemory<bool>(reinterpret_cast<uintptr_t>(ai_vehicle) + 0x258);
+					autodrive = ReadMemory<bool>(ai_vehicle + 0x258);
 				}
 				else
 				{
@@ -692,7 +691,7 @@ void gui::Render()
 			}
 
 			// ThePursuitSimables (count)
-			ImGui::AddyLabel(reinterpret_cast<void*>(nfsc::ThePursuitSimables), "ThePursuitSimables (%d/8)", count);
+			ImGui::AddyLabel(nfsc::ThePursuitSimables, "ThePursuitSimables (%d/8)", count);
 
 			// Racer index 1
 			ImGui::Text("Index 1:");
@@ -721,21 +720,21 @@ void gui::Render()
 				// Game_KnockoutPursuit. NOTE: Its loading screen causes double rendering
 				reinterpret_cast<void(*)(int)>(0x65D9F0)(racer_index[0]);
 
-				void* g_race_status = ReadMemory<void*>(nfsc::GRaceStatus);
+				uintptr_t g_race_status = ReadMemory<uintptr_t>(nfsc::GRaceStatus);
 				if (g_race_status)
 				{
-					void* racer_info = nfsc::GRaceStatus_GetRacerInfo(g_race_status, racer_index[0]);
+					uintptr_t racer_info = nfsc::GRaceStatus_GetRacerInfo(g_race_status, racer_index[0]);
 
 					if (racer_info)
 					{
-						void* simable = nfsc::GRacerInfo_GetSimable(racer_info);
+						uintptr_t simable = nfsc::GRacerInfo_GetSimable(racer_info);
 
 						// Game_KnockoutRacer
-						reinterpret_cast<void(*)(void*)>(0x65B4E0)(simable);
+						reinterpret_cast<void(*)(uintptr_t)>(0x65B4E0)(simable);
 
 						if (simable && my_vehicle)
 						{
-							void* player_simable = nfsc::PVehicle_GetSimable(my_vehicle);
+							uintptr_t player_simable = nfsc::PVehicle_GetSimable(my_vehicle);
 							if (player_simable && player_simable != simable)
 							{
 								nfsc::Game_SetAIGoal(simable, "AIGoalHassle");
@@ -796,7 +795,7 @@ void gui::Render()
 			{
 				if (my_simable)
 				{
-					void* rigid_body = nfsc::PhysicsObject_GetRigidBody(my_simable);
+					uintptr_t rigid_body = nfsc::PhysicsObject_GetRigidBody(my_simable);
 					if (rigid_body)
 					{
 						nfsc::Vector3* position = nfsc::RigidBody_GetPosition(rigid_body);
@@ -827,8 +826,8 @@ void gui::Render()
 				p.y = location[1];
 				p.z = location[2];
 
-				void* simable = nfsc::BulbToys_CreateSimable(ReadMemory<void*>(0xA98284), (nfsc::driver_class)(spawn_type + 1),
-					nfsc::Attrib_StringToKey(vehicle), &r, &p, 0, nullptr, nullptr);
+				uintptr_t simable = nfsc::BulbToys_CreateSimable(ReadMemory<uintptr_t>(0xA98284), (nfsc::driver_class)(spawn_type + 1),
+					nfsc::Attrib_StringToKey(vehicle), &r, &p, 0, 0, 0);
 
 				if (!ignore && simable)
 				{
@@ -842,7 +841,7 @@ void gui::Render()
 		ImGui::Separator();
 		ImGui::Text("Lists:");
 
-		static nfsc::ListableSet<void*>* lists[] = { nfsc::AIPursuitList, nfsc::AITargetsList, nfsc::EntityList, nfsc::IPlayerList, nfsc::IVehicleList };
+		static nfsc::ListableSet<uintptr_t>* lists[] = { nfsc::AIPursuitList, nfsc::AITargetsList, nfsc::EntityList, nfsc::IPlayerList, nfsc::IVehicleList };
 		static const char* list_names[] = { "AIPursuitList", "AITargetsList", "EntityList", "IPlayerList", "IVehicleList" };
 
 		for (int i = 0; i < IM_ARRAYSIZE(lists); i++)
@@ -852,7 +851,7 @@ void gui::Render()
 
 			if (ImGui::MyMenu(list_name, &menu[id++]))
 			{
-				ImGui::AddyLabel(lists[i], "Address");
+				ImGui::AddyLabel(reinterpret_cast<uintptr_t>(lists[i]), "Address");
 
 				int size = lists[i]->size;
 
@@ -863,7 +862,7 @@ void gui::Render()
 
 				for (int j = 0; j < size; j++)
 				{
-					void* element = *(lists[i]->begin + j);
+					uintptr_t element = *(lists[i]->begin + j);
 					ImGui::AddyLabel(element, "%d", j);
 
 					// Fancier IVehicleList
@@ -887,7 +886,7 @@ void gui::Render()
 						}
 
 						// PVehicle::IsActive (add a red X if the vehicle is inactive)
-						if (!reinterpret_cast<bool(__thiscall*)(void*)>(0x6D80C0)(element))
+						if (!reinterpret_cast<bool(__thiscall*)(uintptr_t)>(0x6D80C0)(element))
 						{
 							ImGui::SameLine();
 							ImGui::TextColored(ImVec4(1, 0, 0, 1), "X");
@@ -898,7 +897,7 @@ void gui::Render()
 						ImGui::TextColored(color, "%s", nfsc::PVehicle_GetVehicleName(element));
 
 						// Get distance between us and the other simable. Add distance progress bars at the end
-						void* simable = nfsc::PVehicle_GetSimable(element);
+						uintptr_t simable = nfsc::PVehicle_GetSimable(element);
 						if (simable)
 						{
 							// 1. Distance from our simable to the other simable
@@ -949,7 +948,7 @@ void gui::Render()
 					ImGui::Separator();
 				}
 
-				auto vehicle = ReadMemory<void*>(iter);
+				auto vehicle = ReadMemory<uintptr_t>(iter);
 				if (!vehicle)
 				{
 					break;
@@ -968,10 +967,10 @@ void gui::Render()
 					break;
 				}
 
-				auto entity = reinterpret_cast<void* (__thiscall*)(void*)>(0x6D6C20)(simable);
+				auto entity = reinterpret_cast<uintptr_t (__thiscall*)(uintptr_t)>(0x6D6C20)(simable);
 				ImGui::AddyLabel(entity, " - Entity");
 
-				auto player = reinterpret_cast<void* (__thiscall*)(void*)>(0x6D6C40)(simable);
+				auto player = reinterpret_cast<uintptr_t (__thiscall*)(uintptr_t)>(0x6D6C40)(simable);
 				ImGui::AddyLabel(player, " - Player");
 			}
 		}

@@ -69,6 +69,6 @@ namespace ImGui
 	inline bool MyListBox(const char* text, const char* id, int* current_item, const char* const* items, int items_count, int height_in_items);
 	inline bool MySliderFloat(const char* text, const char* id, float* v, float v_min, float v_max, const char* format);
 	inline bool MyMenu(const char* text, bool* show);
-	inline void AddyLabel(void* addy, const char* fmt, ...);
+	inline void AddyLabel(uintptr_t addy, const char* fmt, ...);
 	inline void DistanceBar(float distance);
 }

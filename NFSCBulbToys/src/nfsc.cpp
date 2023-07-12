@@ -2,29 +2,29 @@
 
 uint32_t nfsc::ListableSet_GetGrowSizeVirtually(void* ls, uint32_t amount)
 {
-	return reinterpret_cast<uint32_t(__thiscall*)(void*, uint32_t)>(VirtualFunction(ls, 3))(ls, amount);
+	return reinterpret_cast<uint32_t(__thiscall*)(void*, uint32_t)>(VirtualFunction(reinterpret_cast<uintptr_t>(ls), 3))(ls, amount);
 }
 
-void* nfsc::BulbToys_CreatePursuitSimable(nfsc::driver_class dc)
+uintptr_t nfsc::BulbToys_CreatePursuitSimable(nfsc::driver_class dc)
 {
 	uint32_t cop_key = nfsc::GKnockoutRacer_GetPursuitVehicleKey(1);
 	nfsc::Vector3 p = { 0, 0, 0 };
 	nfsc::Vector3 r = { 1, 0, 0 };
 
-	void* simable = nfsc::BulbToys_CreateSimable(ReadMemory<void*>(0xA98284), dc, cop_key, &r, &p, nfsc::vehicle_param_flags::critical, nullptr, nullptr);
+	uintptr_t simable = nfsc::BulbToys_CreateSimable(ReadMemory<uintptr_t>(0xA98284), dc, cop_key, &r, &p, nfsc::vehicle_param_flags::critical, 0, 0);
 
 	return simable;
 }
 
-void* nfsc::BulbToys_GetAIVehicleGoal(void* ai_vehicle_ivehicleai)
+uintptr_t nfsc::BulbToys_GetAIVehicleGoal(uintptr_t ai_vehicle_ivehicleai)
 {
-	return ReadMemory<void*>(reinterpret_cast<uintptr_t>(ai_vehicle_ivehicleai) + 0x94);
+	return ReadMemory<uintptr_t>(ai_vehicle_ivehicleai + 0x94);
 }
 
 // NOTE: Returns tier 0 correctly (ie. Dump Truck). Returns -1 if it can't find its attributes.
-int nfsc::BulbToys_GetPVehicleTier(void* pvehicle)
+int nfsc::BulbToys_GetPVehicleTier(uintptr_t pvehicle)
 {
-	uintptr_t attributes = reinterpret_cast<uintptr_t>(pvehicle) + 0xF0;
+	uintptr_t attributes = pvehicle + 0xF0;
 
 	uintptr_t layout_ptr = ReadMemory<uintptr_t>(attributes + 4);
 
@@ -87,9 +87,9 @@ bool nfsc::BulbToys_IsGPSDown()
 	return !gps || ReadMemory<int>(gps + 0x6C) == 0;
 }
 
-void nfsc::BulbToys_PathToTarget(void* ai_vehicle, Vector3* target)
+void nfsc::BulbToys_PathToTarget(uintptr_t ai_vehicle, Vector3* target)
 {
-	auto road_nav = ReadMemory<void*>(reinterpret_cast<uintptr_t>(ai_vehicle) + 0x38);
+	auto road_nav = ReadMemory<uintptr_t>(ai_vehicle + 0x38);
 	if (!road_nav)
 	{
 		return;
@@ -98,28 +98,28 @@ void nfsc::BulbToys_PathToTarget(void* ai_vehicle, Vector3* target)
 	nfsc::WRoadNav_FindPath(road_nav, target, nullptr, 1);
 }
 
-bool nfsc::BulbToys_SwitchVehicle(void* simable, void* simable2, sv_mode mode)
+bool nfsc::BulbToys_SwitchVehicle(uintptr_t simable, uintptr_t simable2, sv_mode mode)
 {
 	if (!simable || !simable2)
 	{
 		return false;
 	}
 
-	void* player = nfsc::PhysicsObject_GetPlayer(simable);
+	uintptr_t player = nfsc::PhysicsObject_GetPlayer(simable);
 	if (!player)
 	{
 		return false;
 	}
 
-	void* vehicle = nfsc::BulbToys_FindInterface<nfsc::IVehicle>(simable);
-	void* vehicle2 = nfsc::BulbToys_FindInterface<nfsc::IVehicle>(simable2);
+	uintptr_t vehicle = nfsc::BulbToys_FindInterface<nfsc::IVehicle>(simable);
+	uintptr_t vehicle2 = nfsc::BulbToys_FindInterface<nfsc::IVehicle>(simable2);
 	if (!vehicle || !vehicle2)
 	{
 		return false;
 	}
 
-	void* rbody = nfsc::PhysicsObject_GetRigidBody(simable);
-	void* rbody2 = nfsc::PhysicsObject_GetRigidBody(simable2);
+	uintptr_t rbody = nfsc::PhysicsObject_GetRigidBody(simable);
+	uintptr_t rbody2 = nfsc::PhysicsObject_GetRigidBody(simable2);
 	if (!rbody || !rbody2)
 	{
 		return false;
@@ -158,7 +158,7 @@ bool nfsc::BulbToys_SwitchVehicle(void* simable, void* simable2, sv_mode mode)
 
 		if (nfsc::BulbToys_GetRaceType() != nfsc::race_type::none)
 		{
-			void* racer_info = nfsc::GRaceStatus_GetRacerInfo2(ReadMemory<void*>(nfsc::GRaceStatus), simable);
+			uintptr_t racer_info = nfsc::GRaceStatus_GetRacerInfo2(ReadMemory<uintptr_t>(nfsc::GRaceStatus), simable);
 			nfsc::GRacerInfo_SetSimable(racer_info, simable2);
 		}
 
@@ -168,9 +168,9 @@ bool nfsc::BulbToys_SwitchVehicle(void* simable, void* simable2, sv_mode mode)
 		// Retarget all necessary AITargets to our new vehicle
 		for (int i = 0; i < nfsc::AITargetsList->size; i++)
 		{
-			void* ai_target = nfsc::AITargetsList->begin[i];
+			uintptr_t ai_target = nfsc::AITargetsList->begin[i];
 
-			void* ai_target_vehicle = nullptr;
+			uintptr_t ai_target_vehicle = nullptr;
 			nfsc::AITarget_GetVehicleInterface(ai_target, &ai_target_vehicle);
 			if (vehicle == ai_target_vehicle)
 			{
@@ -189,7 +189,7 @@ bool nfsc::BulbToys_SwitchVehicle(void* simable, void* simable2, sv_mode mode)
 		nfsc::PhysicsObject_Kill(simable);
 	}
 
-	nfsc::EAXSound_StartNewGamePlay(ReadMemory<void*>(0xA8BA38));
+	nfsc::EAXSound_StartNewGamePlay(ReadMemory<uintptr_t>(0xA8BA38));
 
 	// Call ResetHUDType virtually (ie. our AIPlayer class uses OnlineRemotePlayer::ResetHUDType)
 	reinterpret_cast<decltype(nfsc::LocalPlayer_ResetHUDType)>(VirtualFunction(player, 9))(player, 1);
@@ -197,11 +197,11 @@ bool nfsc::BulbToys_SwitchVehicle(void* simable, void* simable2, sv_mode mode)
 	return true;
 }
 
-void __fastcall nfsc::BulbToys_SwitchPTagTarget(void* race_status, bool busted)
+void __fastcall nfsc::BulbToys_SwitchPTagTarget(uintptr_t race_status, bool busted)
 {
 	// Store information about our current runner here
 	int runner_index = -1;
-	void* runner_simable = nfsc::GRaceStatus_GetRacePursuitTarget(race_status, &runner_index);
+	uintptr_t runner_simable = nfsc::GRaceStatus_GetRacePursuitTarget(race_status, &runner_index);
 
 	// Store information about our soon-to-be runner here
 	int min_index = -1;
@@ -216,8 +216,8 @@ void __fastcall nfsc::BulbToys_SwitchPTagTarget(void* race_status, bool busted)
 			continue;
 		}
 
-		void* racer_info = nfsc::GRaceStatus_GetRacerInfo(race_status, i);
-		void* simable = nfsc::GRacerInfo_GetSimable(racer_info);
+		uintptr_t racer_info = nfsc::GRaceStatus_GetRacerInfo(race_status, i);
+		uintptr_t simable = nfsc::GRacerInfo_GetSimable(racer_info);
 
 		float distance = nfsc::BulbToys_GetDistanceBetween(runner_simable, simable);
 		if (distance < min)
@@ -244,9 +244,9 @@ void __fastcall nfsc::BulbToys_SwitchPTagTarget(void* race_status, bool busted)
 /* ===== AIPLAYER ===== */
 
 // Most of this shit is probably useless garbage the compiler spit out due to inheritance but i'm replicating it for consistency
-__declspec(noinline) nfsc::AIPlayer* nfsc::AIPlayer::CreateInstance()
+nfsc::AIPlayer* nfsc::AIPlayer::CreateInstance()
 {
-	// void* FastMem::Alloc(&FastMem, size, 0);
+	// uintptr_t FastMem::Alloc(&FastMem, size, 0);
 	auto malloc = reinterpret_cast<uintptr_t(__thiscall*)(uintptr_t, uint32_t, const char*)>(0x60BA70)(nfsc::FastMem, sizeof(nfsc::AIPlayer), 0);
 	if (!malloc)
 	{
@@ -254,10 +254,9 @@ __declspec(noinline) nfsc::AIPlayer* nfsc::AIPlayer::CreateInstance()
 	}
 
 	// Sim::Entity::Entity(this);
-	auto entity = reinterpret_cast<void*(__thiscall*)(uintptr_t)>(0x76C5A0)(malloc);
+	auto entity = reinterpret_cast<uintptr_t(__thiscall*)(uintptr_t)>(0x76C5A0)(malloc);
 
-	// ???
-	auto ai_player = reinterpret_cast<nfsc::AIPlayer*>(reinterpret_cast<uintptr_t>(entity) - 0);
+	auto ai_player = reinterpret_cast<nfsc::AIPlayer*>(entity);
 
 	void* object = &ai_player->Sim_Entity.Sim_Object.UCOM_Object;
 
@@ -283,8 +282,8 @@ __declspec(noinline) nfsc::AIPlayer* nfsc::AIPlayer::CreateInstance()
 	ai_player->Sim_Entity.IAttachable.vtbl = reinterpret_cast<uintptr_t>(g::ai_player::iattachable_vtbl);
 	ai_player->IPlayer.vtbl = reinterpret_cast<uintptr_t>(g::ai_player::iplayer_vtbl);
 
-	nfsc::EntityList->Add(&ai_player->Sim_Entity.Sim_IEntity, 0x6C9900);
-	nfsc::IPlayerList->Add(&ai_player->IPlayer, 0x6C9890);
+	nfsc::EntityList->Add(reinterpret_cast<uintptr_t>(&ai_player->Sim_Entity.Sim_IEntity), 0x6C9900);
+	nfsc::IPlayerList->Add(reinterpret_cast<uintptr_t>(&ai_player->IPlayer), 0x6C9890);
 
 	return ai_player;
 }
@@ -300,10 +299,10 @@ nfsc::AIPlayer* nfsc::AIPlayer::VecDelDtor(AIPlayer* ai_player, int edx, uint8_t
 	return ai_player;
 }
 
-void* nfsc::AIPlayer::GetSimable_IPlayer(AIPlayer* ai_player)
+uintptr_t nfsc::AIPlayer::GetSimable_IPlayer(AIPlayer* ai_player)
 {
 	VTable<10>* vtable = reinterpret_cast<VTable<10>*>(ai_player->Sim_Entity.Sim_IEntity.UCOM_IUnknown.vtbl);
 
 	// Sim::Entity::GetSimable(Sim::IEntity *this)
-	return reinterpret_cast<void*(__thiscall*)(uintptr_t)>(vtable->f[3])(reinterpret_cast<uintptr_t>(ai_player) - 0x20);
+	return reinterpret_cast<uintptr_t(__thiscall*)(uintptr_t)>(vtable->f[3])(reinterpret_cast<uintptr_t>(ai_player) - 0x20);
 }

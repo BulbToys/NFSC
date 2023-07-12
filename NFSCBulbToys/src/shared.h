@@ -49,11 +49,6 @@ inline std::unordered_map<uintptr_t, Patch*> patch_map;
 
 void Error(const char* message, ...);
 
-inline uintptr_t VirtualFunction(void* thisptr, ptrdiff_t index)
-{
-	return reinterpret_cast<uintptr_t>((*static_cast<void***>(thisptr))[index]);
-}
-
 template <typename T>
 inline T ReadMemory(uintptr_t address)
 {
@@ -125,6 +120,11 @@ inline void Unpatch(uintptr_t address, bool low_priority = false)
 
 	memcpy(reinterpret_cast<void*>(address), p->bytes, p->len);
 	delete p;
+}
+
+inline uintptr_t VirtualFunction(uintptr_t thisptr, ptrdiff_t index)
+{
+	return ReadMemory<uintptr_t>(ReadMemory<uintptr_t>(thisptr) + index * 4);
 }
 
 inline void PurecallHandler()
