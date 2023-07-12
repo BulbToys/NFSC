@@ -146,6 +146,19 @@ namespace g
 		inline VTable<27>* iplayer_vtbl;
 	}
 
+	// GPS only
+	namespace gps_only
+	{
+		inline bool enabled = false;
+
+		enum class dialog_type : int
+		{
+			race_event = 13,
+			car_lot    = 16,
+			safehouse  = 17
+		};
+	}
+
 	// MoveVinyl hook
 	namespace move_vinyl
 	{
@@ -173,18 +186,6 @@ namespace g
 	{
 		inline bool hooked = false;
 		inline nfsc::Vector3 target = { 0, 0, 0 };
-	}
-
-	namespace gps_only
-	{
-		inline bool enabled = false;
-
-		enum class dialog_type : int
-		{
-			race_event = 13,
-			car_lot    = 16,
-			safehouse  = 17
-		};
 	}
 
 	// Float3 element location

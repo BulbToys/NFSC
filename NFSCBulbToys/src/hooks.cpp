@@ -362,7 +362,7 @@ uintptr_t __fastcall hooks::RacerInfoCreateVehicleHook(uintptr_t racer_info, uin
 			uintptr_t racer_vehicle = RacerInfoCreateVehicle(racer_info, edx, key, racer_index, seed);
 			uintptr_t racer_simable = nfsc::PVehicle_GetSimable(racer_vehicle);
 
-			nfsc::AIPlayer* ai_player = nfsc::AIPlayer::CreateInstance();
+			nfsc::AIPlayer* ai_player = nfsc::AIPlayer::New();
 
 			// bool (PhysicsObject) ISimable::Attach(ISimable*, IPlayer*)
 			reinterpret_cast<bool(__thiscall*)(uintptr_t, void*)>(0x6C6740)(racer_simable, &ai_player->IPlayer);
@@ -384,7 +384,7 @@ uintptr_t __fastcall hooks::RacerInfoCreateVehicleHook(uintptr_t racer_info, uin
 			// Create and use our own racer vehicle and player
 			vehicle = RacerInfoCreateVehicle(racer_info, edx, key, racer_index, seed);
 
-			nfsc::AIPlayer* ai_player = nfsc::AIPlayer::CreateInstance();
+			nfsc::AIPlayer* ai_player = nfsc::AIPlayer::New();
 
 			nfsc::PhysicsObject_Attach(nfsc::PVehicle_GetSimable(vehicle), reinterpret_cast<uintptr_t>(&ai_player->IPlayer));
 

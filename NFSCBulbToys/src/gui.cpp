@@ -51,13 +51,13 @@ inline void ImGui::AddyLabel(uintptr_t addy, const char* fmt, ...)
 	ImGui::Text("%s: %p", name, addy);
 
 	char button[16];
-	sprintf_s(button, 16, "copy##%p", addy);
+	sprintf_s(button, 16, "copy##%08X", addy);
 
 	ImGui::SameLine();
 	if (ImGui::Button(button))
 	{
 		// Copy to MemEdit input field
-		sprintf_s(gui::input_addr, 9, "%p", addy);
+		sprintf_s(gui::input_addr, 9, "%08X", addy);
 	}
 }
 
@@ -422,7 +422,8 @@ void gui::Render()
 					nfsc::Vector3 p = { 0, 0, 0 };
 					nfsc::Vector3 r = { 1, 0, 0 };
 
-					uintptr_t new_simable = nfsc::BulbToys_CreateSimable(ReadMemory<uintptr_t>(0xA98284), nfsc::driver_class::human, nfsc::Attrib_StringToKey(vehicle), &r, &p, 0, 0, 0);
+					uintptr_t new_simable = nfsc::BulbToys_CreateSimable(ReadMemory<uintptr_t>(nfsc::GRaceStatus), nfsc::driver_class::human,
+						nfsc::Attrib_StringToKey(vehicle), &r, &p, 0, 0, 0);
 
 					if (new_simable)
 					{
@@ -826,7 +827,7 @@ void gui::Render()
 				p.y = location[1];
 				p.z = location[2];
 
-				uintptr_t simable = nfsc::BulbToys_CreateSimable(ReadMemory<uintptr_t>(0xA98284), (nfsc::driver_class)(spawn_type + 1),
+				uintptr_t simable = nfsc::BulbToys_CreateSimable(ReadMemory<uintptr_t>(nfsc::GRaceStatus),(nfsc::driver_class)(spawn_type + 1),
 					nfsc::Attrib_StringToKey(vehicle), &r, &p, 0, 0, 0);
 
 				if (!ignore && simable)

@@ -244,7 +244,7 @@ void __fastcall nfsc::BulbToys_SwitchPTagTarget(uintptr_t race_status, bool bust
 /* ===== AIPLAYER ===== */
 
 // Most of this shit is probably useless garbage the compiler spit out due to inheritance but i'm replicating it for consistency
-nfsc::AIPlayer* nfsc::AIPlayer::CreateInstance()
+nfsc::AIPlayer* nfsc::AIPlayer::New()
 {
 	// uintptr_t FastMem::Alloc(&FastMem, size, 0);
 	auto malloc = reinterpret_cast<uintptr_t(__thiscall*)(uintptr_t, uint32_t, const char*)>(0x60BA70)(nfsc::FastMem, sizeof(nfsc::AIPlayer), 0);

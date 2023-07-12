@@ -503,7 +503,7 @@ namespace nfsc
 		// We're using __fastcalls because they are the most compatible with __thiscalls and we need to get their function pointers later
 		// It is not possible to normally get a function pointer of a __thiscall function
 
-		static AIPlayer* CreateInstance();
+		static AIPlayer* New();
 
 		static void __fastcall Destructor(AIPlayer* ai_player)
 		{
