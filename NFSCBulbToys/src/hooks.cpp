@@ -626,7 +626,7 @@ void __fastcall hooks::WorldMapPadAcceptHook(void* fe_state_manager)
 	g::location[2] = position.z;
 }
 
-void __fastcall hooks::WorldMapButtonPressedHook(uintptr_t fe_state_manager, void* edx, int unk)
+void __fastcall hooks::WorldMapButtonPressedHook(uintptr_t fe_state_manager, void* edx, uint32_t unk)
 {
 	// Only offer GPS if the option is enabled and we're not in FE
 	if (g::gps_only::enabled && *nfsc::GameFlowManager_State == nfsc::gameflow_state::racing)
@@ -638,6 +638,23 @@ void __fastcall hooks::WorldMapButtonPressedHook(uintptr_t fe_state_manager, voi
 		{
 			// For these types of dialogs, use the button hashes of the GPS to safehouse prompt during pursuits
 			WriteMemory<int>(fe_state_manager + 4, 18);
+
+			uintptr_t dialog_screen = ReadMemory<uintptr_t>(0xA97B14);
+			uint32_t* button_hashes = ReadMemory<uint32_t*>(dialog_screen + 0x2C);
+
+			// First button - Activate GPS
+			if (unk == button_hashes[0])
+			{
+				nfsc::FEStateManager_ChangeState(reinterpret_cast<void*>(fe_state_manager), 21);
+			}
+
+			// Second button - Cancel
+			else if (unk == button_hashes[1])
+			{
+				nfsc::FEStateManager_PopBack(reinterpret_cast<void*>(fe_state_manager), 3);
+			}
+
+			return;
 		}
 	}
 
@@ -652,23 +669,34 @@ void __fastcall hooks::WorldMapShowDialogHook(uintptr_t fe_state_manager)
 		// mCurrentState
 		auto type = ReadMemory<g::gps_only::dialog_type>(fe_state_manager + 4);
 
+		const char* DIALOG_MSG_ACTIVATE_GPS = nfsc::GetLocalizedString(0x6EB0EACE);
+		const char* COMMON_CANCEL = nfsc::GetLocalizedString(0x1A294DAD);
+
 		if (type == g::gps_only::dialog_type::race_event)
 		{
 			// Unhide the cursor and show the dialog with its respective string
 			WriteMemory<bool>(0xA97B38, false);
-			nfsc::FEDialogScreen_ShowOKCancel("Would you like to GPS to the event?");
+
+			// DIALOG_MSG_WORLDMAP_EVENT
+			nfsc::FEDialogScreen_ShowDialog(nfsc::GetLocalizedString(0xCF93709B), DIALOG_MSG_ACTIVATE_GPS, COMMON_CANCEL, nullptr);
 			return;
 		}
 		else if (type == g::gps_only::dialog_type::car_lot)
 		{
 			WriteMemory<bool>(0xA97B38, false);
-			nfsc::FEDialogScreen_ShowOKCancel("Would you like to GPS to the Car Lot?");
+			
+			// DIALOG_MSG_WORLDMAP_CARLOT
+			nfsc::FEDialogScreen_ShowDialog(nfsc::GetLocalizedString(0xBBE2483E), DIALOG_MSG_ACTIVATE_GPS, COMMON_CANCEL, nullptr);
+
 			return;
 		}
 		else if (type == g::gps_only::dialog_type::safehouse)
 		{
 			WriteMemory<bool>(0xA97B38, false);
-			nfsc::FEDialogScreen_ShowOKCancel(nfsc::GetLocalizedString(0x67E91382));
+
+			// DIALOG_MSG_WORLDMAP_SAFEHOUSE
+			nfsc::FEDialogScreen_ShowDialog(nfsc::GetLocalizedString(0x8B776D3C), DIALOG_MSG_ACTIVATE_GPS, COMMON_CANCEL, nullptr);
+
 			return;
 		}
 	}

@@ -237,7 +237,10 @@ namespace nfsc
 
 	FUNC(0x597900, void, , FE_Object_GetCenter, void* object, float* x, float* y);
 
-	FUNC(0x5CF460, void, , FEDialogScreen_ShowOKCancel, const char* message);
+	FUNC(0x5CDEA0, void, , FEDialogScreen_ShowDialog, const char* message, const char* button1, const char* button2, const char* button3);
+
+	FUNC(0x5A53A0, void, __thiscall, FEStateManager_PopBack, void* state_manager, int next_state);
+	FUNC(0x579200, void, __thiscall, FEStateManager_ChangeState, void* state_manager, int current_state);
 
 	FUNC(0x65C330, void, , Game_ClearAIControl, int unk);
 	FUNC(0x65C2C0, void, , Game_ForceAIControl, int unk);

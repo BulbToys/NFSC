@@ -29,7 +29,7 @@ namespace hooks
 	void __fastcall WorldMapPadAcceptHook(void* fe_state_manager);
 	static inline decltype(&WorldMapPadAcceptHook) WorldMapPadAccept;
 
-	void __fastcall WorldMapButtonPressedHook(uintptr_t fe_state_manager, void* edx, int unk);
+	void __fastcall WorldMapButtonPressedHook(uintptr_t fe_state_manager, void* edx, uint32_t unk);
 	static inline decltype(&WorldMapButtonPressedHook) WorldMapButtonPressed;
 
 	void __fastcall WorldMapShowDialogHook(uintptr_t fe_state_manager);
