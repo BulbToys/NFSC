@@ -228,7 +228,8 @@ namespace nfsc
 
 	FUNC(0x4639D0, uint32_t, , Attrib_StringToKey, const char* string);
 
-	FUNC(0x471050, unsigned int, , bStringHash, const char* string);
+	FUNC(0x471050, uint32_t, , bStringHash, const char* string);
+	FUNC(0x4710B0, uint32_t, , bStringHashUpper, const char* string);
 
 	FUNC(0x48D620, void, , CameraAI_SetAction, int eview, const char* name);
 

@@ -62,6 +62,9 @@ namespace hooks
 	void __fastcall CareerManagerChildFlowDoneHook(uintptr_t fe_career_state_manager, uintptr_t edx, int unk);
 	static inline decltype (&CareerManagerChildFlowDoneHook) CareerManagerChildFlowDone;
 
+	uintptr_t __fastcall GetAvailablePresetVehicleHook(uintptr_t ai_traffic_manager, uintptr_t edx, uint32_t skin_key, uint32_t encounter_key);
+	static inline decltype (&GetAvailablePresetVehicleHook) GetAvailablePresetVehicle;
+
 	//void CreateRoadBlockHook();
 	void UpdateCopElementsHook1();
 	void UpdateCopElementsHook2();

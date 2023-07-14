@@ -108,8 +108,12 @@ bool hooks::SetupPart2(uintptr_t device)
 	// Instead of resuming career, reload the Career menu if we load a save (or if we create a new one (patches::MemcardManagement))
 	CreateHook(0x5BD860, &CareerManagerChildFlowDoneHook, &CareerManagerChildFlowDone);
 
+	// GPS only mode
 	CreateHook(0x5CF890, &WorldMapShowDialogHook, &WorldMapShowDialog);
 	CreateHook(0x5B3570, &WorldMapButtonPressedHook, &WorldMapButtonPressed);
+
+	// Custom encounter vehicles
+	CreateHook(0x42CB70, &GetAvailablePresetVehicleHook, &GetAvailablePresetVehicle);
 
 	// Increment cop counter by 1 per roadblock vehicle
 	// TODO: if re-enabling this, make sure roadblock cops that get attached don't increment again
@@ -552,6 +556,17 @@ void __fastcall hooks::CareerManagerChildFlowDoneHook(uintptr_t fe_career_state_
 	{
 		CareerManagerChildFlowDone(fe_career_state_manager, edx, unk);
 	}
+}
+
+uintptr_t __fastcall hooks::GetAvailablePresetVehicleHook(uintptr_t ai_traffic_manager, uintptr_t edx, uint32_t skin_key, uint32_t encounter_key)
+{
+	if (g::encounter::overridden)
+	{
+		skin_key = 0;
+		encounter_key = nfsc::Attrib_StringToKey(g::encounter::vehicle);
+	}
+
+	return GetAvailablePresetVehicle(ai_traffic_manager, edx, skin_key, encounter_key);
 }
 
 void __fastcall hooks::WorldMapPadAcceptHook(uintptr_t fe_state_manager)

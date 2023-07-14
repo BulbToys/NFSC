@@ -146,6 +146,13 @@ namespace g
 		inline VTable<27>* iplayer_vtbl;
 	}
 
+	// GetAvailablePresetVehicle hook
+	namespace encounter
+	{
+		inline char vehicle[32] = {0};
+		inline bool overridden = false;
+	}
+
 	// GPS only
 	namespace gps_only
 	{

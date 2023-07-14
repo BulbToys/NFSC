@@ -401,8 +401,7 @@ void gui::Render()
 
 			// Vehicle name
 			ImGui::Text("Vehicle name:");
-			static char vehicle[32];
-			ImGui::InputText("##vehicle1", vehicle, IM_ARRAYSIZE(vehicle));
+			ImGui::InputText("##vehicle1", g::encounter::vehicle, IM_ARRAYSIZE(g::encounter::vehicle));
 
 			// Switch to vehicle
 			if (ImGui::Button("Switch to vehicle") && *nfsc::GameFlowManager_State == nfsc::gameflow_state::racing)
@@ -423,7 +422,7 @@ void gui::Render()
 					nfsc::Vector3 r = { 1, 0, 0 };
 
 					uintptr_t new_simable = nfsc::BulbToys_CreateSimable(ReadMemory<uintptr_t>(nfsc::GRaceStatus), nfsc::driver_class::human,
-						nfsc::Attrib_StringToKey(vehicle), &r, &p, 0, 0, 0);
+						nfsc::Attrib_StringToKey(g::encounter::vehicle), &r, &p, 0, 0, 0);
 
 					if (new_simable)
 					{
@@ -431,6 +430,8 @@ void gui::Render()
 					}
 				}
 			}
+
+			ImGui::Checkbox("Use as next encounter", &g::encounter::overridden);
 
 			ImGui::Separator();
 
