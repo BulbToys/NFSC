@@ -301,6 +301,8 @@ namespace nfsc
 	FUNC(0x6C6FF0, Vector3*, __thiscall, RigidBody_GetPosition, uintptr_t rigid_body);
 	FUNC(0x6E8210, void, __thiscall, RigidBody_SetPosition, uintptr_t rigid_body, Vector3* position);
 
+	FUNC(0x411FD0, float, , UMath_Distance, Vector3* vec1, Vector3* vec2);
+
 	FUNC(0x816DF0, bool, __thiscall, WCollisionMgr_GetWorldHeightAtPointRigorous, WCollisionMgr* mgr, Vector3* point, float* height, Vector3* normal);
 
 	FUNC(0x7CA1A0, void, , World_RestoreProps);
@@ -317,23 +319,12 @@ namespace nfsc
 	{
 		struct VehicleParams { uint8_t _[0x3C]; } params;
 
-		/*
-			void __thiscall VehicleParams::VehicleParams(
-				VehicleParams *this,
-				IVehicleCache *cache,
-				DriverClass driver_class,
-				unsigned int key,
-				UMath::Vector3 *rotation,
-				UMath::Vector3 *position,
-				eVehicleParamFlags flags,
-				FECustomizationRecord *record,
-				Physics::Info::PerformanceMatching *matching);
-		*/
+		// void __thiscall VehicleParams::VehicleParams(...);
 		reinterpret_cast<void(__thiscall*)(VehicleParams&, uintptr_t, driver_class, uint32_t, Vector3*, Vector3*, uint32_t, uintptr_t, uintptr_t)>(0x412590)
 			(params, vehicle_cache, dc, key, rotation, position, vpf, customization_record, performance_matching);
 
 		// ISimable* UCOM::Factory<Sim::Param,ISimable,UCrc32>::CreateInstance(stringhash32("PVehicle"), params);
-		uintptr_t simable = reinterpret_cast<uintptr_t (*)(uint32_t, VehicleParams)>(0x41F920)(0x1396EBE1, params);
+		uintptr_t simable = reinterpret_cast<uintptr_t(*)(uint32_t, VehicleParams)>(0x41F920)(0x1396EBE1, params);
 
 		// Attrib::Instance::~Instance(&params.attributes);
 		reinterpret_cast<void(__thiscall*)(uintptr_t)>(0x469870)(reinterpret_cast<uintptr_t>(&params) + 0x14);
@@ -354,13 +345,14 @@ namespace nfsc
 
 	uintptr_t BulbToys_GetAIVehicleGoal(uintptr_t ai_vehicle_ivehicleai);
 
+	bool BulbToys_GetDebugCamCoords(Vector3* position, Vector3* fwd_vec);
+
 	inline float BulbToys_GetDistanceBetween(uintptr_t simable1, uintptr_t simable2)
 	{
 		uintptr_t rb1 = nfsc::PhysicsObject_GetRigidBody(simable1);
 		uintptr_t rb2 = nfsc::PhysicsObject_GetRigidBody(simable2);
 
-		// UMath::Distance
-		return reinterpret_cast<float(*)(Vector3*, Vector3*)>(0x411FD0)(nfsc::RigidBody_GetPosition(rb1), nfsc::RigidBody_GetPosition(rb2));
+		return nfsc::UMath_Distance(nfsc::RigidBody_GetPosition(rb1), nfsc::RigidBody_GetPosition(rb2));
 	}
 
 	inline float BulbToys_GetDistanceBetween(uintptr_t simable, Vector3* pos)
@@ -371,11 +363,13 @@ namespace nfsc
 		return reinterpret_cast<float(*)(Vector3*, Vector3*)>(0x411FD0)(nfsc::RigidBody_GetPosition(rb), pos);
 	}
 
+	bool BulbToys_GetMyVehicle(uintptr_t* my_vehicle, uintptr_t* my_simable);
+
 	int BulbToys_GetPVehicleTier(uintptr_t pvehicle);
 
-	race_type BulbToys_GetRaceType();
+	float BulbToys_GetStreetWidth(Vector3* position, Vector3* direction, float distance, Vector3* left_pos, Vector3* right_pos);
 
-	bool BulbToys_GetDebugCamCoords(Vector3& coords);
+	race_type BulbToys_GetRaceType();
 
 	bool BulbToys_IsGPSDown();
 

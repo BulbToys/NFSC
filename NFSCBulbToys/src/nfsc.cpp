@@ -36,6 +36,112 @@ int nfsc::BulbToys_GetPVehicleTier(uintptr_t pvehicle)
 	return ReadMemory<int>(layout_ptr + 0x2C);
 }
 
+float nfsc::BulbToys_GetStreetWidth(Vector3* position, Vector3* direction, float distance, Vector3* left_pos, Vector3* right_pos)
+{
+	struct WRoadNav // 780u
+	{ 
+		uint8_t pad0[0x58];
+
+		bool fValid = false;
+		
+		uint8_t pad1[0x1B]{ 0 };
+
+		int fNavType = 0;
+
+		uint8_t pad2[0x10]{ 0 };
+
+		char fNodeInd = 0;
+
+		uint8_t pad3 = 0;
+
+		short fSegmentInd = 0;
+
+		uint8_t pad4[0x14]{ 0 };
+
+		nfsc::Vector3 fLeftPosition = { 0, 0, 0 };
+		nfsc::Vector3 fRightPosition = { 0, 0, 0 };
+
+		uint8_t pad5[0x254]{ 0 };
+
+	} nav;
+
+	// WRoadNav::WRoadNav(&nav);
+	reinterpret_cast<uintptr_t(__thiscall*)(WRoadNav&)>(0x806820)(nav);
+
+	// WRoadNav::SetCookieTrail(&nav, 1);
+	reinterpret_cast<void(__thiscall*)(WRoadNav&, bool)>(0x7F7CA0)(nav, 1);
+
+	// WRoadNav::SetPathType(&nav, kPathCop);
+	reinterpret_cast<void(__thiscall*)(WRoadNav&, int)>(0x7EC0D0)(nav, 0);
+
+	// nav.fNavType = kTypeDirection;
+	nav.fNavType = 2;
+
+	// WRoadNav::InitAtPoint(&nav, &position, &direction, 0, 0.0);
+	reinterpret_cast<void(__thiscall*)(WRoadNav&, Vector3*, Vector3*, bool, float)>(0x80F180)(nav, position, direction, 0, 0.0);
+	if (!nav.fValid)
+	{
+		return NAN;
+	}
+
+	// WRoadNav::IncNavPosition(&nav, distance, &UMath::Vector3::kZero, 0.0, 0);
+	reinterpret_cast<void(__thiscall*)(WRoadNav&, float, Vector3*, float, bool)>(0x80C600)(nav, distance, nfsc::ZeroV3, 0.0, 0);
+
+	// segment = &WRoadNetwork::fSegments[nav.fSegmentInd];
+	uintptr_t segment = ReadMemory<uintptr_t>(0xB77ECC) + 0x16 * nav.fSegmentInd;
+	if (!segment)
+	{
+		return NAN;
+	}
+
+	uint16_t segment_flags = ReadMemory<uint16_t>(segment + 0xA);
+
+	// (segment->fFlags & 2) != 0
+	if ((segment_flags & 2) != 0)
+	{
+		return NAN;
+	}
+
+	// (segment->fFlags & 1) != 0
+	if ((segment_flags & 1) != 0)
+	{
+		return NAN;
+	}
+
+	// segment->nLength * flt_00A83DA8 < flt_009C1D30 )
+	if (ReadMemory<uint16_t>(segment + 0x4) * 0.015259022 < 40.0)
+	{
+		return NAN;
+	}
+
+	// segment_profile = WRoadNetwork::GetSegmentProfile(WRoadNetwork::fgRoadNetwork, segment, nav.fNodeInd);
+	uintptr_t segment_profile = reinterpret_cast<uintptr_t(__thiscall*)(uintptr_t, uintptr_t, int)>(0x7EB290)(ReadMemory<uintptr_t>(0xB77EC0), segment, nav.fNodeInd);
+
+	// !segment_profile->fNumZones
+	if (!segment_profile || !ReadMemory<char>(segment_profile))
+	{
+		return NAN;
+	}
+
+	// Return various necessary WRoadNav parameters
+	if (left_pos)
+	{
+		*left_pos = nav.fLeftPosition;
+	}
+	if (right_pos)
+	{
+		*right_pos = nav.fRightPosition;
+	}
+
+	// nav.fRightPosition & nav.fLeftPosition
+	float width = nfsc::UMath_Distance(&nav.fRightPosition, &nav.fLeftPosition);
+
+	// WRoadNav::~WRoadNav(&nav);
+	reinterpret_cast<void(__thiscall*)(WRoadNav&)>(0x7F7BF0)(nav);
+
+	return width;
+}
+
 nfsc::race_type nfsc::BulbToys_GetRaceType()
 {
 	uintptr_t g_race_status = ReadMemory<uintptr_t>(nfsc::GRaceStatus);
@@ -53,15 +159,21 @@ nfsc::race_type nfsc::BulbToys_GetRaceType()
 	return reinterpret_cast<nfsc::race_type(__thiscall*)(uintptr_t)>(0x6136A0)(race_parameters);
 }
 
-bool nfsc::BulbToys_GetDebugCamCoords(nfsc::Vector3& coords)
+// Returns false if we're not in Debug Cam
+bool nfsc::BulbToys_GetDebugCamCoords(nfsc::Vector3* position , nfsc::Vector3* fwd_vec)
 {
+	if (*nfsc::GameFlowManager_State != nfsc::gameflow_state::racing)
+	{
+		return false;
+	}
+
 	uintptr_t first_camera_director = ReadMemory<uintptr_t>(0xA8ACC4 + 4);
 
 	uintptr_t camera_director = ReadMemory<uintptr_t>(first_camera_director);
 
 	uintptr_t cd_action = ReadMemory<uintptr_t>(camera_director + 0x18);
 
-	// Check if we're in CDActionDebug
+	// Check if we're in CDActionDebug (CDActionDebug::`vftable'{for `CameraAI::Action'})
 	if (ReadMemory<uintptr_t>(cd_action) != 0x9C7EE0)
 	{
 		return false;
@@ -71,12 +183,60 @@ bool nfsc::BulbToys_GetDebugCamCoords(nfsc::Vector3& coords)
 
 	uintptr_t camera = ReadMemory<uintptr_t>(camera_mover + 0x1C);
 
-	// z, -x, y -> x, y, z
-	coords.x = -ReadMemory<float>(camera + 0x44);
-	coords.y = ReadMemory<float>(camera + 0x48);
-	coords.z = ReadMemory<float>(camera + 0x40);
+	if (position)
+	{
+		// z, -x, y -> x, y, z
+		position->x = -ReadMemory<float>(camera + 0x44);
+		position->y = ReadMemory<float>(camera + 0x48);
+		position->z = ReadMemory<float>(camera + 0x40);
+	}
+
+	if (fwd_vec)
+	{
+		// z, -x, y -> x, y, z
+		fwd_vec->x = -ReadMemory<float>(camera + 0x54);
+		fwd_vec->y = ReadMemory<float>(camera + 0x58);
+		fwd_vec->z = ReadMemory<float>(camera + 0x50);
+	}
 
 	return true;
+}
+
+bool nfsc::BulbToys_GetMyVehicle(uintptr_t* my_vehicle, uintptr_t* my_simable)
+{
+	if (*nfsc::GameFlowManager_State == nfsc::gameflow_state::racing)
+	{
+		for (int i = 0; i < (int)nfsc::IVehicleList->size; i++)
+		{
+			uintptr_t vehicle = nfsc::IVehicleList->begin[i];
+
+			if (vehicle)
+			{
+				uintptr_t simable = nfsc::PVehicle_GetSimable(vehicle);
+
+				if (simable)
+				{
+					uintptr_t player = nfsc::PhysicsObject_GetPlayer(simable);
+
+					// RecordablePlayer::`vftable'{for `IPlayer'}
+					if (player && ReadMemory<uintptr_t>(player) == 0x9EC8C0)
+					{
+						if (my_vehicle)
+						{
+							*my_vehicle = vehicle;
+						}
+						if (my_simable)
+						{
+							*my_simable = simable;
+						}
+						return true;
+					}
+				}
+			}
+		}
+	}
+
+	return false;
 }
 
 bool nfsc::BulbToys_IsGPSDown()

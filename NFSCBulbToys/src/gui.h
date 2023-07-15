@@ -11,6 +11,8 @@ namespace gui
 	inline bool menu_open = false;
 	inline bool debug_shortcut = false;
 
+	inline bool rb_menu_open = false;
+
 	inline char input_addr[9];
 
 	inline HWND window = nullptr;
@@ -21,6 +23,7 @@ namespace gui
 	void Destroy();
 	void Render();
 	void CreateMemoryWindow(uintptr_t addr);
+	void Detach();
 
 	struct MemoryWindow
 	{
@@ -69,6 +72,8 @@ namespace ImGui
 	inline bool MyListBox(const char* text, const char* id, int* current_item, const char* const* items, int items_count, int height_in_items);
 	inline bool MySliderFloat(const char* text, const char* id, float* v, float v_min, float v_max, const char* format);
 	inline bool MyMenu(const char* text, bool* show);
+	inline bool MyInputInt(const char* text, const char* id, int* i, int min, int max);
 	inline void AddyLabel(uintptr_t addy, const char* fmt, ...);
 	inline void DistanceBar(float distance);
+	inline void Location(const char* label, const char* id, float* location);
 }

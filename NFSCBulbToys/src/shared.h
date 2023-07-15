@@ -188,6 +188,16 @@ namespace g
 		inline bool overridden = false;
 	}
 
+	// Roadblock setups
+	namespace roadblock_setups
+	{
+		inline nfsc::RoadblockSetup normal[16];
+		inline nfsc::RoadblockSetup spiked[10];
+
+		constexpr size_t size = 100;
+		inline nfsc::RoadblockSetup* mine;
+	}
+
 	// Smart AI hook(s)
 	namespace smart_ai
 	{

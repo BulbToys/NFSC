@@ -22,6 +22,11 @@ void patches::Do()
 
 	// AllowEndgameCreditsSkip
 	PatchMemory<uint8_t>(0x8484AC, 0);
+
+	// RoadblockSetups
+	memcpy(g::roadblock_setups::normal, reinterpret_cast<void*>(0xA4C420), sizeof(nfsc::RoadblockSetup) * 16);
+	memcpy(g::roadblock_setups::spiked, reinterpret_cast<void*>(0xA4CAA0), sizeof(nfsc::RoadblockSetup) * 10);
+	g::roadblock_setups::mine = new nfsc::RoadblockSetup[g::roadblock_setups::size];
 }
 
 void patches::Undo()
