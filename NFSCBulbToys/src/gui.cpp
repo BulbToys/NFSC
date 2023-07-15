@@ -287,6 +287,8 @@ void gui::Render()
 			ImGui::SameLine();
 			ImGui::Checkbox("Confirm", &confirm_close);
 
+			ImGui::Separator();
+
 			// New Memory Editor & + 0000
 			ImGui::InputText("##addr", gui::input_addr, IM_ARRAYSIZE(gui::input_addr), ImGuiInputTextFlags_CharsHexadecimal);
 			if (ImGui::Button("New Memory Editor"))
@@ -326,6 +328,9 @@ void gui::Render()
 			// ShowAllPresetsInFE
 			ImGui::Checkbox("ShowAllPresetsInFE", reinterpret_cast<bool*>(0xA9E6C3));
 
+			ImGui::Separator();
+
+			// Character key & Add to crew
 			ImGui::Text("Character key:");
 			static char character[64];
 			ImGui::InputText("##charkey", character, IM_ARRAYSIZE(character));
@@ -356,6 +361,8 @@ void gui::Render()
 				}
 			}
 
+			ImGui::Separator();
+
 			// Move vinyl step size
 			static int step_size = 1;
 			ImGui::Text("Move vinyl step size:");
@@ -371,20 +378,6 @@ void gui::Render()
 				}
 
 				g::move_vinyl::step_size = step_size;
-			}
-
-			// World map GPS only
-			if (ImGui::Checkbox("GPS only", &g::gps_only::enabled))
-			{
-				if (g::gps_only::enabled)
-				{
-					// Remove the "Jump to Safehouse" button from the pause menu
-					PatchMemory<uint8_t>(0x5D59F4, 0xEB);
-				}
-				else
-				{
-					Unpatch(0x5D59F4);
-				}
 			}
 		}
 
@@ -619,6 +612,20 @@ void gui::Render()
 					Unpatch(0x449836);
 				}
 			}
+
+			// World map GPS only
+			if (ImGui::Checkbox("GPS only", &g::gps_only::enabled))
+			{
+				if (g::gps_only::enabled)
+				{
+					// Remove the "Jump to Safehouse" button from the pause menu
+					PatchMemory<uint8_t>(0x5D59F4, 0xEB);
+				}
+				else
+				{
+					Unpatch(0x5D59F4);
+				}
+			}
 		}
 
 		/* ===== AI/WORLD ===== */
@@ -641,6 +648,8 @@ void gui::Render()
 				WriteMemory<const char*>(0x4292D0, nfsc::goals[racer_postrace_type]);
 			}
 
+			ImGui::Separator();
+
 			// Override NeedsEncounter
 			if (g::needs_encounter::hooked)
 			{
@@ -660,13 +669,14 @@ void gui::Render()
 			// Disable cops
 			ImGui::Checkbox("Disable cops", reinterpret_cast<bool*>(0xA83A50));
 
-			// Kill skids
+			ImGui::Separator();
+
+			// Kill skids & Restore props
 			if (ImGui::Button("Kill skids"))
 			{
 				nfsc::KillSkidsOnRaceRestart();
 			}
-
-			// Restore props
+			ImGui::SameLine();
 			if (ImGui::Button("Restore props"))
 			{
 				nfsc::World_RestoreProps();

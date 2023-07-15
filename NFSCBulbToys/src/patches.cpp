@@ -144,7 +144,7 @@ void patches::DebugCarCustomizeHelp()
 	PatchMemory<const char*>(0x841F00, "[2] Uninst. Part");
 	PatchMemory<const char*>(0x841F13, "[1] Free Roam");
 	PatchMemory<const char*>(0x841F26, "[3] Save Alias");
-	PatchMemory<const char*>(0x841F39, "[4] Dump Preset");
+	PatchMemory<const char*>(0x841F39, "[4] Add to MyCars");
 }
 
 /*

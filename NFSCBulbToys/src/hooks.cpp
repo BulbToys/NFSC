@@ -115,6 +115,9 @@ bool hooks::SetupPart2(uintptr_t device)
 	// Custom encounter vehicles
 	CreateHook(0x42CB70, &GetAvailablePresetVehicleHook, &GetAvailablePresetVehicle);
 
+	// Replace "Dump Preset" with "Add to My Cars" for DebugCarCustomize
+	CreateHook(0x854890, &DebugCarPadButton3Hook, &DebugCarPadButton3);
+
 	// Increment cop counter by 1 per roadblock vehicle
 	// TODO: if re-enabling this, make sure roadblock cops that get attached don't increment again
 	//WriteJmp(0x445A9D, CreateRoadBlockHook, 6);
@@ -567,6 +570,16 @@ uintptr_t __fastcall hooks::GetAvailablePresetVehicleHook(uintptr_t ai_traffic_m
 	}
 
 	return GetAvailablePresetVehicle(ai_traffic_manager, edx, skin_key, encounter_key);
+}
+
+void __fastcall hooks::DebugCarPadButton3Hook(uintptr_t fe_debugcar_state_manager)
+{
+	// DALCareer::GetPodiumVehicle(&index);
+	uint32_t index = 0;
+	reinterpret_cast<char(__stdcall*)(uint32_t*)>(0x4A0890)(&index);
+	
+	// DALFeVehicle::AddCarToMyCarsDB(index)
+	reinterpret_cast<char(__stdcall*)(uint32_t)>(0x4D1DE0)(index);
 }
 
 void __fastcall hooks::WorldMapPadAcceptHook(uintptr_t fe_state_manager)

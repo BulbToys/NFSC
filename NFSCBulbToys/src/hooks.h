@@ -65,6 +65,9 @@ namespace hooks
 	uintptr_t __fastcall GetAvailablePresetVehicleHook(uintptr_t ai_traffic_manager, uintptr_t edx, uint32_t skin_key, uint32_t encounter_key);
 	static inline decltype (&GetAvailablePresetVehicleHook) GetAvailablePresetVehicle;
 
+	void __fastcall DebugCarPadButton3Hook(uintptr_t fe_debugcar_state_manager);
+	static inline decltype (&DebugCarPadButton3Hook) DebugCarPadButton3;
+
 	//void CreateRoadBlockHook();
 	void UpdateCopElementsHook1();
 	void UpdateCopElementsHook2();
