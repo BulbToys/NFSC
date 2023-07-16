@@ -20,7 +20,7 @@ inline bool exitMainLoop = false;
 
 /* === Utility === */
 
-#define ASSERT(cond) if (!cond) *((int*)0) = 0
+#define ASSERT(cond) if (!(cond)) *((int*)0) = 0
 
 template <size_t size>
 struct VTable

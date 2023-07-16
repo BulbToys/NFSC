@@ -13,7 +13,7 @@ inline bool ImGui::MyListBox(const char* text, const char* id, int* current_item
 inline bool ImGui::MySliderFloat(const char* text, const char* id, float* v, float v_min, float v_max, const char* format = "%.3f")
 {
 	ImGui::Text(text);
-	return ImGui::SliderFloat(id, v, v_min, v_max, format);;
+	return ImGui::SliderFloat(id, v, v_min, v_max, format);
 }
 
 inline bool ImGui::MyMenu(const char* text, bool* show)
@@ -319,7 +319,7 @@ void gui::Render()
 			}
 			if (ImGui::BeginTabItem("My RBs"))
 			{
-				size = g::roadblock_setups::size;
+				size = g::roadblock_setups::size - 1;
 				rb = g::roadblock_setups::mine;
 
 				ImGui::EndTabItem();
@@ -334,7 +334,18 @@ void gui::Render()
 		auto width = ImGui::GetWindowWidth() - 16.0f;
 		ImGui::PushItemWidth(width);
 		
-		// Iteration buttons
+		// Calculate the last element in the list
+		// The game will keep iterating roadblock setups so long as minimum_width is above 0.1, make sure all your roadblocks are valid by that point
+		int last = 0;
+		while (rb[last].minimum_width > 0.1)
+		{
+			last++;
+
+			// If the last element is greater than the array size, something has gone horribly wrong
+			ASSERT(last < g::roadblock_setups::size);
+		}
+
+		// Iteration buttons and display
 		if (ImGui::Button("<--"))
 		{
 			i--;
@@ -346,6 +357,8 @@ void gui::Render()
 		{
 			i++;
 		}
+		ImGui::SameLine();
+		ImGui::Text("Last: %d", last);
 
 		// Clamp iterator to size (loop around)
 		if (i < 0)
@@ -731,18 +744,8 @@ void gui::Render()
 
 			// Move vinyl step size
 			static int step_size = 1;
-			ImGui::Text("Move vinyl step size:");
-			if (ImGui::InputInt("##MVSSize", &step_size))
+			if (ImGui::MyInputInt("Move vinyl step size:", "##MVSSize", &step_size))
 			{
-				if (step_size < 1)
-				{
-					step_size = 1;
-				}
-				else if (step_size > 512)
-				{
-					step_size = 512;
-				}
-
 				g::move_vinyl::step_size = step_size;
 			}
 		}
