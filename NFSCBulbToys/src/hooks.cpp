@@ -196,6 +196,10 @@ long __stdcall hooks::EndSceneHook(IDirect3DDevice9* device)
 {
 	const auto result = EndScene(device);
 
+	ImGui_ImplDX9_NewFrame();
+	ImGui_ImplWin32_NewFrame();
+	ImGui::NewFrame();
+
 	//static uint32_t frame_count[2] {0, 0};
 
 	//frame_count[0] = frame_count[1];
@@ -203,10 +207,13 @@ long __stdcall hooks::EndSceneHook(IDirect3DDevice9* device)
 
 	// Certain loading screens render the game twice, in which case we shouldn't render the GUI
 	// TODO: uncomment when i crash here ig lol (window will be null)
-	if (gui::menu_open/* && frame_count[0] != frame_count[1]*/)
-	{
-		gui::Render();
-	}
+	//if (frame_count[0] != frame_count[1])
+
+	gui::Render();
+
+	ImGui::EndFrame();
+	ImGui::Render();
+	ImGui_ImplDX9_RenderDrawData(ImGui::GetDrawData());
 
 	return result;
 }

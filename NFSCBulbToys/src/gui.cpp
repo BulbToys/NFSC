@@ -146,6 +146,61 @@ inline void ImGui::Location(const char* label, const char* id, float* location)
 	ImGui::InputFloat3(id, location);
 }
 
+void ImGui::GetDriverClassColor(int dc, ImVec4& color)
+{
+	switch ((nfsc::driver_class)dc)
+	{
+		case nfsc::driver_class::human:        color = ImVec4(0, 1, 1, 1); break;          // cyan
+		case nfsc::driver_class::traffic:      color = ImVec4(.6f, .4f, 0, 1); break;      // brown
+		case nfsc::driver_class::cop:          color = ImVec4(.25f, .25f, 1, 1); break;    // light blue
+		case nfsc::driver_class::racer:        color = ImVec4(1, .6f, 0, 1); break;        // orange
+		case nfsc::driver_class::none:         color = ImVec4(1, 1, 1, 1); break;          // white
+		case nfsc::driver_class::nis:          color = ImVec4(1, 1, 0, 1); break;          // yellow
+		case nfsc::driver_class::remote:       color = ImVec4(0, .75f, 0, 1); break;       // darker green
+		case nfsc::driver_class::remote_racer: color = ImVec4(0, 1, 0, 1); break;          // green
+		case nfsc::driver_class::ghost:        color = ImVec4(.75f, .75f, .75f, 1); break; // gray
+		default: /* hub */                     color = ImVec4(1, 0, 1, 1); break;          // magenta
+	}
+}
+
+float ImGui::DynamicDistance(nfsc::Vector3 other_position)
+{
+	constexpr float min = 1.0f;
+	constexpr float max = 5.0f;
+
+	constexpr float max_distance = 100.0f;
+	constexpr float scale = max_distance / (max - min);
+
+	nfsc::Vector3 my_position;
+	uintptr_t my_simable = 0;
+
+	if (nfsc::BulbToys_GetDebugCamCoords(&my_position, nullptr))
+	{
+
+	}
+	else if (nfsc::BulbToys_GetMyVehicle(nullptr, &my_simable))
+	{
+		uintptr_t my_rigid_body = nfsc::PhysicsObject_GetRigidBody(my_simable);
+		my_position = *nfsc::RigidBody_GetPosition(my_rigid_body);
+	}
+	else
+	{
+		return min;
+	}
+
+	float distance = nfsc::UMath_Distance(&my_position, &other_position);
+	if (distance < 1)
+	{
+		return max;
+	}
+	else if (distance > max_distance)
+	{
+		return min;
+	}
+
+	return max - (distance / scale);
+}
+
 void gui::SetupStyle()
 {
 	// Orange Enemymouse style from ImThemes
@@ -265,153 +320,171 @@ void gui::Destroy()
 
 void gui::Render()
 {
-	ImGui_ImplDX9_NewFrame();
-	ImGui_ImplWin32_NewFrame();
-	ImGui::NewFrame();
+	/* ========== I N F O ========== */
+	uintptr_t my_vehicle = 0;
+	uintptr_t my_simable = 0;
+	nfsc::BulbToys_GetMyVehicle(&my_vehicle, &my_simable);
+	uintptr_t my_rigid_body = my_simable ? nfsc::PhysicsObject_GetRigidBody(my_simable) : 0;
 
-	/* ========== M E M O R Y    E D I T O R S ========== */
-	auto iter = mem_windows.begin();
-	while (iter != mem_windows.end())
+	// Roadblock info
+	if ((roadblock::overlay || roadblock::menu_open) && my_rigid_body)
 	{
-		MemoryWindow* mw = *iter;
+		nfsc::Vector3 pos = { 0, 0, 0 };
+		pos = *nfsc::RigidBody_GetPosition(my_rigid_body);
 
-		if (ImGui::Begin(mw->title, &mw->open, ImGuiWindowFlags_NoSavedSettings))
+		nfsc::Vector3 fwd_vec = { 0, 0, 0 };
+		nfsc::RigidBody_GetForwardVector(my_rigid_body, &fwd_vec);
+
+		// Direction and Position
+		if (roadblock::use_camera)
 		{
-			mw->mem_edit->DrawContents(mw->addr, mw->size);
-			ImGui::End();
+			nfsc::BulbToys_GetDebugCamCoords(&pos, &fwd_vec);
 		}
 
-		// If we've closed the window with X, deallocate
-		if (!mw->open)
+		nfsc::Vector3 left_pos = { 0, 0, 0 };
+		nfsc::Vector3 right_pos = { 0, 0, 0 };
+		roadblock::width = nfsc::BulbToys_GetStreetWidth(&pos, &fwd_vec, ReadMemory<float>(0x44529C), &left_pos, &right_pos);
+
+		if (isnan(roadblock::width))
 		{
-			mem_windows.erase(iter);
-			delete mw;
+			roadblock::color = ImVec4(1, 0, 0, 1); // red
 		}
 		else
 		{
-			++iter;
+			nfsc::Vector3 left_pos_s, right_pos_s;
+			nfsc::BulbToys_GetScreenPosition(left_pos, left_pos_s);
+			nfsc::BulbToys_GetScreenPosition(right_pos, right_pos_s);
+
+			// Only valid if the Z coordinates are under 1
+			if (left_pos_s.z < 1.0f && right_pos_s.z < 1.0f)
+			{
+				nfsc::Vector3 center = { (left_pos.x + right_pos.x) / 2, (left_pos.y + right_pos.y) / 2, (left_pos.z + right_pos.z) / 2 };
+				roadblock::thickness = ImGui::DynamicDistance(center);
+				roadblock::min = ImVec2(left_pos_s.x, left_pos_s.y);
+				roadblock::max = ImVec2(right_pos_s.x, right_pos_s.y);
+				roadblock::color = ImVec4(1, 0, 0, 1); // red
+				roadblock::valid = true;
+
+				if (roadblock::cur && roadblock::width > roadblock::cur->minimum_width)
+				{
+					roadblock::color = ImVec4(0, 1, 0, 1); // green
+				}
+			}
 		}
 	}
 
-	/* ========== R O A D B L O C K   S E T U P S ========== */
-	if (gui::rb_menu_open && ImGui::Begin("Roadblock setups", &gui::rb_menu_open, ImGuiWindowFlags_NoScrollbar))
+	if (gui::menu_open)
 	{
-		static int i = 0;
-
-		// C6011 - Dereferencing NULL pointer 'rb'.
-		int size = 16;
-		nfsc::RoadblockSetup* rb = g::roadblock_setups::normal;
-
-		if (ImGui::BeginTabBar("MyTabBar"))
+		/* ========== M E M O R Y    E D I T O R S ========== */
+		auto iter = mem_windows.begin();
+		while (iter != mem_windows.end())
 		{
-			if (ImGui::BeginTabItem("Normal RBs"))
-			{
-				// already set
+			MemoryWindow* mw = *iter;
 
-				ImGui::EndTabItem();
-			}
-			if (ImGui::BeginTabItem("Spiked RBs"))
+			if (ImGui::Begin(mw->title, &mw->open, ImGuiWindowFlags_NoSavedSettings))
 			{
-				size = 10;
-				rb = g::roadblock_setups::spiked;
-
-				ImGui::EndTabItem();
-			}
-			if (ImGui::BeginTabItem("My RBs"))
-			{
-				size = g::roadblock_setups::size - 1;
-				rb = g::roadblock_setups::mine;
-
-				ImGui::EndTabItem();
+				mw->mem_edit->DrawContents(mw->addr, mw->size);
+				ImGui::End();
 			}
 
-			ImGui::EndTabBar();
+			// If we've closed the window with X, deallocate
+			if (!mw->open)
+			{
+				mem_windows.erase(iter);
+				delete mw;
+			}
+			else
+			{
+				++iter;
+			}
 		}
 
-		bool readonly = rb == g::roadblock_setups::mine ? false : true;
+		/* ========== R O A D B L O C K   S E T U P S ========== */
+		if (roadblock::menu_open && ImGui::Begin("Roadblock setups", &roadblock::menu_open, ImGuiWindowFlags_NoScrollbar))
+		{
+			static int i = 0;
 
-		// GetWindowWidth() - GetStyle().WindowPadding
-		auto width = ImGui::GetWindowWidth() - 16.0f;
-		ImGui::PushItemWidth(width);
+			// C6011 - Dereferencing NULL pointer 'rb'.
+			int size = 16;
+			nfsc::RoadblockSetup* rb = g::roadblock_setups::normal;
+
+			if (ImGui::BeginTabBar("MyTabBar"))
+			{
+				if (ImGui::BeginTabItem("Normal RBs"))
+				{
+					// already set
+
+					ImGui::EndTabItem();
+				}
+				if (ImGui::BeginTabItem("Spiked RBs"))
+				{
+					size = 10;
+					rb = g::roadblock_setups::spiked;
+
+					ImGui::EndTabItem();
+				}
+				if (ImGui::BeginTabItem("My RBs"))
+				{
+					size = g::roadblock_setups::size - 1;
+					rb = g::roadblock_setups::mine;
+
+					ImGui::EndTabItem();
+				}
+
+				ImGui::EndTabBar();
+			}
+
+			bool readonly = rb == g::roadblock_setups::mine ? false : true;
+
+			// GetWindowWidth() - GetStyle().WindowPadding
+			auto width = ImGui::GetWindowWidth() - 16.0f;
+			ImGui::PushItemWidth(width);
 		
-		// Calculate the last element in the list
-		// The game will keep iterating roadblock setups so long as minimum_width is above 0.1, make sure all your roadblocks are valid by that point
-		int last = 0;
-		while (rb[last].minimum_width > 0.1)
-		{
-			last++;
-
-			// If the last element is greater than the array size, something has gone horribly wrong
-			ASSERT(last < g::roadblock_setups::size);
-		}
-
-		// Iteration buttons and display
-		if (ImGui::Button("<--"))
-		{
-			i--;
-		}
-		ImGui::SameLine();
-		ImGui::Text("%2d/%2d", i, size-1);
-		ImGui::SameLine();
-		if (ImGui::Button("-->"))
-		{
-			i++;
-		}
-		ImGui::SameLine();
-		ImGui::Text("Last: %d", last);
-
-		// Clamp iterator to size (loop around)
-		if (i < 0)
-		{
-			i = size - 1;
-		}
-		if (i > size - 1)
-		{
-			i = 0;
-		}
-
-		// Save & Load setup
-		if (ImGui::Button("Save setup"))
-		{
-			char filename[MAX_PATH] {0};
-
-			OPENFILENAMEA ofn;
-			ZeroMemory(&ofn, sizeof(OPENFILENAMEA));
-			ofn.lStructSize = sizeof(OPENFILENAMEA);
-			ofn.hwndOwner = gui::window;
-			ofn.lpstrFilter = "Roadblock Setup (*.rbs)\0*.rbs\0All Files (*.*)\0*.*\0";
-			ofn.lpstrTitle = "Save Roadblock Setup";
-			ofn.Flags = OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT;
-			ofn.lpstrDefExt = "rbs";
-			ofn.lpstrFile = filename;
-			ofn.nMaxFile = MAX_PATH;
-
-			if (GetSaveFileNameA(&ofn))
+			// Calculate the last element in the list
+			// The game will keep iterating roadblock setups so long as minimum_width is above 0.1, make sure all your roadblocks are valid by that point
+			int last = 0;
+			while (rb[last].minimum_width > 0.1)
 			{
-				FILE* file = nullptr;
-				fopen_s(&file, ofn.lpstrFile, "wb");
-				if (!file)
-				{
-					char error[64];
-					strerror_s(error, errno);
-					Error("Error saving file %s.\n\nError code %d: %s", ofn.lpstrFile, errno, error);
-				}
-				else
-				{
-					fwrite(&rb[i], 1, sizeof(nfsc::RoadblockSetup), file);
-					fclose(file);
-				}
+				last++;
+
+				// If the last element is greater than the array size, something has gone horribly wrong
+				ASSERT(last < g::roadblock_setups::size);
 			}
-		}
-		if (!readonly)
-		{
+
+			// Iteration buttons and display
+			if (ImGui::Button("<--"))
+			{
+				i--;
+			}
 			ImGui::SameLine();
-			if (ImGui::Button("Load setup"))
+			ImGui::Text("%2d/%2d", i, size-1);
+			ImGui::SameLine();
+			if (ImGui::Button("-->"))
+			{
+				i++;
+			}
+			ImGui::SameLine();
+			ImGui::Text("Last: %d", last);
+
+			// Clamp iterator to size (loop around)
+			if (i < 0)
+			{
+				i = size - 1;
+			}
+			if (i > size - 1)
+			{
+				i = 0;
+			}
+
+			// Set our current roadblock for calculation
+			roadblock::cur = &rb[i];
+
+			// Save & Load setup
+			if (ImGui::Button("Save setup"))
 			{
 				char filename[MAX_PATH] {0};
 
-				OPENFILENAMEA ofn;
-				ZeroMemory(&ofn, sizeof(OPENFILENAMEA));
+				OPENFILENAMEA ofn {};
 				ofn.lStructSize = sizeof(OPENFILENAMEA);
 				ofn.hwndOwner = gui::window;
 				ofn.lpstrFilter = "Roadblock Setup (*.rbs)\0*.rbs\0All Files (*.*)\0*.*\0";
@@ -421,337 +494,955 @@ void gui::Render()
 				ofn.lpstrFile = filename;
 				ofn.nMaxFile = MAX_PATH;
 
-				if (GetOpenFileNameA(&ofn))
+				if (GetSaveFileNameA(&ofn))
 				{
 					FILE* file = nullptr;
-					fopen_s(&file, ofn.lpstrFile, "rb");
+					fopen_s(&file, ofn.lpstrFile, "wb");
 					if (!file)
 					{
 						char error[64];
 						strerror_s(error, errno);
-						Error("Error opening file %s.\n\nError code %d: %s", ofn.lpstrFile, errno, error);
+						Error("Error saving file %s.\n\nError code %d: %s", ofn.lpstrFile, errno, error);
 					}
 					else
 					{
-						nfsc::RoadblockSetup buffer;
-						size_t len = sizeof(nfsc::RoadblockSetup);
-
-						// Length of the file must match the struct size
-						fseek(file, 0, SEEK_END);
-						int size = ftell(file);
-						fseek(file, 0, SEEK_SET);
-						if (size != len)
-						{
-							Error("Error opening file %s.\n\nNot a valid Roadblock Setup file.", ofn.lpstrFile);
-						}
-						else 
-						{
-							fread_s(&buffer, len, 1, len, file);
-
-							int j;
-							for (j = 0; j < 6; j++)
-							{
-								// All data must be within bounds
-								if (j == 0 && (buffer.minimum_width < .0f || buffer.minimum_width > 100.0f || buffer.required_vehicles < 0 || buffer.required_vehicles > 6))
-								{
-									Error("Error opening file %s.\n\nNot a valid Roadblock Setup file.", ofn.lpstrFile);
-								}
-
-								if ((int)buffer.contents[j].type < 0 || (int)buffer.contents[j].type > 3 ||
-									buffer.contents[j].offset_x < -50.0f || buffer.contents[j].offset_x > 50.0f ||
-									buffer.contents[j].offset_z < -50.0f || buffer.contents[j].offset_z > 50.0f ||
-									buffer.contents[j].angle < -1.0f || buffer.contents[j].angle > 1.0f)
-								{
-									Error("Error opening file %s.\n\nNot a valid Roadblock Setup file.", ofn.lpstrFile);
-								}
-
-								// File is valid
-								else if (j == 5)
-								{
-									rb[i] = buffer;
-								}
-							}
-						}
-
+						fwrite(&rb[i], 1, sizeof(nfsc::RoadblockSetup), file);
 						fclose(file);
 					}
 				}
 			}
-		}
-
-		ImGui::Separator();
-
-		// Roadblock distance
-		ImGui::MySliderFloat("Roadblock distance:", "##RBDistance", reinterpret_cast<float*>(0x44529C), 1.0, 1000.0);
-
-		// Use custom setups
-		static bool custom_setups = false;
-		if (ImGui::Checkbox("Use custom setups", &custom_setups))
-		{
-			if (custom_setups)
+			if (!readonly)
 			{
-				PatchMemory<nfsc::RoadblockSetup*>(0x40704F, g::roadblock_setups::mine);
-				PatchMemory<nfsc::RoadblockSetup*>(0x407056, g::roadblock_setups::mine);
+				ImGui::SameLine();
+				if (ImGui::Button("Load setup"))
+				{
+					char filename[MAX_PATH] {0};
+
+					OPENFILENAMEA ofn;
+					ZeroMemory(&ofn, sizeof(OPENFILENAMEA));
+					ofn.lStructSize = sizeof(OPENFILENAMEA);
+					ofn.hwndOwner = gui::window;
+					ofn.lpstrFilter = "Roadblock Setup (*.rbs)\0*.rbs\0All Files (*.*)\0*.*\0";
+					ofn.lpstrTitle = "Save Roadblock Setup";
+					ofn.Flags = OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT;
+					ofn.lpstrDefExt = "rbs";
+					ofn.lpstrFile = filename;
+					ofn.nMaxFile = MAX_PATH;
+
+					if (GetOpenFileNameA(&ofn))
+					{
+						FILE* file = nullptr;
+						fopen_s(&file, ofn.lpstrFile, "rb");
+						if (!file)
+						{
+							char error[64];
+							strerror_s(error, errno);
+							Error("Error opening file %s.\n\nError code %d: %s", ofn.lpstrFile, errno, error);
+						}
+						else
+						{
+							nfsc::RoadblockSetup buffer;
+							size_t len = sizeof(nfsc::RoadblockSetup);
+
+							// Length of the file must match the struct size
+							fseek(file, 0, SEEK_END);
+							int size = ftell(file);
+							fseek(file, 0, SEEK_SET);
+							if (size != len)
+							{
+								Error("Error opening file %s.\n\nNot a valid Roadblock Setup file.", ofn.lpstrFile);
+							}
+							else 
+							{
+								fread_s(&buffer, len, 1, len, file);
+
+								int j;
+								for (j = 0; j < 6; j++)
+								{
+									// All data must be within bounds
+									if (j == 0 && (buffer.minimum_width < .0f || buffer.minimum_width > 100.0f || buffer.required_vehicles < 0 || buffer.required_vehicles > 6))
+									{
+										Error("Error opening file %s.\n\nNot a valid Roadblock Setup file.", ofn.lpstrFile);
+									}
+
+									if ((int)buffer.contents[j].type < 0 || (int)buffer.contents[j].type > 3 ||
+										buffer.contents[j].offset_x < -50.0f || buffer.contents[j].offset_x > 50.0f ||
+										buffer.contents[j].offset_z < -50.0f || buffer.contents[j].offset_z > 50.0f ||
+										buffer.contents[j].angle < -1.0f || buffer.contents[j].angle > 1.0f)
+									{
+										Error("Error opening file %s.\n\nNot a valid Roadblock Setup file.", ofn.lpstrFile);
+									}
+
+									// File is valid
+									else if (j == 5)
+									{
+										rb[i] = buffer;
+									}
+								}
+							}
+
+							fclose(file);
+						}
+					}
+				}
+			}
+
+			ImGui::Separator();
+
+			// Roadblock distance
+			ImGui::MySliderFloat("Roadblock distance:", "##RBDistance", reinterpret_cast<float*>(0x44529C), 1.0, 1000.0);
+
+			// Use custom setups
+			static bool custom_setups = false;
+			if (ImGui::Checkbox("Use custom setups", &custom_setups))
+			{
+				if (custom_setups)
+				{
+					PatchMemory<nfsc::RoadblockSetup*>(0x40704F, g::roadblock_setups::mine);
+					PatchMemory<nfsc::RoadblockSetup*>(0x407056, g::roadblock_setups::mine);
+				}
+				else
+				{
+					Unpatch(0x40704F);
+					Unpatch(0x407056);
+				}
+			}
+
+			// Setup vehicle
+			static char vehicle[32];
+			ImGui::Text("Setup vehicle:");
+			ImGui::InputText("##vehicle2", vehicle, IM_ARRAYSIZE(vehicle));
+
+			// Street width at X distance: Y
+			ImGui::Text("Street width (at %.2f distance):", ReadMemory<float>(0x44529C));
+			ImGui::SameLine();
+			if (isnan(roadblock::width))
+			{
+				ImGui::TextColored(roadblock::color, "N/A"); // red
 			}
 			else
 			{
-				Unpatch(0x40704F);
-				Unpatch(0x407056);
+				ImGui::TextColored(roadblock::color, "%.2f", roadblock::width);
 			}
-		}
 
-		// Setup vehicle
-		static char vehicle[32];
-		ImGui::Text("Setup vehicle:");
-		ImGui::InputText("##vehicle2", vehicle, IM_ARRAYSIZE(vehicle));
+			// Overlay
+			ImGui::Checkbox("Overlay", &roadblock::overlay);
 
-		uintptr_t simable = 0;
-		if (nfsc::BulbToys_GetMyVehicle(0, &simable))
-		{
-			uintptr_t rigid_body = nfsc::PhysicsObject_GetRigidBody(simable);
-			if (rigid_body)
+			// Try to use camera direction and position
+			ImGui::Checkbox("Try to use camera dir/pos", &roadblock::use_camera);
+
+			// Spawn setup
+			if (ImGui::Button("Spawn setup"))
 			{
-				nfsc::Vector3 pos = { 0, 0, 0 };
-				pos = *nfsc::RigidBody_GetPosition(rigid_body);
-
-				nfsc::Vector3 fwd_vec = { 0, 0, 0 };
-				nfsc::RigidBody_GetForwardVector(rigid_body, &fwd_vec);
-
-				// Direction and Position
-				ImGui::Text("Using %s direction and position", nfsc::BulbToys_GetDebugCamCoords(&pos, &fwd_vec) ? "camera" : "car");
-
-				nfsc::Vector3 left_pos = { 0, 0, 0 };
-				nfsc::Vector3 right_pos = { 0, 0, 0 };
-				float distance = ReadMemory<float>(0x44529C);
-				float width = nfsc::BulbToys_GetStreetWidth(&pos, &fwd_vec, distance, &left_pos, &right_pos);
-
-				// Street width at distance
-				ImGui::Text("Street width (at %.2f distance):", distance);
-				ImGui::SameLine();
-				if (isnan(width))
+				/*for (int j = 0; j < 6; j++)
 				{
-					ImGui::TextColored(ImVec4(1, 0, 0, 1), "N/A"); // red
-				}
-				else if (width > rb[i].minimum_width)
-				{
-					ImGui::TextColored(ImVec4(0, 1, 0, 1), "%.2f", width); // green
-				}
-				else
-				{
-					ImGui::TextColored(ImVec4(1, 0, 0, 1), "%.2f", width); // red
-				}
+					nfsc::rbelem_t type = rb[i].contents[j].type;
 
-				// Spawn setup
-				if (ImGui::Button("Spawn setup"))
-				{
-					/*for (int j = 0; j < 6; j++)
+					if (type == nfsc::rbelem_t::none)
 					{
-						nfsc::rbelem_t type = rb[i].contents[j].type;
+						break;
+					}
 
-						if (type == nfsc::rbelem_t::none)
-						{
-							break;
-						}
-
-						// to-fucking-dooooo
+					// to-fucking-dooooo
 						
-					}*/
-				}
+				}*/
 			}
-		}
 
-		ImGui::Separator();
+			ImGui::Separator();
 
-		ImGui::BeginDisabled(readonly);
+			ImGui::BeginDisabled(readonly);
 
-		// Minimum width
-		ImGui::MySliderFloat("Minimum width:", "##MWidth", &rb[i].minimum_width, 0.0, 100.0);
+			// Minimum width
+			ImGui::MySliderFloat("Minimum width:", "##MWidth", &rb[i].minimum_width, 0.0, 100.0);
 
-		// Required vehicles
-		static int req_vehicles = 1;
-		ImGui::MyInputInt("Required vehicles:", "##RVehicles", &rb[i].required_vehicles, 0, 6);
+			// Required vehicles
+			static int req_vehicles = 1;
+			ImGui::MyInputInt("Required vehicles:", "##RVehicles", &rb[i].required_vehicles, 0, 6);
 
-		// Element 1-6
-		for (int j = 0; j < 6; j++)
-		{
-			char text[16];
-			sprintf_s(text, 16, "Element %d", j);
-			ImGui::SeparatorText(text);
-
-			// Type
-			ImVec4 color;
-			char type[32] {0};
-			switch (rb[i].contents[j].type)
+			// Element 1-6
+			for (int j = 0; j < 6; j++)
 			{
-				case nfsc::rbelem_t::none: 
-				{
-					color = ImVec4(1, 1, 1, 1); // white
-					sprintf_s(type, 32, "Type: none");
-					break;
-				}
+				char text[16];
+				sprintf_s(text, 16, "Element %d", j);
+				ImGui::SeparatorText(text);
 
-				case nfsc::rbelem_t::car: 
+				// Type
+				ImVec4 color;
+				char type[32] {0};
+				switch (rb[i].contents[j].type)
 				{
-					color = ImVec4(.25f, .25f, 1, 1); // light blue
-					sprintf_s(type, 32, "Type: car");
-					break;
-				}
+					case nfsc::rbelem_t::none: 
+					{
+						color = ImVec4(1, 1, 1, 1); // white
+						sprintf_s(type, 32, "Type: none");
+						break;
+					}
 
-				case nfsc::rbelem_t::barrier: 
-				{
-					color = ImVec4(1, 0, 0, 1); // red
-					sprintf_s(type, 32, "Type: barrier");
-					break;
-				}
+					case nfsc::rbelem_t::car: 
+					{
+						color = ImVec4(.25f, .25f, 1, 1); // light blue
+						sprintf_s(type, 32, "Type: car");
+						break;
+					}
+
+					case nfsc::rbelem_t::barrier: 
+					{
+						color = ImVec4(1, 0, 0, 1); // red
+						sprintf_s(type, 32, "Type: barrier");
+						break;
+					}
 				
-				default: /* spikestrip */
-				{
-					color = ImVec4(1, 1, 0, 1); // yellow
-					sprintf_s(type, 32, "Type: spikestrip");
-					break;
+					default: /* spikestrip */
+					{
+						color = ImVec4(1, 1, 0, 1); // yellow
+						sprintf_s(type, 32, "Type: spikestrip");
+						break;
+					}
 				}
+				ImGui::TextColored(color, type);
+				ImGui::SameLine(); // fucking weird as fuck
+				sprintf_s(text, 16, "##RVehicles%d", j);
+				ImGui::MyInputInt("", text, (int*)&rb[i].contents[j].type, 0, 3);
+
+				// X offset
+				sprintf_s(text, 16, "##Xoffset%d", j);
+				ImGui::MySliderFloat("X offset:", text, &rb[i].contents[j].offset_x, -50.0, 50.0);
+
+				// Z offset
+				sprintf_s(text, 16, "##Zoffset%d", j);
+				ImGui::MySliderFloat("Z offset:", text, &rb[i].contents[j].offset_z, -50.0, 50.0);
+
+				// Angle
+				sprintf_s(text, 16, "##Angle%d", j);
+				ImGui::MySliderFloat("Angle:", text, &rb[i].contents[j].angle, 0.0, 1.0);
 			}
-			ImGui::TextColored(color, type);
-			ImGui::SameLine(); // fucking weird as fuck
-			sprintf_s(text, 16, "##RVehicles%d", j);
-			ImGui::MyInputInt("", text, (int*)&rb[i].contents[j].type, 0, 3);
 
-			// X offset
-			sprintf_s(text, 16, "##Xoffset%d", j);
-			ImGui::MySliderFloat("X offset:", text, &rb[i].contents[j].offset_x, -50.0, 50.0);
+			ImGui::EndDisabled();
 
-			// Z offset
-			sprintf_s(text, 16, "##Zoffset%d", j);
-			ImGui::MySliderFloat("Z offset:", text, &rb[i].contents[j].offset_z, -50.0, 50.0);
-
-			// Angle
-			sprintf_s(text, 16, "##Angle%d", j);
-			ImGui::MySliderFloat("Angle:", text, &rb[i].contents[j].angle, 0.0, 1.0);
+			ImGui::PopItemWidth();
+			ImGui::End();
 		}
 
-		ImGui::EndDisabled();
-
-		ImGui::PopItemWidth();
-		ImGui::End();
-	}
-
-	/* ========== M A I N   W I N D O W ========== */
-	if (ImGui::Begin(PROJECT_NAME, NULL, ImGuiWindowFlags_NoScrollbar))
-	{
-		static bool menu[32] { false };
-		int id = 0;
-
-		// Grab necessary game info here
-		uintptr_t my_vehicle = 0;
-		uintptr_t my_simable = 0;
-		nfsc::BulbToys_GetMyVehicle(&my_vehicle, &my_simable);
-		uintptr_t my_rigid_body = my_simable ? nfsc::PhysicsObject_GetRigidBody(my_simable) : 0;
-
-		// GetWindowWidth() - GetStyle().WindowPadding
-		auto width = ImGui::GetWindowWidth() - 16.0f;
-		ImGui::PushItemWidth(width);
-
-		/* ===== MAIN ===== */
-		if (ImGui::MyMenu("Main", &menu[id++]))
+		/* ========== M A I N   W I N D O W ========== */
+		if (ImGui::Begin(PROJECT_NAME, NULL, ImGuiWindowFlags_NoScrollbar))
 		{
-			// Detach & Confirm
-			static bool confirm_close = false;
-			if (!exitMainLoop && ImGui::Button("Detach"))
+			static bool menu[32] { false };
+			int id = 0;
+
+			// GetWindowWidth() - GetStyle().WindowPadding
+			auto width = ImGui::GetWindowWidth() - 16.0f;
+			ImGui::PushItemWidth(width);
+
+			/* ===== MAIN ===== */
+			if (ImGui::MyMenu("Main", &menu[id++]))
 			{
-				if (confirm_close)
+				// Detach & Confirm
+				static bool confirm_close = false;
+				if (!exitMainLoop && ImGui::Button("Detach"))
 				{
-					Detach();
+					if (confirm_close)
+					{
+						Detach();
+					}
+				}
+				ImGui::SameLine();
+				ImGui::Checkbox("Confirm", &confirm_close);
+
+				ImGui::Separator();
+
+				// New Memory Editor & + 0000
+				ImGui::InputText("##addr", gui::input_addr, IM_ARRAYSIZE(gui::input_addr), ImGuiInputTextFlags_CharsHexadecimal);
+				if (ImGui::Button("New Memory Editor"))
+				{
+					uintptr_t addr;
+					if (sscanf_s(gui::input_addr, "%IX", &addr) == 1)
+					{
+						CreateMemoryWindow(addr);
+					}
+				}
+				ImGui::SameLine();
+				if (ImGui::Button("+ 0000"))
+				{
+					uintptr_t addr;
+					if (sscanf_s(gui::input_addr, "%IX", &addr) == 1 && addr < 0xFFFF)
+					{
+						CreateMemoryWindow(addr * 0x10000);
+					}
+				}
+
+				// New Playground
+				if (ImGui::Button("New Playground"))
+				{
+					CreateMemoryWindow(-1);
 				}
 			}
-			ImGui::SameLine();
-			ImGui::Checkbox("Confirm", &confirm_close);
 
-			ImGui::Separator();
-
-			// New Memory Editor & + 0000
-			ImGui::InputText("##addr", gui::input_addr, IM_ARRAYSIZE(gui::input_addr), ImGuiInputTextFlags_CharsHexadecimal);
-			if (ImGui::Button("New Memory Editor"))
+			/* ===== RENDER ===== */
+			if (ImGui::MyMenu("Render", &menu[id++]))
 			{
-				uintptr_t addr;
-				if (sscanf_s(gui::input_addr, "%IX", &addr) == 1)
+				// Coords
+				ImGui::Checkbox("Coords", &overlays::coords);
+				
+				// My vehicle
+				ImGui::Checkbox("My vehicle", &overlays::my_vehicle);
+
+				// Other vehicles
+				ImGui::Checkbox("Other vehicles (incl. deactivated:", &overlays::other_vehicles);
+				ImGui::SameLine();
+				ImGui::Checkbox("##DVehicles", &overlays::incl_deactivated);
+
+				// Street width/roadblock
+				ImGui::Checkbox("Street width/roadblock", &roadblock::overlay);
+			}
+
+			/* ===== FRONTEND ===== */
+			if (ImGui::MyMenu("Frontend", &menu[id++]))
+			{
+				// UnlockAll
+				ImGui::Checkbox("UnlockAll", reinterpret_cast<bool*>(0xA9E6C0));
+
+				// DebugCarCustomize
+				ImGui::Checkbox("DebugCarCustomize", reinterpret_cast<bool*>(0xA9E680));
+
+				// ShowAllPresetsInFE
+				ImGui::Checkbox("ShowAllPresetsInFE", reinterpret_cast<bool*>(0xA9E6C3));
+
+				ImGui::Separator();
+
+				// Character key & Add to crew
+				ImGui::Text("Character key:");
+				static char character[64];
+				ImGui::InputText("##charkey", character, IM_ARRAYSIZE(character));
+
+				// Add to crew
+				if (ImGui::Button("Add to crew"))
 				{
-					CreateMemoryWindow(addr);
+					uintptr_t KEY_NIKKI = 0xA982BC;
+					uint32_t nikki = ReadMemory<uint32_t>(KEY_NIKKI);
+
+					WriteMemory<uint32_t>(KEY_NIKKI, nfsc::Attrib_StringToKey(character));
+					nfsc::Game_UnlockNikki();
+
+					WriteMemory<uint32_t>(KEY_NIKKI, nikki);
+				}
+
+				// No wingman speech
+				static bool no_speech = false;
+				if (ImGui::Checkbox("No wingman speech", &no_speech))
+				{
+					if (no_speech)
+					{
+						PatchNop(0x79390D, 22);
+					}
+					else
+					{
+						Unpatch(0x79390D);
+					}
+				}
+
+				ImGui::Separator();
+
+				// Move vinyl step size
+				static int step_size = 1;
+				if (ImGui::MyInputInt("Move vinyl step size:", "##MVSSize", &step_size))
+				{
+					g::move_vinyl::step_size = step_size;
 				}
 			}
-			ImGui::SameLine();
-			if (ImGui::Button("+ 0000"))
+
+			/* ===== PLAYER ===== */
+			if (ImGui::MyMenu("Player", &menu[id++]))
 			{
-				uintptr_t addr;
-				if (sscanf_s(gui::input_addr, "%IX", &addr) == 1 && addr < 0xFFFF)
+				ImGui::Separator();
+
+				// PVehicle
+				ImGui::AddyLabel(my_vehicle, "PVehicle");
+
+				// Speed
+				ImGui::Text("Speed: %.2fkm/h", my_vehicle ? nfsc::PVehicle_GetSpeed(my_vehicle) * 3.5999999 : 0.0f);
+
+				ImGui::Separator();
+
+				// Vehicle name
+				ImGui::Text("Vehicle name:");
+				ImGui::InputText("##vehicle1", g::encounter::vehicle, IM_ARRAYSIZE(g::encounter::vehicle));
+
+				// Switch to vehicle
+				if (ImGui::Button("Switch to vehicle") && *nfsc::GameFlowManager_State == nfsc::gameflow_state::racing)
 				{
-					CreateMemoryWindow(addr * 0x10000);
+					if (my_simable)
+					{
+						nfsc::Vector3 p = { 0, 0, 0 };
+						nfsc::Vector3 r = { 1, 0, 0 };
+
+						uintptr_t new_simable = nfsc::BulbToys_CreateSimable(ReadMemory<uintptr_t>(nfsc::GRaceStatus), nfsc::driver_class::human,
+							nfsc::Attrib_StringToKey(g::encounter::vehicle), &r, &p, 0, 0, 0);
+
+						if (new_simable)
+						{
+							nfsc::BulbToys_SwitchVehicle(my_simable, new_simable, nfsc::sv_mode::one_way);
+						}
+					}
 				}
-			}
 
-			// New Playground
-			if (ImGui::Button("New Playground"))
-			{
-				CreateMemoryWindow(-1);
-			}
-		}
+				// Use (vehicle) as next encounter
+				ImGui::Checkbox("Use as next encounter", &g::encounter::overridden);
 
-		/* ===== FRONTEND ===== */
-		if (ImGui::MyMenu("Frontend", &menu[id++]))
-		{
-			// UnlockAll
-			ImGui::Checkbox("UnlockAll", reinterpret_cast<bool*>(0xA9E6C0));
+				ImGui::Separator();
 
-			// DebugCarCustomize
-			ImGui::Checkbox("DebugCarCustomize", reinterpret_cast<bool*>(0xA9E680));
+				// Location
+				ImGui::Text("[*] Location:");
+				ImGui::InputFloat3("##Location1", g::location);
 
-			// ShowAllPresetsInFE
-			ImGui::Checkbox("ShowAllPresetsInFE", reinterpret_cast<bool*>(0xA9E6C3));
-
-			ImGui::Separator();
-
-			// Character key & Add to crew
-			ImGui::Text("Character key:");
-			static char character[64];
-			ImGui::InputText("##charkey", character, IM_ARRAYSIZE(character));
-
-			// Add to crew
-			if (ImGui::Button("Add to crew"))
-			{
-				uintptr_t KEY_NIKKI = 0xA982BC;
-				uint32_t nikki = ReadMemory<uint32_t>(KEY_NIKKI);
-
-				WriteMemory<uint32_t>(KEY_NIKKI, nfsc::Attrib_StringToKey(character));
-				nfsc::Game_UnlockNikki();
-
-				WriteMemory<uint32_t>(KEY_NIKKI, nikki);
-			}
-
-			// No wingman speech
-			static bool no_speech = false;
-			if (ImGui::Checkbox("No wingman speech", &no_speech))
-			{
-				if (no_speech)
+				// Teleport to location
+				if (ImGui::Button("Teleport to location"))
 				{
-					PatchNop(0x79390D, 22);
+					if (my_rigid_body)
+					{
+						nfsc::Vector3 position;
+						position.x = g::location[0];
+						position.y = g::location[1];
+						position.z = g::location[2];
+
+						nfsc::RigidBody_SetPosition(my_rigid_body, &position);
+					}
+				}
+
+				// GPS to location
+				if (ImGui::Button("GPS to location"))
+				{
+					nfsc::Vector3 position;
+					position.x = g::location[0];
+					position.y = g::location[1];
+					position.z = g::location[2];
+
+					if (nfsc::GPS_Engage(&position, 0.0, false))
+					{
+						auto g_manager_base = ReadMemory<uintptr_t>(0xA98294);
+
+						position.x = g::location[2];
+						position.y = -g::location[0];
+						position.z = g::location[1];
+
+						auto icon = nfsc::GManager_AllocIcon(g_manager_base, 0x15, &position, 0, false);
+
+						// Set flag to ShowOnSpawn
+						//WriteMemory<uint8_t>(icon_addr + 1, 0x40);
+
+						// Set flag to ShowInWorld + ShowOnMap
+						WriteMemory<uint8_t>(icon + 0x1, 3);
+
+						// Set color to white
+						WriteMemory<uint32_t>(icon + 0x20, 0xFFFFFFFF);
+
+						// Set tex hash
+						WriteMemory<uint32_t>(icon + 0x24, nfsc::bStringHash("MINIMAP_ICON_EVENT"));
+
+						nfsc::GIcon_Spawn(icon);
+						nfsc::WorldMap_SetGPSIng(icon);
+
+						// Set flag to previous + Spawned + Enabled + GPSing
+						WriteMemory<uint8_t>(icon + 1, 0x8F);
+					}
+				}
+
+				ImGui::Separator();
+
+				// Tires 0-4
+				static bool tire_popped[4] = { false };
+				static uintptr_t i_damageable = 0;
+				if (my_vehicle)
+				{
+					i_damageable = ReadMemory<uintptr_t>(my_vehicle + 0x44);
+
+					// Make sure our IDamageable is of type DamageRacer
+					if (i_damageable && ReadMemory<uintptr_t>(i_damageable) != 0x9E6868)
+					{
+						i_damageable = 0;
+					}
 				}
 				else
 				{
-					Unpatch(0x79390D);
+					i_damageable = 0;
+				}
+				for (int i = 0; i < 4; i++)
+				{
+					if (i_damageable)
+					{
+						tire_popped[i] = ReadMemory<uint8_t>(i_damageable + 0x88 + i) == 2;
+					}
+					else
+					{
+						tire_popped[i] = false;
+					}
+
+					char name[7];
+					sprintf_s(name, 7, "Tire %d", i);
+
+					if (ImGui::Checkbox(name, &tire_popped[i]))
+					{
+						if (i_damageable)
+						{
+							// Offsets 0x78, 0x7C, 0x80, 0x84 - mBlowOutTimes[4]
+							WriteMemory<float>(i_damageable + 0x78 + i * 4, 0);
+
+							// Offsets 0x88, 0x89, 0x8A, 0x8B - mDamage[4]
+							WriteMemory<uint8_t>(i_damageable + 0x88 + i, tire_popped[i] ? 2 : 0);
+						}
+					}
+				}
+
+				ImGui::Separator();
+
+				// AutoDrive
+				static bool autodrive = false;
+				if (my_vehicle)
+				{
+					auto ai_vehicle = nfsc::PVehicle_GetAIVehiclePtr(my_vehicle);
+					if (ai_vehicle)
+					{
+						// bool AIVehicleHuman::bAIControl
+						autodrive = ReadMemory<bool>(ai_vehicle + 0x258);
+					}
+					else
+					{
+						autodrive = false;
+					}
+				}
+				else
+				{
+					autodrive = false;
+				}
+				if (ImGui::Checkbox("AutoDrive", &autodrive))
+				{
+					if (autodrive)
+					{
+						nfsc::Game_ForceAIControl(1);
+
+						if (g::smart_ai::hooked)
+						{
+							if (my_vehicle)
+							{
+								auto ai_vehicle = nfsc::PVehicle_GetAIVehiclePtr(my_vehicle);
+								if (ai_vehicle)
+								{
+									if (!nfsc::BulbToys_IsGPSDown())
+									{
+										nfsc::BulbToys_PathToTarget(ai_vehicle, &g::smart_ai::target);
+									}
+								}
+							}
+						}
+					}
+					else
+					{
+						nfsc::Game_ClearAIControl(1);
+					}
+				}
+
+				// AutoDrive type
+				static int autodrive_type = static_cast<int>(nfsc::ai_goal::racer);
+				if (ImGui::MyListBox("AutoDrive type:", "##ADType", &autodrive_type, nfsc::goals, IM_ARRAYSIZE(nfsc::goals)))
+				{
+					WriteMemory<const char*>(0x4194F9, nfsc::goals[autodrive_type]);
+				}
+
+				ImGui::Separator();
+
+				// DebugCamera + Shortcut
+				if (ImGui::Button("DebugCamera"))
+				{
+					nfsc::CameraAI_SetAction(1, "CDActionDebug");
+				}
+				ImGui::SameLine();
+				ImGui::Checkbox("Shortcut", &debug_shortcut);
+
+				// No Busted
+				static bool no_busted = false;
+				if (ImGui::Checkbox("No Busted", &no_busted))
+				{
+					if (no_busted)
+					{
+						PatchMemory<patches::no_busted>(0x449836, patches::no_busted());
+					}
+					else
+					{
+						Unpatch(0x449836);
+					}
+				}
+
+				// World map GPS only
+				if (ImGui::Checkbox("GPS only", &g::gps_only::enabled))
+				{
+					if (g::gps_only::enabled)
+					{
+						// Remove the "Jump to Safehouse" button from the pause menu
+						PatchMemory<uint8_t>(0x5D59F4, 0xEB);
+					}
+					else
+					{
+						Unpatch(0x5D59F4);
+					}
 				}
 			}
 
-			ImGui::Separator();
-
-			// Move vinyl step size
-			static int step_size = 1;
-			if (ImGui::MyInputInt("Move vinyl step size:", "##MVSSize", &step_size))
+			/* ===== AI/WORLD ===== */
+			if (ImGui::MyMenu("AI/World", &menu[id++]))
 			{
-				g::move_vinyl::step_size = step_size;
-			}
-		}
+				// Roadblock setups
+				if (ImGui::Button("Roadblock setups"))
+				{
+					roadblock::menu_open = true;
+				}
 
-		/* ===== PLAYER ===== */
-		if (ImGui::MyMenu("Player", &menu[id++]))
+				ImGui::Separator();
+
+				// Traffic crash speed
+				ImGui::MySliderFloat("Traffic crash speed:", "##TCSpeed", reinterpret_cast<float*>(0x9C1790), 1.0, 1000.0);
+
+				// Traffic type
+				static int traffic_type = static_cast<int>(nfsc::ai_goal::traffic);
+				if (ImGui::MyListBox("Traffic type:", "##TType", &traffic_type, nfsc::goals, IM_ARRAYSIZE(nfsc::goals)))
+				{
+					WriteMemory<const char*>(0x419738, nfsc::goals[traffic_type]);
+				}
+
+				ImGui::Separator();
+
+				// Racer post-race type
+				static int racer_postrace_type = static_cast<int>(nfsc::ai_goal::racer);
+				if (ImGui::MyListBox("Racer post-race type:", "##RPRType", &racer_postrace_type, nfsc::goals, IM_ARRAYSIZE(nfsc::goals)))
+				{
+					WriteMemory<const char*>(0x4292D0, nfsc::goals[racer_postrace_type]);
+				}
+
+				ImGui::Separator();
+
+				// Override NeedsEncounter
+				if (g::needs_encounter::hooked)
+				{
+					ImGui::Checkbox("Override NeedsEncounter:", &g::needs_encounter::overridden);
+					ImGui::SameLine();
+					ImGui::Checkbox("##NEValue", &g::needs_encounter::value);
+				}
+
+				// Override NeedsTraffic
+				if (g::needs_traffic::hooked)
+				{
+					ImGui::Checkbox("Override NeedsTraffic:", &g::needs_traffic::overridden);
+					ImGui::SameLine();
+					ImGui::Checkbox("##NTValue", &g::needs_traffic::value);
+				}
+
+				// Disable cops
+				ImGui::Checkbox("Disable cops", reinterpret_cast<bool*>(0xA83A50));
+
+				ImGui::Separator();
+
+				// Kill skids & Restore props
+				if (ImGui::Button("Kill skids"))
+				{
+					nfsc::KillSkidsOnRaceRestart();
+				}
+				ImGui::SameLine();
+				if (ImGui::Button("Restore props"))
+				{
+					nfsc::World_RestoreProps();
+				}
+
+				// Always rain
+				ImGui::Checkbox("Always rain", reinterpret_cast<bool*>(0xB74D20));
+			}
+
+			/* ===== PKO/PTAG TEST ===== */
+			if (ImGui::MyMenu("PKO/PTag Test", &menu[id++]))
+			{
+				struct eight_cars {
+					uintptr_t car[8] = { 0 };
+				};
+				static int racer_index[2] = { 0, 0 };
+				static bool bust = false;
+
+				// Calculate PursuitSimables count
+				int count = 0;
+				for (int i = 0; i < 8; i++)
+				{
+					if (ReadMemory<uintptr_t>(nfsc::ThePursuitSimables + i * 4))
+					{
+						count++;
+					}
+				}
+
+				// ThePursuitSimables (count)
+				ImGui::AddyLabel(nfsc::ThePursuitSimables, "ThePursuitSimables (%d/8)", count);
+
+				// Racer index 1
+				ImGui::Text("Index 1:");
+				if (ImGui::InputInt("##RIndex1", &racer_index[0]))
+				{
+					if (racer_index[0] < 0)
+					{
+						racer_index[0] = 0;
+					}
+					else if (racer_index[0] > 7)
+					{
+						racer_index[0] = 7;
+					}
+				}
+
+				// KnockoutPursuit 1
+				if (ImGui::Button("KnockoutPursuit 1"))
+				{
+					// End any and all rendering immediately, and return afterwards, otherwise the game will crash due to double rendering
+					ImGui::PopItemWidth();
+					ImGui::End();
+
+					// Game_KnockoutPursuit. NOTE: Its loading screen causes double rendering
+					reinterpret_cast<void(*)(int)>(0x65D9F0)(racer_index[0]);
+
+					uintptr_t g_race_status = ReadMemory<uintptr_t>(nfsc::GRaceStatus);
+					if (g_race_status)
+					{
+						uintptr_t racer_info = nfsc::GRaceStatus_GetRacerInfo(g_race_status, racer_index[0]);
+
+						if (racer_info)
+						{
+							uintptr_t simable = nfsc::GRacerInfo_GetSimable(racer_info);
+
+							// Game_KnockoutRacer
+							reinterpret_cast<void(*)(uintptr_t)>(0x65B4E0)(simable);
+
+							if (simable && my_simable && my_simable != simable)
+							{
+								nfsc::Game_SetAIGoal(simable, "AIGoalHassle");
+								nfsc::Game_SetPursuitTarget(simable, my_simable);
+
+								// 0x004149E4 - loses track of the fucking pursued vehicle ?!?!?!?!?!?!?!
+							}
+						}
+					}
+
+					return;
+				}
+
+				// Racer index 2
+				if (ImGui::InputInt("##RIndex2", &racer_index[1]))
+				{
+					if (racer_index[1] < 0)
+					{
+						racer_index[1] = 0;
+					}
+					else if (racer_index[1] > 7)
+					{
+						racer_index[1] = 7;
+					}
+				}
+
+				// TagPursuit 1 & 2 + Busted?
+				if (ImGui::Button("TagPursuit 1 & 2"))
+				{
+					//gui::menu_open = false;
+					nfsc::Game_TagPursuit(racer_index[0], racer_index[1], bust);
+				}
+				ImGui::SameLine();
+				ImGui::Checkbox("Busted?", &bust);
+			}
+
+			/* ===== SPAWNING ===== */
+			if (ImGui::MyMenu("Spawning", &menu[id++]))
+			{
+				// Vehicle name
+				static char vehicle[32];
+				ImGui::Text("Vehicle name:");
+				ImGui::InputText("##vehicle2", vehicle, IM_ARRAYSIZE(vehicle));
+
+				// Spawn location
+				static float location[3] = { .0f, .0f, .0f };
+				ImGui::Location("Spawn location:", "##SLocation", location);
+
+				// Spawn type
+				static int spawn_type = 0;
+				ImGui::MyListBox("Spawn type:", "##SType", &spawn_type, nfsc::driver_classes, IM_ARRAYSIZE(nfsc::driver_classes));
+
+				// Spawn goal & Ignore/use default
+				static int spawn_goal = 0;
+				static bool ignore = true;
+				ImGui::MyListBox("Spawn goal:", "##SGoal", &spawn_goal, nfsc::goals, IM_ARRAYSIZE(nfsc::goals));
+				ImGui::Checkbox("Ignore (use default) goal", &ignore);
+
+				// Spawn vehicle
+				if (ImGui::Button("Spawn vehicle") && *nfsc::GameFlowManager_State == nfsc::gameflow_state::racing)
+				{
+					nfsc::Vector3 r = { 1, 0, 0 };
+					nfsc::Vector3 p;
+					p.x = location[0];
+					p.y = location[1];
+					p.z = location[2];
+
+					uintptr_t simable = nfsc::BulbToys_CreateSimable(ReadMemory<uintptr_t>(nfsc::GRaceStatus),(nfsc::driver_class)(spawn_type + 1),
+						nfsc::Attrib_StringToKey(vehicle), &r, &p, 0, 0, 0);
+
+					if (!ignore && simable)
+					{
+						// dont tihnk this does shit
+						nfsc::Game_SetAIGoal(simable, nfsc::goals[spawn_goal]);
+					}
+				}
+			}
+
+			/* ===== LISTS ===== */
+			ImGui::Separator();
+			ImGui::Text("Lists:");
+
+			static nfsc::ListableSet<uintptr_t>* lists[] = { nfsc::AIPursuitList, nfsc::AITargetsList, nfsc::EntityList, nfsc::IPlayerList, nfsc::IVehicleList };
+			static const char* list_names[] = { "AIPursuitList", "AITargetsList", "EntityList", "IPlayerList", "IVehicleList" };
+
+			for (int i = 0; i < IM_ARRAYSIZE(lists); i++)
+			{
+				char list_name[32];
+				sprintf_s(list_name, 32, "%s: %u/%u", list_names[i], lists[i]->size, lists[i]->capacity);
+
+				if (ImGui::MyMenu(list_name, &menu[id++]))
+				{
+					ImGui::AddyLabel(reinterpret_cast<uintptr_t>(lists[i]), "Address");
+
+					int size = lists[i]->size;
+
+					if (size == 0)
+					{
+						ImGui::Text("Empty.");
+					}
+
+					for (int j = 0; j < size; j++)
+					{
+						uintptr_t element = lists[i]->begin[j];
+						ImGui::AddyLabel(element, "%d", j);
+
+						// Fancier IVehicleList
+						if (i == 4)
+						{
+							// Set text color depending on driver class
+							
+							int dc = (int)nfsc::PVehicle_GetDriverClass(element);
+							ImVec4 color;
+							ImGui::GetDriverClassColor(dc, color);
+
+							// PVehicle::IsActive (add a red X if the vehicle is inactive)
+							if (!nfsc::PVehicle_IsActive(element))
+							{
+								ImGui::SameLine();
+								ImGui::TextColored(ImVec4(1, 0, 0, 1), "X");
+							}
+
+							// Then print the vehicle name
+							ImGui::SameLine();
+							ImGui::TextColored(color, "%s", nfsc::PVehicle_GetVehicleName(element));
+
+							// Get distance between us and the other simable. Add distance progress bars at the end
+							uintptr_t simable = nfsc::PVehicle_GetSimable(element);
+							if (simable)
+							{
+								// 1. Distance from our simable to the other simable
+								if (my_simable)
+								{
+									if (simable == my_simable)
+									{
+										ImGui::DistanceBar(0);
+									}
+
+									else
+									{
+										ImGui::DistanceBar(nfsc::BulbToys_GetDistanceBetween(my_simable, simable));
+									}
+								}
+
+								nfsc::Vector3 pos = {0, 0, 0};
+
+								// 2. Distance from our debug camera position to the other simable (if active)
+								if (nfsc::BulbToys_GetDebugCamCoords(&pos, nullptr))
+								{
+									ImGui::DistanceBar(nfsc::BulbToys_GetDistanceBetween(simable, &pos));
+								}
+							}
+						}
+					}
+				}
+			}
+
+			/*
+			char vehicles[32];
+			sprintf_s(vehicles, 32, "Vehicles: %u/%u", nfsc::AITargetsList->size, nfsc::AITargetsList->capacity);
+
+			if (ImGui::MyMenu(vehicles, &menu[id++]))
+			{
+				uintptr_t iter = reinterpret_cast<uintptr_t>(nfsc::IVehicleList->begin);
+				int size = nfsc::IVehicleList->size;
+
+				if (size == 0)
+				{
+					ImGui::Text("No vehicles.");
+				}
+
+				for (int i = 0; i < size; i++, iter += 4)
+				{
+					if (i != 0)
+					{
+						ImGui::Separator();
+					}
+
+					auto vehicle = ReadMemory<uintptr_t>(iter);
+					if (!vehicle)
+					{
+						break;
+					}
+
+					ImGui::AddyLabel(vehicle, "%d. Vehicle", i + 1);
+
+					auto aivehicle = nfsc::PVehicle_GetAIVehiclePtr(vehicle);
+					ImGui::AddyLabel(aivehicle, "- AIVehicle");
+
+					auto simable = nfsc::PVehicle_GetSimable(vehicle);
+					ImGui::AddyLabel(simable, "- Simable");
+
+					if (!simable)
+					{
+						break;
+					}
+
+					auto entity = reinterpret_cast<uintptr_t (__thiscall*)(uintptr_t)>(0x6D6C20)(simable);
+					ImGui::AddyLabel(entity, " - Entity");
+
+					auto player = reinterpret_cast<uintptr_t (__thiscall*)(uintptr_t)>(0x6D6C40)(simable);
+					ImGui::AddyLabel(player, " - Player");
+				}
+			}
+			*/
+
+			/* ===== EVENTS ===== */
+			/*if (ImGui::MyMenu("Events", &menu[id++]))
+			{
+				// TODO
+			}*/
+
+			// NOTE: SkipMovies is NOT hotswappable, guaranteed crash upon game exit in CleanupTextures!
+
+			ImGui::PopItemWidth();
+			ImGui::End();
+		}
+	} // ENDIF (gui::menu_open)
+
+	/* ========== O V E R L A Y ========== */
+	ImGui::SetNextWindowPos(ImVec2(0, 0));
+	ImGui::SetNextWindowSize(ImVec2((float)ReadMemory<int>(0xAB0AC8), (float)ReadMemory<int>(0xAB0ACC)));
+	if (ImGui::Begin("Overlay", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar |
+		ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoBackground))
+	{
+		/* ===== MAIN ===== */
+		ImGui::Text("Powered by BulbToys");
+		auto draw_list = ImGui::GetWindowDrawList();
+
+		/* ===== COORDS ===== */
+		if (overlays::coords)
 		{
 			nfsc::Vector3 pos = { 0, 0, 0 };
 			nfsc::Vector3 fwd_vec = { 0, 0, 0 };
@@ -761,7 +1452,7 @@ void gui::Render()
 			{
 				pos = *nfsc::RigidBody_GetPosition(my_rigid_body);
 				nfsc::RigidBody_GetForwardVector(my_rigid_body, &fwd_vec);
-				
+
 				ImGui::Text("RigidBody coords:");
 				ImGui::Text("- Position: { %.2f, %.2f, %.2f }", pos.x, pos.y, pos.z);
 				ImGui::Text("- Rotation: { %.2f, %.2f, %.2f }", fwd_vec.x, fwd_vec.y, fwd_vec.z);
@@ -772,598 +1463,92 @@ void gui::Render()
 				ImGui::Text("- Position: { %.2f, %.2f, %.2f }", pos.x, pos.y, pos.z);
 				ImGui::Text("- Rotation: { %.2f, %.2f, %.2f }", fwd_vec.x, fwd_vec.y, fwd_vec.z);
 			}
+		}
 
-			ImGui::Separator();
+		/* ===== MY VEHICLE ===== */
+		if (overlays::my_vehicle && my_rigid_body)
+		{
+			nfsc::Vector3 position = *nfsc::RigidBody_GetPosition(my_rigid_body);
 
-			// PVehicle
-			ImGui::AddyLabel(my_vehicle, "PVehicle");
+			nfsc::Vector3 dimension;
+			nfsc::RigidBody_GetDimension(my_rigid_body, &dimension);
 
-			// Speed
-			ImGui::Text("Speed: %.2fkm/h", my_vehicle ? nfsc::PVehicle_GetSpeed(my_vehicle) * 3.5999999 : 0.0f);
+			nfsc::Vector3 fwd_vec;
+			nfsc::RigidBody_GetForwardVector(my_rigid_body, &fwd_vec);
 
-			ImGui::Separator();
+			ImVec4 cyan = ImVec4(0, 1, 1, 1);
+			nfsc::BulbToys_DrawObject(draw_list, position, dimension, fwd_vec, cyan, ImGui::DynamicDistance(position));
+			nfsc::BulbToys_DrawVehicleInfo(draw_list, my_vehicle, cyan);
+		}
 
-			// Vehicle name
-			ImGui::Text("Vehicle name:");
-			ImGui::InputText("##vehicle1", g::encounter::vehicle, IM_ARRAYSIZE(g::encounter::vehicle));
-
-			// Switch to vehicle
-			if (ImGui::Button("Switch to vehicle") && *nfsc::GameFlowManager_State == nfsc::gameflow_state::racing)
+		/* ===== OTHER VEHICLES ===== */
+		if (overlays::other_vehicles)
+		{
+			for (uint32_t i = 0; i < nfsc::IVehicleList->size; i++)
 			{
-				if (my_simable)
+				uintptr_t vehicle = nfsc::IVehicleList->begin[i];
+
+				bool active = nfsc::PVehicle_IsActive(vehicle);
+				if (!active && !overlays::incl_deactivated)
 				{
-					nfsc::Vector3 p = { 0, 0, 0 };
-					nfsc::Vector3 r = { 1, 0, 0 };
+					continue;
+				}
 
-					uintptr_t new_simable = nfsc::BulbToys_CreateSimable(ReadMemory<uintptr_t>(nfsc::GRaceStatus), nfsc::driver_class::human,
-						nfsc::Attrib_StringToKey(g::encounter::vehicle), &r, &p, 0, 0, 0);
+				int dc = (int)nfsc::PVehicle_GetDriverClass(vehicle);
+				if (dc == 0)
+				{
+					continue;
+				}
 
-					if (new_simable)
-					{
-						nfsc::BulbToys_SwitchVehicle(my_simable, new_simable, nfsc::sv_mode::one_way);
-					}
+				uintptr_t simable = nfsc::PVehicle_GetSimable(vehicle);
+				uintptr_t rigid_body = nfsc::PhysicsObject_GetRigidBody(simable);
+
+				nfsc::Vector3 position = *nfsc::RigidBody_GetPosition(rigid_body);
+
+				nfsc::Vector3 dimension;
+				nfsc::RigidBody_GetDimension(rigid_body, &dimension);
+
+				nfsc::Vector3 fwd_vec;
+				nfsc::RigidBody_GetForwardVector(rigid_body, &fwd_vec);
+
+				ImVec4 color;
+				ImGui::GetDriverClassColor(dc, color);
+
+				float thickness = ImGui::DynamicDistance(position);
+
+				nfsc::BulbToys_DrawObject(draw_list, position, dimension, fwd_vec, color, thickness);
+				nfsc::BulbToys_DrawVehicleInfo(draw_list, i, color);
+				if (!active)
+				{
+					color = ImVec4(1, 0, 0, 0.25);
+					nfsc::BulbToys_DrawObject(draw_list, position, dimension, fwd_vec, color, thickness * 2);
 				}
 			}
+		}
 
-			// Use (vehicle) as next encounter
-			ImGui::Checkbox("Use as next encounter", &g::encounter::overridden);
-
-			ImGui::Separator();
-
-			// Location
-			ImGui::Text("[*] Location:");
-			ImGui::InputFloat3("##Location1", g::location);
-
-			// Teleport to location
-			if (ImGui::Button("Teleport to location"))
+		/* ===== ROADBLOCKS ===== */
+		if (roadblock::overlay)
+		{
+			ImGui::Text("Street width (at %.2f distance):", ReadMemory<float>(0x44529C));
+			ImGui::SameLine();
+			if (isnan(roadblock::width))
 			{
-				if (my_rigid_body)
-				{
-					nfsc::Vector3 position;
-					position.x = g::location[0];
-					position.y = g::location[1];
-					position.z = g::location[2];
-
-					nfsc::RigidBody_SetPosition(my_rigid_body, &position);
-				}
-			}
-
-			// GPS to location
-			if (ImGui::Button("GPS to location"))
-			{
-				nfsc::Vector3 position;
-				position.x = g::location[0];
-				position.y = g::location[1];
-				position.z = g::location[2];
-
-				if (nfsc::GPS_Engage(&position, 0.0, false))
-				{
-					auto g_manager_base = ReadMemory<uintptr_t>(0xA98294);
-
-					position.x = g::location[2];
-					position.y = -g::location[0];
-					position.z = g::location[1];
-
-					auto icon = nfsc::GManager_AllocIcon(g_manager_base, 0x15, &position, 0, false);
-
-					// Set flag to ShowOnSpawn
-					//WriteMemory<uint8_t>(icon_addr + 1, 0x40);
-
-					// Set flag to ShowInWorld + ShowOnMap
-					WriteMemory<uint8_t>(icon + 0x1, 3);
-
-					// Set color to white
-					WriteMemory<uint32_t>(icon + 0x20, 0xFFFFFFFF);
-
-					// Set tex hash
-					WriteMemory<uint32_t>(icon + 0x24, nfsc::bStringHash("MINIMAP_ICON_EVENT"));
-
-					nfsc::GIcon_Spawn(icon);
-					nfsc::WorldMap_SetGPSIng(icon);
-
-					// Set flag to previous + Spawned + Enabled + GPSing
-					WriteMemory<uint8_t>(icon + 1, 0x8F);
-				}
-			}
-
-			ImGui::Separator();
-
-			// Tires 0-4
-			static bool tire_popped[4] = { false };
-			static uintptr_t i_damageable = 0;
-			if (my_vehicle)
-			{
-				i_damageable = ReadMemory<uintptr_t>(my_vehicle + 0x44);
-
-				// Make sure our IDamageable is of type DamageRacer
-				if (i_damageable && ReadMemory<uintptr_t>(i_damageable) != 0x9E6868)
-				{
-					i_damageable = 0;
-				}
+				ImGui::TextColored(roadblock::color, "N/A");
 			}
 			else
 			{
-				i_damageable = 0;
-			}
-			for (int i = 0; i < 4; i++)
-			{
-				if (i_damageable)
-				{
-					tire_popped[i] = ReadMemory<uint8_t>(i_damageable + 0x88 + i) == 2;
-				}
-				else
-				{
-					tire_popped[i] = false;
-				}
-
-				char name[7];
-				sprintf_s(name, 7, "Tire %d", i);
-
-				if (ImGui::Checkbox(name, &tire_popped[i]))
-				{
-					if (i_damageable)
-					{
-						// Offsets 0x78, 0x7C, 0x80, 0x84 - mBlowOutTimes[4]
-						WriteMemory<float>(i_damageable + 0x78 + i * 4, 0);
-
-						// Offsets 0x88, 0x89, 0x8A, 0x8B - mDamage[4]
-						WriteMemory<uint8_t>(i_damageable + 0x88 + i, tire_popped[i] ? 2 : 0);
-					}
-				}
+				ImGui::TextColored(roadblock::color, "%.2f", roadblock::width);
 			}
 
-			ImGui::Separator();
-
-			// AutoDrive
-			static bool autodrive = false;
-			if (my_vehicle)
+			if (roadblock::valid)
 			{
-				auto ai_vehicle = nfsc::PVehicle_GetAIVehiclePtr(my_vehicle);
-				if (ai_vehicle)
-				{
-					// bool AIVehicleHuman::bAIControl
-					autodrive = ReadMemory<bool>(ai_vehicle + 0x258);
-				}
-				else
-				{
-					autodrive = false;
-				}
-			}
-			else
-			{
-				autodrive = false;
-			}
-			if (ImGui::Checkbox("AutoDrive", &autodrive))
-			{
-				if (autodrive)
-				{
-					nfsc::Game_ForceAIControl(1);
-
-					if (g::smart_ai::hooked)
-					{
-						if (my_vehicle)
-						{
-							auto ai_vehicle = nfsc::PVehicle_GetAIVehiclePtr(my_vehicle);
-							if (ai_vehicle)
-							{
-								if (!nfsc::BulbToys_IsGPSDown())
-								{
-									nfsc::BulbToys_PathToTarget(ai_vehicle, &g::smart_ai::target);
-								}
-							}
-						}
-					}
-				}
-				else
-				{
-					nfsc::Game_ClearAIControl(1);
-				}
-			}
-
-			// AutoDrive type
-			static int autodrive_type = static_cast<int>(nfsc::ai_goal::racer);
-			if (ImGui::MyListBox("AutoDrive type:", "##ADType", &autodrive_type, nfsc::goals, IM_ARRAYSIZE(nfsc::goals)))
-			{
-				WriteMemory<const char*>(0x4194F9, nfsc::goals[autodrive_type]);
-			}
-
-			ImGui::Separator();
-
-			// DebugCamera + Shortcut
-			if (ImGui::Button("DebugCamera"))
-			{
-				nfsc::CameraAI_SetAction(1, "CDActionDebug");
-			}
-			ImGui::SameLine();
-			ImGui::Checkbox("Shortcut", &debug_shortcut);
-
-			// No Busted
-			static bool no_busted = false;
-			if (ImGui::Checkbox("No Busted", &no_busted))
-			{
-				if (no_busted)
-				{
-					PatchMemory<patches::no_busted>(0x449836, patches::no_busted());
-				}
-				else
-				{
-					Unpatch(0x449836);
-				}
-			}
-
-			// World map GPS only
-			if (ImGui::Checkbox("GPS only", &g::gps_only::enabled))
-			{
-				if (g::gps_only::enabled)
-				{
-					// Remove the "Jump to Safehouse" button from the pause menu
-					PatchMemory<uint8_t>(0x5D59F4, 0xEB);
-				}
-				else
-				{
-					Unpatch(0x5D59F4);
-				}
+				draw_list->AddLine(roadblock::min, roadblock::max, ImGui::ColorConvertFloat4ToU32(roadblock::color), roadblock::thickness);
+				roadblock::valid = false;
 			}
 		}
 
-		/* ===== AI/WORLD ===== */
-		if (ImGui::MyMenu("AI/World", &menu[id++]))
-		{
-			// Roadblock setups
-			if (ImGui::Button("Roadblock setups"))
-			{
-				gui::rb_menu_open = true;
-			}
-
-			ImGui::Separator();
-
-			// Traffic crash speed
-			ImGui::MySliderFloat("Traffic crash speed:", "##TCSpeed", reinterpret_cast<float*>(0x9C1790), 1.0, 1000.0);
-
-			// Traffic type
-			static int traffic_type = static_cast<int>(nfsc::ai_goal::traffic);
-			if (ImGui::MyListBox("Traffic type:", "##TType", &traffic_type, nfsc::goals, IM_ARRAYSIZE(nfsc::goals)))
-			{
-				WriteMemory<const char*>(0x419738, nfsc::goals[traffic_type]);
-			}
-
-			ImGui::Separator();
-
-			// Racer post-race type
-			static int racer_postrace_type = static_cast<int>(nfsc::ai_goal::racer);
-			if (ImGui::MyListBox("Racer post-race type:", "##RPRType", &racer_postrace_type, nfsc::goals, IM_ARRAYSIZE(nfsc::goals)))
-			{
-				WriteMemory<const char*>(0x4292D0, nfsc::goals[racer_postrace_type]);
-			}
-
-			ImGui::Separator();
-
-			// Override NeedsEncounter
-			if (g::needs_encounter::hooked)
-			{
-				ImGui::Checkbox("Override NeedsEncounter:", &g::needs_encounter::overridden);
-				ImGui::SameLine();
-				ImGui::Checkbox("##NEValue", &g::needs_encounter::value);
-			}
-
-			// Override NeedsTraffic
-			if (g::needs_traffic::hooked)
-			{
-				ImGui::Checkbox("Override NeedsTraffic:", &g::needs_traffic::overridden);
-				ImGui::SameLine();
-				ImGui::Checkbox("##NTValue", &g::needs_traffic::value);
-			}
-
-			// Disable cops
-			ImGui::Checkbox("Disable cops", reinterpret_cast<bool*>(0xA83A50));
-
-			ImGui::Separator();
-
-			// Kill skids & Restore props
-			if (ImGui::Button("Kill skids"))
-			{
-				nfsc::KillSkidsOnRaceRestart();
-			}
-			ImGui::SameLine();
-			if (ImGui::Button("Restore props"))
-			{
-				nfsc::World_RestoreProps();
-			}
-		}
-
-		/* ===== PKO/PTAG TEST ===== */
-		if (ImGui::MyMenu("PKO/PTag Test", &menu[id++]))
-		{
-			struct eight_cars {
-				uintptr_t car[8] = { 0 };
-			};
-			static int racer_index[2] = { 0, 0 };
-			static bool bust = false;
-
-			// Calculate PursuitSimables count
-			int count = 0;
-			for (int i = 0; i < 8; i++)
-			{
-				if (ReadMemory<uintptr_t>(nfsc::ThePursuitSimables + i * 4))
-				{
-					count++;
-				}
-			}
-
-			// ThePursuitSimables (count)
-			ImGui::AddyLabel(nfsc::ThePursuitSimables, "ThePursuitSimables (%d/8)", count);
-
-			// Racer index 1
-			ImGui::Text("Index 1:");
-			if (ImGui::InputInt("##RIndex1", &racer_index[0]))
-			{
-				if (racer_index[0] < 0)
-				{
-					racer_index[0] = 0;
-				}
-				else if (racer_index[0] > 7)
-				{
-					racer_index[0] = 7;
-				}
-			}
-
-			// KnockoutPursuit 1
-			if (ImGui::Button("KnockoutPursuit 1"))
-			{
-				// End any and all rendering immediately, and return afterwards, otherwise the game will crash due to double rendering
-				ImGui::PopItemWidth();
-				ImGui::End();
-				ImGui::EndFrame();
-				ImGui::Render();
-				ImGui_ImplDX9_RenderDrawData(ImGui::GetDrawData());
-
-				// Game_KnockoutPursuit. NOTE: Its loading screen causes double rendering
-				reinterpret_cast<void(*)(int)>(0x65D9F0)(racer_index[0]);
-
-				uintptr_t g_race_status = ReadMemory<uintptr_t>(nfsc::GRaceStatus);
-				if (g_race_status)
-				{
-					uintptr_t racer_info = nfsc::GRaceStatus_GetRacerInfo(g_race_status, racer_index[0]);
-
-					if (racer_info)
-					{
-						uintptr_t simable = nfsc::GRacerInfo_GetSimable(racer_info);
-
-						// Game_KnockoutRacer
-						reinterpret_cast<void(*)(uintptr_t)>(0x65B4E0)(simable);
-
-						if (simable && my_simable && my_simable != simable)
-						{
-							nfsc::Game_SetAIGoal(simable, "AIGoalHassle");
-							nfsc::Game_SetPursuitTarget(simable, my_simable);
-
-							// 0x004149E4 - loses track of the fucking pursued vehicle ?!?!?!?!?!?!?!
-						}
-					}
-				}
-
-				return;
-			}
-
-			// Racer index 2
-			if (ImGui::InputInt("##RIndex2", &racer_index[1]))
-			{
-				if (racer_index[1] < 0)
-				{
-					racer_index[1] = 0;
-				}
-				else if (racer_index[1] > 7)
-				{
-					racer_index[1] = 7;
-				}
-			}
-
-			// TagPursuit 1 & 2 + Busted?
-			if (ImGui::Button("TagPursuit 1 & 2"))
-			{
-				//gui::menu_open = false;
-				nfsc::Game_TagPursuit(racer_index[0], racer_index[1], bust);
-			}
-			ImGui::SameLine();
-			ImGui::Checkbox("Busted?", &bust);
-		}
-
-		/* ===== SPAWNING ===== */
-		if (ImGui::MyMenu("Spawning", &menu[id++]))
-		{
-			// Vehicle name
-			static char vehicle[32];
-			ImGui::Text("Vehicle name:");
-			ImGui::InputText("##vehicle2", vehicle, IM_ARRAYSIZE(vehicle));
-
-			// Spawn location
-			static float location[3] = { .0f, .0f, .0f };
-			ImGui::Location("Spawn location:", "##SLocation", location);
-
-			// Spawn type
-			static int spawn_type = 0;
-			ImGui::MyListBox("Spawn type:", "##SType", &spawn_type, nfsc::driver_classes, IM_ARRAYSIZE(nfsc::driver_classes));
-
-			// Spawn goal & Ignore/use default
-			static int spawn_goal = 0;
-			static bool ignore = true;
-			ImGui::MyListBox("Spawn goal:", "##SGoal", &spawn_goal, nfsc::goals, IM_ARRAYSIZE(nfsc::goals));
-			ImGui::Checkbox("Ignore (use default) goal", &ignore);
-
-			// Spawn vehicle
-			if (ImGui::Button("Spawn vehicle") && *nfsc::GameFlowManager_State == nfsc::gameflow_state::racing)
-			{
-				nfsc::Vector3 r = { 1, 0, 0 };
-				nfsc::Vector3 p;
-				p.x = location[0];
-				p.y = location[1];
-				p.z = location[2];
-
-				uintptr_t simable = nfsc::BulbToys_CreateSimable(ReadMemory<uintptr_t>(nfsc::GRaceStatus),(nfsc::driver_class)(spawn_type + 1),
-					nfsc::Attrib_StringToKey(vehicle), &r, &p, 0, 0, 0);
-
-				if (!ignore && simable)
-				{
-					// dont tihnk this does shit
-					nfsc::Game_SetAIGoal(simable, nfsc::goals[spawn_goal]);
-				}
-			}
-		}
-
-		/* ===== LISTS ===== */
-		ImGui::Separator();
-		ImGui::Text("Lists:");
-
-		static nfsc::ListableSet<uintptr_t>* lists[] = { nfsc::AIPursuitList, nfsc::AITargetsList, nfsc::EntityList, nfsc::IPlayerList, nfsc::IVehicleList };
-		static const char* list_names[] = { "AIPursuitList", "AITargetsList", "EntityList", "IPlayerList", "IVehicleList" };
-
-		for (int i = 0; i < IM_ARRAYSIZE(lists); i++)
-		{
-			char list_name[32];
-			sprintf_s(list_name, 32, "%s: %u/%u", list_names[i], lists[i]->size, lists[i]->capacity);
-
-			if (ImGui::MyMenu(list_name, &menu[id++]))
-			{
-				ImGui::AddyLabel(reinterpret_cast<uintptr_t>(lists[i]), "Address");
-
-				int size = lists[i]->size;
-
-				if (size == 0)
-				{
-					ImGui::Text("Empty.");
-				}
-
-				for (int j = 0; j < size; j++)
-				{
-					uintptr_t element = *(lists[i]->begin + j);
-					ImGui::AddyLabel(element, "%d", j);
-
-					// Fancier IVehicleList
-					if (i == 4)
-					{
-						// Set text color depending on driver class
-						ImVec4 color;
-						nfsc::driver_class dc = nfsc::PVehicle_GetDriverClass(element);
-						switch (dc)
-						{
-							case nfsc::driver_class::human:        color = ImVec4(0, 1, 1, 1); break;          // cyan
-							case nfsc::driver_class::traffic:      color = ImVec4(.6f, .4f, 0, 1); break;      // brown
-							case nfsc::driver_class::cop:          color = ImVec4(.25f, .25f, 1, 1); break;    // light blue
-							case nfsc::driver_class::racer:        color = ImVec4(1, .6f, 0, 1); break;        // orange
-							case nfsc::driver_class::none:         color = ImVec4(1, 1, 1, 1); break;          // white
-							case nfsc::driver_class::nis:          color = ImVec4(1, 1, 0, 1); break;          // yellow
-							case nfsc::driver_class::remote:       color = ImVec4(0, .75f, 0, 1); break;       // darker green
-							case nfsc::driver_class::remote_racer: color = ImVec4(0, 1, 0, 1); break;          // green
-							case nfsc::driver_class::ghost:        color = ImVec4(.75f, .75f, .75f, 1); break; // gray
-							default: /* hub */                     color = ImVec4(1, 0, 1, 1); break;          // magenta
-						}
-
-						// PVehicle::IsActive (add a red X if the vehicle is inactive)
-						if (!reinterpret_cast<bool(__thiscall*)(uintptr_t)>(0x6D80C0)(element))
-						{
-							ImGui::SameLine();
-							ImGui::TextColored(ImVec4(1, 0, 0, 1), "X");
-						}
-
-						// Then print the vehicle name
-						ImGui::SameLine();
-						ImGui::TextColored(color, "%s", nfsc::PVehicle_GetVehicleName(element));
-
-						// Get distance between us and the other simable. Add distance progress bars at the end
-						uintptr_t simable = nfsc::PVehicle_GetSimable(element);
-						if (simable)
-						{
-							// 1. Distance from our simable to the other simable
-							if (my_simable)
-							{
-								if (simable == my_simable)
-								{
-									ImGui::DistanceBar(0);
-								}
-
-								else
-								{
-									ImGui::DistanceBar(nfsc::BulbToys_GetDistanceBetween(my_simable, simable));
-								}
-							}
-
-							nfsc::Vector3 pos = {0, 0, 0};
-
-							// 2. Distance from our debug camera position to the other simable (if active)
-							if (nfsc::BulbToys_GetDebugCamCoords(&pos, nullptr))
-							{
-								ImGui::DistanceBar(nfsc::BulbToys_GetDistanceBetween(simable, &pos));
-							}
-						}
-					}
-				}
-			}
-		}
-
-		/*
-		char vehicles[32];
-		sprintf_s(vehicles, 32, "Vehicles: %u/%u", nfsc::AITargetsList->size, nfsc::AITargetsList->capacity);
-
-		if (ImGui::MyMenu(vehicles, &menu[id++]))
-		{
-			uintptr_t iter = reinterpret_cast<uintptr_t>(nfsc::IVehicleList->begin);
-			int size = nfsc::IVehicleList->size;
-
-			if (size == 0)
-			{
-				ImGui::Text("No vehicles.");
-			}
-
-			for (int i = 0; i < size; i++, iter += 4)
-			{
-				if (i != 0)
-				{
-					ImGui::Separator();
-				}
-
-				auto vehicle = ReadMemory<uintptr_t>(iter);
-				if (!vehicle)
-				{
-					break;
-				}
-
-				ImGui::AddyLabel(vehicle, "%d. Vehicle", i + 1);
-
-				auto aivehicle = nfsc::PVehicle_GetAIVehiclePtr(vehicle);
-				ImGui::AddyLabel(aivehicle, "- AIVehicle");
-
-				auto simable = nfsc::PVehicle_GetSimable(vehicle);
-				ImGui::AddyLabel(simable, "- Simable");
-
-				if (!simable)
-				{
-					break;
-				}
-
-				auto entity = reinterpret_cast<uintptr_t (__thiscall*)(uintptr_t)>(0x6D6C20)(simable);
-				ImGui::AddyLabel(entity, " - Entity");
-
-				auto player = reinterpret_cast<uintptr_t (__thiscall*)(uintptr_t)>(0x6D6C40)(simable);
-				ImGui::AddyLabel(player, " - Player");
-			}
-		}
-		*/
-
-		/* ===== EVENTS ===== */
-		/*if (ImGui::MyMenu("Events", &menu[id++]))
-		{
-			// TODO
-		}*/
-
-		// NOTE: SkipMovies is NOT hotswappable, guaranteed crash upon game exit in CleanupTextures!
-
-		ImGui::PopItemWidth();
 		ImGui::End();
 	}
-	
-	ImGui::EndFrame();
-	ImGui::Render();
-	ImGui_ImplDX9_RenderDrawData(ImGui::GetDrawData());
 }
 
 // Pass 0xFFFFFFFF (-1) as the address to make a Playground (memory allocated memory editor) instead

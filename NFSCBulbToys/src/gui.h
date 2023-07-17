@@ -8,10 +8,32 @@
 
 namespace gui
 {
+	namespace roadblock
+	{
+		inline bool menu_open = false;
+
+		inline nfsc::RoadblockSetup* cur = nullptr;
+		inline bool overlay = false;
+		inline bool use_camera = false;
+
+		inline float width = NAN;
+
+		inline ImVec2 min, max;
+		inline ImVec4 color;
+		inline float thickness = 1.0f;
+		inline bool valid = false;
+	}
+
+	namespace overlays
+	{
+		inline bool coords = false;
+		inline bool my_vehicle = false;
+		inline bool other_vehicles = false;
+		inline bool incl_deactivated = false;
+	}
+
 	inline bool menu_open = false;
 	inline bool debug_shortcut = false;
-
-	inline bool rb_menu_open = false;
 
 	inline char input_addr[9];
 
@@ -76,4 +98,6 @@ namespace ImGui
 	inline void AddyLabel(uintptr_t addy, const char* fmt, ...);
 	inline void DistanceBar(float distance);
 	inline void Location(const char* label, const char* id, float* location);
+	inline void GetDriverClassColor(int dc, ImVec4& color);
+	inline float DynamicDistance(nfsc::Vector3 rigid_body);
 }

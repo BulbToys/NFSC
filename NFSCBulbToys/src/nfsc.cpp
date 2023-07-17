@@ -16,6 +16,138 @@ uintptr_t nfsc::BulbToys_CreatePursuitSimable(nfsc::driver_class dc)
 	return simable;
 }
 
+void nfsc::BulbToys_DrawObject(ImDrawList* draw_list, Vector3& position, Vector3& dimension, Vector3& fwd_vec, ImVec4& color, float thickness)
+{
+	nfsc::Matrix4 rotation;
+	nfsc::Util_GenerateMatrix(&rotation, &fwd_vec, 0);
+
+	nfsc::Vector3 dots[8] = {
+		{ dimension.x, dimension.y, dimension.z },
+		{ -dimension.x, dimension.y, dimension.z },
+		{ dimension.x, dimension.y, -dimension.z },
+		{ -dimension.x, dimension.y, -dimension.z },
+		{ dimension.x, -dimension.y, dimension.z },
+		{ -dimension.x, -dimension.y, dimension.z },
+		{ dimension.x, -dimension.y, -dimension.z },
+		{ -dimension.x, -dimension.y, -dimension.z },
+	};
+
+	for (int i = 0; i < 8; i++)
+	{
+		// UMath::Rotate
+		reinterpret_cast<void(*)(nfsc::Vector3*, nfsc::Matrix4*, nfsc::Vector3*)>(0x401B50)(&dots[i], &rotation, &dots[i]);
+
+		dots[i].x += position.x;
+		dots[i].y += position.y;
+		dots[i].z += position.z;
+
+		nfsc::BulbToys_GetScreenPosition(dots[i], dots[i]);
+	}
+
+	ImVec2 connections[12] = {
+		{0,1},
+		{0,2},
+		{0,4},
+		{1,3},
+		{1,5},
+		{2,3},
+		{2,6},
+		{3,7},
+		{4,5},
+		{4,6},
+		{5,7},
+		{6,7}
+	};
+
+	for (int i = 0; i < 12; i++)
+	{
+		int p1 = (int)connections[i].x;
+		int p2 = (int)connections[i].y;
+
+		if (dots[p1].z < 1.0f && dots[p2].z < 1.0f)
+		{
+			draw_list->AddLine({ dots[p1].x, dots[p1].y }, { dots[p2].x, dots[p2].y }, ImGui::ColorConvertFloat4ToU32(color), thickness);
+		}
+	}
+}
+
+void nfsc::BulbToys_DrawVehicleInfo(ImDrawList* draw_list, uintptr_t vehicle, ImVec4& color)
+{
+	constexpr float max_distance = 100.f;
+
+	// Vehicle can be either a pointer or the IVehicleList array index. If vehicle is a really small number, assume it's an array index
+	// For array indexes, just grab the vehicle at that index. Otherwise, iterate the list until the iterator pointer matches our pointer
+	uint32_t id = 0;
+	if (vehicle < nfsc::IVehicleList->size)
+	{
+		id = vehicle;
+		vehicle = nfsc::IVehicleList->begin[id];
+	}
+	else
+	{
+		for (id = 0; id < nfsc::IVehicleList->size; id++)
+		{
+			if (nfsc::IVehicleList->begin[id] == vehicle)
+			{
+				break;
+			}
+		}
+
+		if (id == nfsc::IVehicleList->size)
+		{
+			return;
+		}
+	}
+
+	Vector3 my_position;
+	uintptr_t my_simable = 0;
+	if (nfsc::BulbToys_GetDebugCamCoords(&my_position, nullptr))
+	{
+
+	}
+	else if (nfsc::BulbToys_GetMyVehicle(nullptr, &my_simable))
+	{
+		uintptr_t my_rigid_body = nfsc::PhysicsObject_GetRigidBody(my_simable);
+		my_position = *nfsc::RigidBody_GetPosition(my_rigid_body);
+	}
+	else
+	{
+		return;
+	}
+
+	uintptr_t other_rb = nfsc::PhysicsObject_GetRigidBody(nfsc::PVehicle_GetSimable(vehicle));
+	Vector3 other_position = *nfsc::RigidBody_GetPosition(other_rb);
+	float distance = nfsc::UMath_Distance(&my_position, &other_position);
+	if (distance > max_distance)
+	{
+		return;
+	}
+
+	Vector3 other_dims;
+	nfsc::RigidBody_GetDimension(other_rb, &other_dims);
+
+	other_position.y += other_dims.y * 5;
+
+	nfsc::BulbToys_GetScreenPosition(other_position, other_position);
+
+	char text[32];
+	sprintf_s(text, 32, "%s (%d)", nfsc::PVehicle_GetVehicleName(vehicle), id);
+
+	ImVec2 text_size = ImGui::CalcTextSize(text);
+	if (other_position.z < 1.0)
+	{
+		ImVec4 bg_color = color;
+		bg_color.x /= 5;
+		bg_color.y /= 5;
+		bg_color.z /= 5;
+
+		draw_list->AddRectFilled({ other_position.x - text_size.x / 2, other_position.y },
+			{ other_position.x + text_size.x / 2, other_position.y + text_size.y}, ImGui::ColorConvertFloat4ToU32(bg_color), 1.0f);
+
+		draw_list->AddText({ other_position.x - text_size.x / 2, other_position.y }, ImGui::ColorConvertFloat4ToU32(color), text);
+	}
+}
+
 uintptr_t nfsc::BulbToys_GetAIVehicleGoal(uintptr_t ai_vehicle_ivehicleai)
 {
 	return ReadMemory<uintptr_t>(ai_vehicle_ivehicleai + 0x94);
@@ -34,6 +166,24 @@ int nfsc::BulbToys_GetPVehicleTier(uintptr_t pvehicle)
 	}
 
 	return ReadMemory<int>(layout_ptr + 0x2C);
+}
+
+void nfsc::BulbToys_GetScreenPosition(Vector3& world, Vector3& screen)
+{
+	nfsc::Vector4 out, input { world.z, -world.x, world.y, 1.0 };
+
+	nfsc::Matrix4 proj = ReadMemory<nfsc::Matrix4>((0xB1A780 + 1 * 0x1A0) + 0x80);
+
+	// D3DXVec4Transform
+	reinterpret_cast<nfsc::Vector4*(__stdcall*)(nfsc::Vector4*, nfsc::Vector4*, nfsc::Matrix4*)>(0x86B29C)(&out, &input, &proj);
+
+	float i_w = 1.0f / out.w;
+	out.x *= i_w;
+	out.y *= i_w;
+
+	screen.x = (out.x + 1.0f) * ReadMemory<int>(0xAB0AC8) * 0.5f;
+	screen.y = (out.y - 1.0f) * ReadMemory<int>(0xAB0ACC) * -0.5f;
+	screen.z = i_w * out.z;
 }
 
 float nfsc::BulbToys_GetStreetWidth(Vector3* position, Vector3* direction, float distance, Vector3* left_pos, Vector3* right_pos)

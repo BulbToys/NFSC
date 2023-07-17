@@ -4,6 +4,9 @@
 
 #define LS(address, name, type) inline ListableSet<type>* name = reinterpret_cast<decltype(name)>(address)
 
+struct ImDrawList;
+struct ImVec4;
+
 namespace nfsc
 {
 	/* ===== NAMESPACES ===== */
@@ -37,7 +40,7 @@ namespace nfsc
 	};
 
 	inline const char* driver_classes[] = { "traffic", "cop", "racer", "none", "nis", "remote", "remote_racer", "ghost", "hub" };
-	enum driver_class
+	enum class driver_class : int
 	{
 		human        = 0x0,
 		traffic      = 0x1,
@@ -186,6 +189,22 @@ namespace nfsc
 		float z = 0;
 	};
 
+	struct Vector4
+	{
+		float x = 0;
+		float y = 0;
+		float z = 0;
+		float w = 0;
+	};
+
+	struct Matrix4
+	{
+		Vector4 v0;
+		Vector4 v1;
+		Vector4 v2;
+		Vector4 v3;
+	};
+
 	struct WCollisionMgr
 	{
 		unsigned int fSurfaceExclusionMask = 0;
@@ -291,17 +310,22 @@ namespace nfsc
 	FUNC(0x6D8070, float, __thiscall, PVehicle_GetSpeed, uintptr_t pvehicle);
 	FUNC(0x6D7F20, char*, __thiscall, PVehicle_GetVehicleName, uintptr_t pvehicle);
 	FUNC(0x6C0BA0, void, __thiscall, PVehicle_GlareOn, uintptr_t pvehicle, uint32_t fx_id);
+	FUNC(0x6D80C0, bool, __thiscall, PVehicle_IsActive, uintptr_t pvehicle);
 	FUNC(0x6D43A0, void, __thiscall, PVehicle_Kill, uintptr_t pvehicle);
 	FUNC(0x6D4410, void, __thiscall, PVehicle_ReleaseBehaviorAudio, uintptr_t pvehicle);
 	FUNC(0x6DA500, void, __thiscall, PVehicle_SetDriverClass, uintptr_t pvehicle, driver_class dc);
 	FUNC(0x6C61E0, void, __thiscall, PVehicle_SetSpeed, uintptr_t pvehicle, float speed);
 	FUNC(0x6D1100, bool, __thiscall, PVehicle_SetVehicleOnGround, uintptr_t pvehicle, Vector3* position, Vector3* forward_vector);
 	
+	FUNC(0x6C6CD0, void, __thiscall, RigidBody_GetDimension, uintptr_t rigid_body, Vector3* dimension);
 	FUNC(0x6C70E0, void, __thiscall, RigidBody_GetForwardVector, uintptr_t rigid_body, Vector3* forward_vector);
 	FUNC(0x6C6FF0, Vector3*, __thiscall, RigidBody_GetPosition, uintptr_t rigid_body);
 	FUNC(0x6E8210, void, __thiscall, RigidBody_SetPosition, uintptr_t rigid_body, Vector3* position);
 
 	FUNC(0x411FD0, float, , UMath_Distance, Vector3* vec1, Vector3* vec2);
+	FUNC(0x412190, void, , UMath_Normalize, Vector3* vec);
+
+	FUNC(0x764E00, void, , Util_GenerateMatrix, Matrix4* result, Vector3* fwd_vec, Vector3* in_up);
 
 	FUNC(0x816DF0, bool, __thiscall, WCollisionMgr_GetWorldHeightAtPointRigorous, WCollisionMgr* mgr, Vector3* point, float* height, Vector3* normal);
 
@@ -333,6 +357,10 @@ namespace nfsc
 	}
 
 	uintptr_t BulbToys_CreatePursuitSimable(nfsc::driver_class dc);
+
+	void BulbToys_DrawObject(ImDrawList* draw_list, Vector3& position, Vector3& dimension, Vector3& rotation, ImVec4& color, float thickness);
+
+	void BulbToys_DrawVehicleInfo(ImDrawList* draw_list, uintptr_t vehicle, ImVec4& color);
 
 	template <uintptr_t handle>
 	inline uintptr_t BulbToys_FindInterface(uintptr_t iface)
@@ -366,6 +394,8 @@ namespace nfsc
 	bool BulbToys_GetMyVehicle(uintptr_t* my_vehicle, uintptr_t* my_simable);
 
 	int BulbToys_GetPVehicleTier(uintptr_t pvehicle);
+
+	void BulbToys_GetScreenPosition(Vector3& world_position, Vector3& screen_position);
 
 	float BulbToys_GetStreetWidth(Vector3* position, Vector3* direction, float distance, Vector3* left_pos, Vector3* right_pos);
 
