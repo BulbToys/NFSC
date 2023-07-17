@@ -42,6 +42,8 @@ bool hooks::Setup()
 
 bool hooks::SetupPart2(uintptr_t device)
 {
+	gui::SetupMenu(reinterpret_cast<IDirect3DDevice9*>(device));
+
 	auto status = CreateHook(VirtualFunction(device, 42), &EndSceneHook, &EndScene);
 	if (status != MH_OK)
 	{
@@ -56,8 +58,6 @@ bool hooks::SetupPart2(uintptr_t device)
 		Error("Failed to hook Reset() with MH_STATUS code %d.", status);
 		return false;
 	}
-
-	gui::SetupMenu(reinterpret_cast<IDirect3DDevice9*>(device));
 
 	/* Non-critical hooks go here */
 

@@ -786,10 +786,12 @@ void gui::Render()
 				// My vehicle
 				ImGui::Checkbox("My vehicle", &overlays::my_vehicle);
 
-				// Other vehicles
-				ImGui::Checkbox("Other vehicles (incl. deactivated:", &overlays::other_vehicles);
+				// Other vehicles (deactivated)
+				ImGui::Checkbox("Other vehicles (", &overlays::other_vehicles);
 				ImGui::SameLine();
 				ImGui::Checkbox("##DVehicles", &overlays::incl_deactivated);
+				ImGui::SameLine();
+				ImGui::Text("deactivated)");
 
 				// Street width/roadblock
 				ImGui::Checkbox("Street width/roadblock", &roadblock::overlay);
