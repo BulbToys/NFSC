@@ -1136,6 +1136,14 @@ void gui::Render()
 					ImGui::Checkbox("##NTValue", &g::needs_traffic::value);
 				}
 
+				// Override PursueRacers
+				if (g::pursue_racers::hooked)
+				{
+					ImGui::Checkbox("Override PursueRacers:", &g::pursue_racers::overridden);
+					ImGui::SameLine();
+					ImGui::Checkbox("##PRValue", &g::pursue_racers::value);
+				}
+
 				// Disable cops
 				ImGui::Checkbox("Disable cops", reinterpret_cast<bool*>(0xA83A50));
 
@@ -1156,8 +1164,8 @@ void gui::Render()
 				ImGui::Checkbox("Always rain", reinterpret_cast<bool*>(0xB74D20));
 			}
 
-			/* ===== PKO/PTAG TEST ===== */
-			if (ImGui::MyMenu("PKO/PTag Test", &menu[id++]))
+			/* ===== RACE TEST ===== */
+			if (ImGui::MyMenu("Race test", &menu[id++]))
 			{
 				struct eight_cars {
 					uintptr_t car[8] = { 0 };

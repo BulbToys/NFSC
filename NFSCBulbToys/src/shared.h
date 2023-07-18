@@ -188,6 +188,14 @@ namespace g
 		inline bool overridden = false;
 	}
 
+	// NeedsTraffic hook
+	namespace pursue_racers
+	{
+		inline bool hooked = false;
+		inline bool value = false;
+		inline bool overridden = false;
+	}
+
 	// Roadblock setups
 	namespace roadblock_setups
 	{

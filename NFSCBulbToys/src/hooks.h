@@ -23,6 +23,9 @@ namespace hooks
 	bool __fastcall NeedsTrafficHook(uintptr_t traffic_manager);
 	static inline decltype(&NeedsTrafficHook) NeedsTraffic;
 
+	bool __fastcall PursueRacersHook(uintptr_t ai_cop_manager);
+	static inline decltype(&PursueRacersHook) PursueRacers;
+
 	bool __fastcall GpsEngageHook(uintptr_t gps, uintptr_t edx, nfsc::Vector3* vec3target, float max_deviation, bool re_engage, bool always_re_establish);
 	static inline decltype(&GpsEngageHook) GpsEngage;
 
@@ -67,6 +70,9 @@ namespace hooks
 
 	void __fastcall DebugCarPadButton3Hook(uintptr_t fe_debugcar_state_manager);
 	static inline decltype (&DebugCarPadButton3Hook) DebugCarPadButton3;
+
+	void __fastcall SetRoamingHook(uintptr_t g_race_status);
+	static inline decltype (&SetRoamingHook) SetRoaming;
 
 	//void CreateRoadBlockHook();
 	void UpdateCopElementsHook1();

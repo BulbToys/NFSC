@@ -54,7 +54,6 @@ void patches::Undo()
 
 	// MemcardManagement
 	Unpatch(0xA97BD4);
-	Unpatch(0x5BD9D3);
 	Unpatch(0x5BD6E6);
 	Unpatch(0x83D503);
 

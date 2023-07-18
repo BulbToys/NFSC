@@ -62,25 +62,18 @@ bool hooks::SetupPart2(uintptr_t device)
 	/* Non-critical hooks go here */
 
 	// Optionally override encounter spawn requirement
-	if (CreateHook(0x422BF0, &NeedsEncounterHook, &NeedsEncounter) == MH_OK)
-	{
-		g::needs_encounter::hooked = true;
-	}
+	g::needs_encounter::hooked = CreateHook(0x422BF0, &NeedsEncounterHook, &NeedsEncounter) == MH_OK;
 
 	// Optionally override traffic spawn requirement
-	if (CreateHook(0x422990, &NeedsTrafficHook, &NeedsTraffic) == MH_OK)
-	{
-		g::needs_traffic::hooked = true;
-	}
+	g::needs_traffic::hooked = CreateHook(0x422990, &NeedsTrafficHook, &NeedsTraffic) == MH_OK;
+
+	// Optionally override whether racers should be pursued or not
+	g::pursue_racers::hooked = CreateHook(0x423F40, &PursueRacersHook, &PursueRacers) == MH_OK;
 
 	// Smart AI hooks
 	// - Make autopilot drive to the location marked by the GPS
 	// - Make autopilot drive to the location after a navigation reset
-	if (CreateHook(0x433930, &GpsEngageHook, &GpsEngage) == MH_OK &&
-		CreateHook(0x427AD0, &ResetDriveToNavHook, &ResetDriveToNav) == MH_OK)
-	{
-		g::smart_ai::hooked = true;
-	}
+	g::smart_ai::hooked = CreateHook(0x433930, &GpsEngageHook, &GpsEngage) == MH_OK && CreateHook(0x427AD0, &ResetDriveToNavHook, &ResetDriveToNav) == MH_OK;
 
 	// Calculate world positions from map positions
 	CreateHook(0x5B3850, &WorldMapPadAcceptHook, &WorldMapPadAccept);
@@ -117,6 +110,9 @@ bool hooks::SetupPart2(uintptr_t device)
 
 	// Replace "Dump Preset" with "Add to My Cars" for DebugCarCustomize
 	CreateHook(0x854890, &DebugCarPadButton3Hook, &DebugCarPadButton3);
+
+	// Reset GRaceStatus vehicle count to 0 when the race ends
+	CreateHook(0x641310, &SetRoamingHook, &SetRoaming);
 
 	// Increment cop counter by 1 per roadblock vehicle
 	// TODO: if re-enabling this, make sure roadblock cops that get attached don't increment again
@@ -236,6 +232,12 @@ bool __fastcall hooks::NeedsTrafficHook(uintptr_t traffic_manager)
 {
 	// Ditto
 	return g::needs_traffic::overridden ? g::needs_traffic::value : NeedsTraffic(traffic_manager);
+}
+
+bool __fastcall hooks::PursueRacersHook(uintptr_t ai_cop_manager)
+{
+	// Ditto
+	return g::pursue_racers::overridden ? g::pursue_racers::value : PursueRacers(ai_cop_manager);
 }
 
 bool __fastcall hooks::GpsEngageHook(uintptr_t gps, uintptr_t edx, nfsc::Vector3* target, float max_deviation, bool re_engage, bool always_re_establish)
@@ -587,6 +589,13 @@ void __fastcall hooks::DebugCarPadButton3Hook(uintptr_t fe_debugcar_state_manage
 	
 	// DALFeVehicle::AddCarToMyCarsDB(index)
 	reinterpret_cast<char(__stdcall*)(uint32_t)>(0x4D1DE0)(index);
+}
+
+void __fastcall hooks::SetRoamingHook(uintptr_t g_race_status)
+{
+	SetRoaming(g_race_status);
+
+	WriteMemory<uint32_t>(g_race_status + 0x6A08, 0);
 }
 
 void __fastcall hooks::WorldMapPadAcceptHook(uintptr_t fe_state_manager)
