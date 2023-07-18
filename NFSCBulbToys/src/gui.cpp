@@ -163,14 +163,15 @@ void ImGui::GetDriverClassColor(int dc, ImVec4& color)
 	}
 }
 
-float ImGui::DynamicDistance(nfsc::Vector3 other_position)
+float ImGui::DynamicDistance(nfsc::Vector3 &other_position)
 {
 	constexpr float min = 1.0f;
 	constexpr float max = 5.0f;
 
-	constexpr float max_distance = 100.0f;
+	constexpr float max_distance = 50.0f;
 	constexpr float scale = max_distance / (max - min);
 
+	/*
 	nfsc::Vector3 my_position;
 	uintptr_t my_simable = 0;
 
@@ -189,6 +190,9 @@ float ImGui::DynamicDistance(nfsc::Vector3 other_position)
 	}
 
 	float distance = nfsc::UMath_Distance(&my_position, &other_position);
+	*/
+
+	float distance = nfsc::Sim_DistanceToCamera(&other_position);
 	if (distance < 1)
 	{
 		return max;
@@ -782,7 +786,7 @@ void gui::Render()
 			{
 				// Coords
 				ImGui::Checkbox("Coords", &overlays::coords);
-				
+
 				// My vehicle
 				ImGui::Checkbox("My vehicle", &overlays::my_vehicle);
 
@@ -795,6 +799,9 @@ void gui::Render()
 
 				// Street width/roadblock
 				ImGui::Checkbox("Street width/roadblock", &roadblock::overlay);
+
+				// Cop health
+				ImGui::Checkbox("Cop health", &g::health_icon::show);
 			}
 
 			/* ===== FRONTEND ===== */

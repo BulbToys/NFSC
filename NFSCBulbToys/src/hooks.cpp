@@ -114,6 +114,9 @@ bool hooks::SetupPart2(uintptr_t device)
 	// Reset GRaceStatus vehicle count to 0 when the race ends
 	CreateHook(0x641310, &SetRoamingHook, &SetRoaming);
 
+	// Add health icons above vehicles
+	CreateHook(0x7AEFD0, &UpdateIconHook, &UpdateIcon);
+
 	// Increment cop counter by 1 per roadblock vehicle
 	// TODO: if re-enabling this, make sure roadblock cops that get attached don't increment again
 	//WriteJmp(0x445A9D, CreateRoadBlockHook, 6);
@@ -596,6 +599,88 @@ void __fastcall hooks::SetRoamingHook(uintptr_t g_race_status)
 	SetRoaming(g_race_status);
 
 	WriteMemory<uint32_t>(g_race_status + 0x6A08, 0);
+}
+
+void __fastcall hooks::UpdateIconHook(uintptr_t car_render_conn, uintptr_t edx, uintptr_t pkt)
+{
+	UpdateIcon(car_render_conn, edx, pkt);
+
+	if (!g::health_icon::show)
+	{
+		return;
+	}
+
+	// Don't do anything if we have an icon already
+	if (ReadMemory<uintptr_t>(car_render_conn + 0x1AC) != 0)
+	{
+		return;
+	}
+
+	uint32_t world_id = ReadMemory<uint32_t>(car_render_conn + 0x2C);
+
+	uintptr_t this_vehicle = 0;
+	for (size_t i = 0; i < nfsc::IVehicleList->size; i++)
+	{
+		uintptr_t vehicle = nfsc::IVehicleList->begin[i];
+		uintptr_t simable = nfsc::PVehicle_GetSimable(vehicle);
+
+		uint32_t simable_wid = reinterpret_cast<uint32_t(__thiscall*)(uintptr_t)>(0x6D6D10)(simable);
+
+		if (simable_wid == world_id)
+		{
+			this_vehicle = vehicle;
+			break;
+		}
+	}
+	if (!this_vehicle)
+	{
+		return;
+	}
+	if (nfsc::PVehicle_GetDriverClass(this_vehicle) != nfsc::driver_class::cop)
+	{
+		return;
+	}
+	uintptr_t i_damageable = ReadMemory<uintptr_t>(this_vehicle + 0x44);
+	if (!i_damageable)
+	{
+		return;
+	}
+
+	// Set icon
+	constexpr uint32_t INGAME_ICON_PLAYERCAR = 0x3E9CCFFA;
+	WriteMemory<uintptr_t>(car_render_conn + 0x1AC, reinterpret_cast<uintptr_t(*)(uint32_t, int, int)>(0x55CFD0)(INGAME_ICON_PLAYERCAR, 1, 0));
+
+	// Set scale
+	WriteMemory<float>(car_render_conn + 0x1B4, 0.5f);
+
+	// DamageVehicle::GetHealth
+	float health = reinterpret_cast<float(__thiscall*)(uintptr_t)>(0x6F7790)(i_damageable);
+
+	struct color_
+	{
+		uint8_t a = 0xFF;
+		uint8_t b = 0;
+		uint8_t g = 0;
+		uint8_t r = 0;
+	} color;
+
+	if (health > 0)
+	{
+		if (health > 0.5)
+		{
+			health -= 0.5;
+			color.g = 0xFF;
+			color.r = 0xFF - (uint8_t)(0x1FF * health);
+		}
+		else
+		{
+			color.g = (uint8_t)(0x1FF * health);
+			color.r = 0xFF;
+		}
+	}
+
+	// Set color
+	WriteMemory<color_>(car_render_conn + 0x1B0, color);
 }
 
 void __fastcall hooks::WorldMapPadAcceptHook(uintptr_t fe_state_manager)

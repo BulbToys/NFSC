@@ -74,6 +74,9 @@ namespace hooks
 	void __fastcall SetRoamingHook(uintptr_t g_race_status);
 	static inline decltype (&SetRoamingHook) SetRoaming;
 
+	void __fastcall UpdateIconHook(uintptr_t car_render_conn, uintptr_t edx, uintptr_t pkt);
+	static inline decltype (&UpdateIconHook) UpdateIcon;
+
 	//void CreateRoadBlockHook();
 	void UpdateCopElementsHook1();
 	void UpdateCopElementsHook2();

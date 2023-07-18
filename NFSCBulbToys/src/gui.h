@@ -99,5 +99,5 @@ namespace ImGui
 	inline void DistanceBar(float distance);
 	inline void Location(const char* label, const char* id, float* location);
 	inline void GetDriverClassColor(int dc, ImVec4& color);
-	inline float DynamicDistance(nfsc::Vector3 rigid_body);
+	inline float DynamicDistance(nfsc::Vector3& other_position);
 }

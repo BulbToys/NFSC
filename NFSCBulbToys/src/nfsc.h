@@ -322,6 +322,8 @@ namespace nfsc
 	FUNC(0x6C6FF0, Vector3*, __thiscall, RigidBody_GetPosition, uintptr_t rigid_body);
 	FUNC(0x6E8210, void, __thiscall, RigidBody_SetPosition, uintptr_t rigid_body, Vector3* position);
 
+	FUNC(0x761550, float, , Sim_DistanceToCamera, Vector3* target);
+
 	FUNC(0x411FD0, float, , UMath_Distance, Vector3* vec1, Vector3* vec2);
 	FUNC(0x412190, void, , UMath_Normalize, Vector3* vec);
 

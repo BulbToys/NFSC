@@ -166,6 +166,11 @@ namespace g
 		};
 	}
 
+	namespace health_icon
+	{
+		inline bool show = false;
+	}
+
 	// MoveVinyl hook
 	namespace move_vinyl
 	{

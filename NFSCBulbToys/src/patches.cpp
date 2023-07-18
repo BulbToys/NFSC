@@ -58,10 +58,10 @@ void patches::Undo()
 	Unpatch(0x83D503);
 
 	// AIPlayer
-	delete g::ai_player::iserviceable_vtbl;
-	delete g::ai_player::ientity_vtbl;
-	delete g::ai_player::iattachable_vtbl;
-	delete g::ai_player::iplayer_vtbl;
+	//delete g::ai_player::iserviceable_vtbl;
+	//delete g::ai_player::ientity_vtbl;
+	//delete g::ai_player::iattachable_vtbl;
+	//delete g::ai_player::iplayer_vtbl;
 
 	// PurecallHandler
 	Unpatch(0x9C1218);

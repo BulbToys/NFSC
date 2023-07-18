@@ -29,9 +29,10 @@ void Setup(const HMODULE instance)
 	gui::Destroy();
 	patches::Undo();
 
-	if (patch_map.size() > 0)
+	size_t size = patch_map.size();
+	if (size > 0)
 	{
-		Error("Patch map has %u leftover patch(es).", patch_map.size());
+		Error("Patch map has %u leftover patch(es).", size);
 		ASSERT(0);
 	}
 
