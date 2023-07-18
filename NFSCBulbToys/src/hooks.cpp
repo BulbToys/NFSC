@@ -177,7 +177,7 @@ void hooks::Destroy()
 HRESULT __cdecl hooks::DxInitHook()
 {
 	const auto result = DxInit();
-	if (result < 0)
+	if (FAILED(result))
 	{
 		return result;
 	}
