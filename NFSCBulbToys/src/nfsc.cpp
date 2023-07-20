@@ -71,53 +71,38 @@ void nfsc::BulbToys_DrawObject(ImDrawList* draw_list, Vector3& position, Vector3
 	}
 }
 
-void nfsc::BulbToys_DrawVehicleInfo(ImDrawList* draw_list, uintptr_t vehicle, ImVec4& color)
+void nfsc::BulbToys_DrawVehicleInfo(ImDrawList* draw_list, uintptr_t vehicle, vehicle_list type, ImVec4& color)
 {
 	constexpr float max_distance = 100.f;
 
 	// Vehicle can be either a pointer or the IVehicleList array index. If vehicle is a really small number, assume it's an array index
 	// For array indexes, just grab the vehicle at that index. Otherwise, iterate the list until the iterator pointer matches our pointer
 	uint32_t id = 0;
-	if (vehicle < nfsc::IVehicleList->size)
+	if (vehicle < nfsc::VehicleList[type]->size)
 	{
 		id = vehicle;
-		vehicle = nfsc::IVehicleList->begin[id];
+		vehicle = nfsc::VehicleList[type]->begin[id];
 	}
 	else
 	{
-		for (id = 0; id < nfsc::IVehicleList->size; id++)
+		for (id = 0; id < nfsc::VehicleList[type]->size; id++)
 		{
-			if (nfsc::IVehicleList->begin[id] == vehicle)
+			if (nfsc::VehicleList[type]->begin[id] == vehicle)
 			{
 				break;
 			}
 		}
 
-		if (id == nfsc::IVehicleList->size)
+		if (id == nfsc::VehicleList[type]->size)
 		{
 			return;
 		}
 	}
 
-	Vector3 my_position;
-	uintptr_t my_simable = 0;
-	if (nfsc::BulbToys_GetDebugCamCoords(&my_position, nullptr))
-	{
-
-	}
-	else if (nfsc::BulbToys_GetMyVehicle(nullptr, &my_simable))
-	{
-		uintptr_t my_rigid_body = nfsc::PhysicsObject_GetRigidBody(my_simable);
-		my_position = *nfsc::RigidBody_GetPosition(my_rigid_body);
-	}
-	else
-	{
-		return;
-	}
-
 	uintptr_t other_rb = nfsc::PhysicsObject_GetRigidBody(nfsc::PVehicle_GetSimable(vehicle));
 	Vector3 other_position = *nfsc::RigidBody_GetPosition(other_rb);
-	float distance = nfsc::UMath_Distance(&my_position, &other_position);
+
+	float distance = nfsc::Sim_DistanceToCamera(&other_position);
 	if (distance > max_distance)
 	{
 		return;
@@ -129,6 +114,12 @@ void nfsc::BulbToys_DrawVehicleInfo(ImDrawList* draw_list, uintptr_t vehicle, Im
 	other_position.y += other_dims.y * 5;
 
 	nfsc::BulbToys_GetScreenPosition(other_position, other_position);
+
+	// why the fuck
+	if (!isfinite(other_position.x) || !isfinite(other_position.y) || !isfinite(other_position.z))
+	{
+		return;
+	}
 
 	char text[32];
 	sprintf_s(text, 32, "%s (%d)", nfsc::PVehicle_GetVehicleName(vehicle), id);
@@ -151,6 +142,21 @@ void nfsc::BulbToys_DrawVehicleInfo(ImDrawList* draw_list, uintptr_t vehicle, Im
 uintptr_t nfsc::BulbToys_GetAIVehicleGoal(uintptr_t ai_vehicle_ivehicleai)
 {
 	return ReadMemory<uintptr_t>(ai_vehicle_ivehicleai + 0x94);
+}
+
+const char* nfsc::BulbToys_GetCameraName()
+{
+	if (*nfsc::GameFlowManager_State != nfsc::gameflow_state::racing)
+	{
+		return "";
+	}
+
+	uintptr_t first_camera_director = ReadMemory<uintptr_t>(0xA8ACC4 + 4);
+	uintptr_t camera_director = ReadMemory<uintptr_t>(first_camera_director);
+	uintptr_t cd_action = ReadMemory<uintptr_t>(camera_director + 0x18);
+
+	// CameraAI::Action::GetName(this)->mString;
+	return ReadMemory<char*>(reinterpret_cast<uintptr_t(__thiscall*)(uintptr_t)>(VirtualFunction(cd_action, 3))(cd_action) + 4);
 }
 
 // NOTE: Returns tier 0 correctly (ie. Dump Truck). Returns -1 if it can't find its attributes.
@@ -318,9 +324,7 @@ bool nfsc::BulbToys_GetDebugCamCoords(nfsc::Vector3* position , nfsc::Vector3* f
 	}
 
 	uintptr_t first_camera_director = ReadMemory<uintptr_t>(0xA8ACC4 + 4);
-
 	uintptr_t camera_director = ReadMemory<uintptr_t>(first_camera_director);
-
 	uintptr_t cd_action = ReadMemory<uintptr_t>(camera_director + 0x18);
 
 	// Check if we're in CDActionDebug (CDActionDebug::`vftable'{for `CameraAI::Action'})
@@ -330,7 +334,6 @@ bool nfsc::BulbToys_GetDebugCamCoords(nfsc::Vector3* position , nfsc::Vector3* f
 	}
 
 	uintptr_t camera_mover = ReadMemory<uintptr_t>(cd_action + 0x2BC);
-
 	uintptr_t camera = ReadMemory<uintptr_t>(camera_mover + 0x1C);
 
 	if (position)
@@ -356,9 +359,9 @@ bool nfsc::BulbToys_GetMyVehicle(uintptr_t* my_vehicle, uintptr_t* my_simable)
 {
 	if (*nfsc::GameFlowManager_State == nfsc::gameflow_state::racing)
 	{
-		for (int i = 0; i < (int)nfsc::IVehicleList->size; i++)
+		for (int i = 0; i < (int)nfsc::VehicleList[nfsc::vehicle_list::players]->size; i++)
 		{
-			uintptr_t vehicle = nfsc::IVehicleList->begin[i];
+			uintptr_t vehicle = nfsc::VehicleList[nfsc::vehicle_list::players]->begin[i];
 
 			if (vehicle)
 			{

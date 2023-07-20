@@ -32,6 +32,11 @@ namespace gui
 		inline bool incl_deactivated = false;
 	}
 
+	namespace spectate
+	{
+		inline bool menu_open = false;
+	}
+
 	inline bool menu_open = false;
 	inline bool debug_shortcut = false;
 

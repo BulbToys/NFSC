@@ -149,6 +149,10 @@ void patches::DebugCarCustomizeHelp()
 	PatchMemory<const char*>(0x841F13, "[1] Free Roam");
 	PatchMemory<const char*>(0x841F26, "[3] Save Alias");
 	PatchMemory<const char*>(0x841F39, "[4] Add to MyCars");
+
+	// >w<
+	// const auto object = FE::Object::FindObject("package_name.fng", 0x12345678);
+	// FE::String::SetString(object, L"haiiii :3");
 }
 
 /*

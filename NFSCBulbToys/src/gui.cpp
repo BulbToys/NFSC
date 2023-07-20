@@ -377,6 +377,12 @@ void gui::Render()
 		}
 	}
 
+	// Set CameraDebugWatchCar to false if we're no longer spectating
+	if (strncmp(nfsc::BulbToys_GetCameraName(), "CDActionDebugWatchCar", 22))
+	{
+		*nfsc::spectate::enabled = false;
+	}
+
 	if (gui::menu_open)
 	{
 		/* ========== M E M O R Y    E D I T O R S ========== */
@@ -403,6 +409,98 @@ void gui::Render()
 			}
 		}
 
+		/* ========== S P E C T A T E ==========*/
+		if (*nfsc::spectate::enabled && ImGui::Begin("Spectate", nullptr, ImGuiWindowFlags_NoScrollbar))
+		{
+			int *const i = reinterpret_cast<int*>(0xA88914);
+			int *const list = reinterpret_cast<int*>(0xA88918);
+
+			char text[32];
+			sprintf_s(text, 32, "Vehicle List: %s", nfsc::veh_lists[*list]);
+
+			// GetWindowWidth() - GetStyle().WindowPadding
+			auto width = ImGui::GetWindowWidth() - 16.0f;
+			ImGui::PushItemWidth(width);
+
+			// Vehicle List
+			int prev = *list;
+			if (ImGui::MyInputInt(text, "##VList", list, 0, nfsc::vehicle_list::max - 1))
+			{
+				*i = 0;
+			}
+
+			// Returns false if we just decremented the list. Else use increments to iterate
+			bool increment = *list >= prev;
+
+			// Iterate through lists until we find one with vehicles
+			// Need to do this here and not in MyInputInt because our size will not update accordingly otherwise
+			// Will infinitely loop if there are zero vehicles, but this should never happen
+			size_t size = nfsc::VehicleList[*list]->size;
+			while (size == 0)
+			{
+				*i = 0;
+
+				increment ? (*list)++ : (*list)--;
+
+				// Clamp
+				if (*list >= nfsc::vehicle_list::max)
+				{
+					*list = 0;
+				}
+				else if (*list < -1)
+				{
+					*list = nfsc::vehicle_list::max - 1;
+				}
+
+				size = nfsc::VehicleList[*list]->size;
+			}
+
+			// Iteration buttons and display
+			if (ImGui::Button("<--"))
+			{
+				(*i)--;
+				if (*i < 0)
+				{
+					*i = size - 1;
+				}
+			}
+			ImGui::SameLine();
+			ImGui::Text("%2d/%2d", *i, size - 1);
+			ImGui::SameLine();
+			if (ImGui::Button("-->"))
+			{
+				(*i)++;
+				if (*i > size - 1)
+				{
+					*i = 0;
+				}
+			}
+
+			ImGui::Separator();
+
+			uintptr_t vehicle = nfsc::VehicleList[*list]->begin[*i];
+
+			// Vehicle
+			ImGui::AddyLabel(vehicle, "Vehicle");
+
+			ImGui::Text("Speed: %.2fkm/h", nfsc::PVehicle_GetSpeed(vehicle) * 3.5999999);
+
+			uintptr_t i_damageable = ReadMemory<uintptr_t>(vehicle + 0x44);
+			if (i_damageable)
+			{
+				ImGui::Text("Health:");
+				ImGui::SameLine();
+
+				float health = reinterpret_cast<float(__thiscall*)(uintptr_t)>(0x6F7790)(i_damageable);
+
+				sprintf_s(text, 32, "%.2f", health * 100);
+				ImGui::ProgressBar(health, ImVec2(100, 14), text);
+			}
+
+			ImGui::PopItemWidth();
+			ImGui::End();
+		}
+
 		/* ========== R O A D B L O C K   S E T U P S ========== */
 		if (roadblock::menu_open && ImGui::Begin("Roadblock setups", &roadblock::menu_open, ImGuiWindowFlags_NoScrollbar))
 		{
@@ -412,7 +510,7 @@ void gui::Render()
 			int size = 16;
 			nfsc::RoadblockSetup* rb = g::roadblock_setups::normal;
 
-			if (ImGui::BeginTabBar("MyTabBar"))
+			if (ImGui::BeginTabBar("RBTabs"))
 			{
 				if (ImGui::BeginTabItem("Normal RBs"))
 				{
@@ -459,6 +557,10 @@ void gui::Render()
 			if (ImGui::Button("<--"))
 			{
 				i--;
+				if (i < 0)
+				{
+					i = size - 1;
+				}
 			}
 			ImGui::SameLine();
 			ImGui::Text("%2d/%2d", i, size-1);
@@ -466,19 +568,13 @@ void gui::Render()
 			if (ImGui::Button("-->"))
 			{
 				i++;
+				if (i > size - 1)
+				{
+					i = 0;
+				}
 			}
 			ImGui::SameLine();
 			ImGui::Text("Last: %d", last);
-
-			// Clamp iterator to size (loop around)
-			if (i < 0)
-			{
-				i = size - 1;
-			}
-			if (i > size - 1)
-			{
-				i = 0;
-			}
 
 			// Set our current roadblock for calculation
 			roadblock::cur = &rb[i];
@@ -728,7 +824,7 @@ void gui::Render()
 		}
 
 		/* ========== M A I N   W I N D O W ========== */
-		if (ImGui::Begin(PROJECT_NAME, NULL, ImGuiWindowFlags_NoScrollbar))
+		if (ImGui::Begin(PROJECT_NAME, nullptr, ImGuiWindowFlags_NoScrollbar))
 		{
 			static bool menu[32] { false };
 			int id = 0;
@@ -862,16 +958,6 @@ void gui::Render()
 			/* ===== PLAYER ===== */
 			if (ImGui::MyMenu("Player", &menu[id++]))
 			{
-				ImGui::Separator();
-
-				// PVehicle
-				ImGui::AddyLabel(my_vehicle, "PVehicle");
-
-				// Speed
-				ImGui::Text("Speed: %.2fkm/h", my_vehicle ? nfsc::PVehicle_GetSpeed(my_vehicle) * 3.5999999 : 0.0f);
-
-				ImGui::Separator();
-
 				// Vehicle name
 				ImGui::Text("Vehicle name:");
 				ImGui::InputText("##vehicle1", g::encounter::vehicle, IM_ARRAYSIZE(g::encounter::vehicle));
@@ -1106,6 +1192,21 @@ void gui::Render()
 
 				ImGui::Separator();
 
+				// Spectate vehicles
+				if (ImGui::Checkbox("Spectate vehicles", nfsc::spectate::enabled))
+				{
+					if (*nfsc::spectate::enabled)
+					{
+						nfsc::CameraAI_SetAction(1, "CDActionDebugWatchCar");
+					}
+					else
+					{
+						nfsc::CameraAI_SetAction(1, "CDActionDrive");
+					}
+				}
+
+				ImGui::Separator();
+
 				// Traffic crash speed
 				ImGui::MySliderFloat("Traffic crash speed:", "##TCSpeed", reinterpret_cast<float*>(0x9C1790), 1.0, 1000.0);
 
@@ -1310,13 +1411,13 @@ void gui::Render()
 			/* ===== LISTS ===== */
 			ImGui::Separator();
 			ImGui::Text("Lists:");
+			char list_name[32];
 
-			static nfsc::ListableSet<uintptr_t>* lists[] = { nfsc::AIPursuitList, nfsc::AITargetsList, nfsc::EntityList, nfsc::IPlayerList, nfsc::IVehicleList };
-			static const char* list_names[] = { "AIPursuitList", "AITargetsList", "EntityList", "IPlayerList", "IVehicleList" };
+			static nfsc::ListableSet<uintptr_t>* lists[] = { nfsc::AIPursuitList, nfsc::AITargetsList, nfsc::EntityList, nfsc::IPlayerList };
+			static const char* list_names[] = { "AIPursuitList", "AITargetsList", "EntityList", "IPlayerList" };
 
 			for (int i = 0; i < IM_ARRAYSIZE(lists); i++)
 			{
-				char list_name[32];
 				sprintf_s(list_name, 32, "%s: %u/%u", list_names[i], lists[i]->size, lists[i]->capacity);
 
 				if (ImGui::MyMenu(list_name, &menu[id++]))
@@ -1339,7 +1440,6 @@ void gui::Render()
 						if (i == 4)
 						{
 							// Set text color depending on driver class
-							
 							int dc = (int)nfsc::PVehicle_GetDriverClass(element);
 							ImVec4 color;
 							ImGui::GetDriverClassColor(dc, color);
@@ -1380,6 +1480,76 @@ void gui::Render()
 								{
 									ImGui::DistanceBar(nfsc::BulbToys_GetDistanceBetween(simable, &pos));
 								}
+							}
+						}
+					}
+				}
+			}
+
+			/* ===== VEHICLE LISTS ===== */
+			ImGui::Separator();
+			ImGui::Text("Vehicle lists:");
+
+			for (int i = 0; i < nfsc::vehicle_list::max; i++)
+			{
+				sprintf_s(list_name, 32, "%s: %u/%u", nfsc::veh_lists[i], nfsc::VehicleList[i]->size, nfsc::VehicleList[i]->capacity);
+
+				if (ImGui::MyMenu(list_name, &menu[id++]))
+				{
+					ImGui::AddyLabel(reinterpret_cast<uintptr_t>(nfsc::VehicleList[i]), "Address");
+
+					int size = nfsc::VehicleList[i]->size;
+
+					if (size == 0)
+					{
+						ImGui::Text("Empty.");
+					}
+
+					for (int j = 0; j < size; j++)
+					{
+						uintptr_t element = nfsc::VehicleList[i]->begin[j];
+						ImGui::AddyLabel(element, "%d", j);
+
+						// Set text color depending on driver class
+						int dc = (int)nfsc::PVehicle_GetDriverClass(element);
+						ImVec4 color;
+						ImGui::GetDriverClassColor(dc, color);
+
+						// PVehicle::IsActive (add a red X if the vehicle is inactive)
+						if (!nfsc::PVehicle_IsActive(element))
+						{
+							ImGui::SameLine();
+							ImGui::TextColored(ImVec4(1, 0, 0, 1), "X");
+						}
+
+						// Then print the vehicle name
+						ImGui::SameLine();
+						ImGui::TextColored(color, "%s", nfsc::PVehicle_GetVehicleName(element));
+
+						// Get distance between us and the other simable. Add distance progress bars at the end
+						uintptr_t simable = nfsc::PVehicle_GetSimable(element);
+						if (simable)
+						{
+							// 1. Distance from our simable to the other simable
+							if (my_simable)
+							{
+								if (simable == my_simable)
+								{
+									ImGui::DistanceBar(0);
+								}
+
+								else
+								{
+									ImGui::DistanceBar(nfsc::BulbToys_GetDistanceBetween(my_simable, simable));
+								}
+							}
+
+							nfsc::Vector3 pos = { 0, 0, 0 };
+
+							// 2. Distance from our debug camera position to the other simable (if active)
+							if (nfsc::BulbToys_GetDebugCamCoords(&pos, nullptr))
+							{
+								ImGui::DistanceBar(nfsc::BulbToys_GetDistanceBetween(simable, &pos));
 							}
 						}
 					}
@@ -1495,15 +1665,15 @@ void gui::Render()
 
 			ImVec4 cyan = ImVec4(0, 1, 1, 1);
 			nfsc::BulbToys_DrawObject(draw_list, position, dimension, fwd_vec, cyan, ImGui::DynamicDistance(position));
-			nfsc::BulbToys_DrawVehicleInfo(draw_list, my_vehicle, cyan);
+			nfsc::BulbToys_DrawVehicleInfo(draw_list, my_vehicle, nfsc::vehicle_list::all, cyan);
 		}
 
 		/* ===== OTHER VEHICLES ===== */
 		if (overlays::other_vehicles)
 		{
-			for (uint32_t i = 0; i < nfsc::IVehicleList->size; i++)
+			for (uint32_t i = 0; i < nfsc::VehicleList[0]->size; i++)
 			{
-				uintptr_t vehicle = nfsc::IVehicleList->begin[i];
+				uintptr_t vehicle = nfsc::VehicleList[0]->begin[i];
 
 				bool active = nfsc::PVehicle_IsActive(vehicle);
 				if (!active && !overlays::incl_deactivated)
@@ -1511,8 +1681,8 @@ void gui::Render()
 					continue;
 				}
 
-				int dc = (int)nfsc::PVehicle_GetDriverClass(vehicle);
-				if (dc == 0)
+				auto dc = nfsc::PVehicle_GetDriverClass(vehicle);
+				if (dc == nfsc::driver_class::human)
 				{
 					continue;
 				}
@@ -1529,12 +1699,12 @@ void gui::Render()
 				nfsc::RigidBody_GetForwardVector(rigid_body, &fwd_vec);
 
 				ImVec4 color;
-				ImGui::GetDriverClassColor(dc, color);
+				ImGui::GetDriverClassColor((int)dc, color);
 
 				float thickness = ImGui::DynamicDistance(position);
 
 				nfsc::BulbToys_DrawObject(draw_list, position, dimension, fwd_vec, color, thickness);
-				nfsc::BulbToys_DrawVehicleInfo(draw_list, i, color);
+				nfsc::BulbToys_DrawVehicleInfo(draw_list, i, nfsc::vehicle_list::all, color);
 				if (!active)
 				{
 					color = ImVec4(1, 0, 0, 0.25);

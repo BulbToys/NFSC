@@ -253,13 +253,14 @@ bool __fastcall hooks::GpsEngageHook(uintptr_t gps, uintptr_t edx, nfsc::Vector3
 		return result;
 	}
 
-	auto p_vehicle = nfsc::IVehicleList->begin[0];
-	if (!p_vehicle)
+	uintptr_t my_vehicle = 0;
+	nfsc::BulbToys_GetMyVehicle(&my_vehicle, nullptr);
+	if (!my_vehicle)
 	{
 		return result;
 	}
 
-	auto ai_vehicle = nfsc::PVehicle_GetAIVehiclePtr(p_vehicle);
+	auto ai_vehicle = nfsc::PVehicle_GetAIVehiclePtr(my_vehicle);
 	if (!ai_vehicle)
 	{
 		return result;
@@ -282,13 +283,14 @@ void __fastcall hooks::ResetDriveToNavHook(uintptr_t ai_vehicle, uintptr_t edx, 
 		return;
 	}
 
-	auto p_vehicle = nfsc::IVehicleList->begin[0];
-	if (!p_vehicle)
+	uintptr_t my_vehicle = 0;
+	nfsc::BulbToys_GetMyVehicle(&my_vehicle, nullptr);
+	if (!my_vehicle)
 	{
 		return;
 	}
 
-	auto local_ai_vehicle = nfsc::PVehicle_GetAIVehiclePtr(p_vehicle);
+	auto local_ai_vehicle = nfsc::PVehicle_GetAIVehiclePtr(my_vehicle);
 	if (!local_ai_vehicle)
 	{
 		return;
@@ -437,14 +439,15 @@ uintptr_t __fastcall hooks::RacerInfoCreateVehicleHook(uintptr_t racer_info, uin
 
 const char* __cdecl hooks::GetPursuitVehicleNameHook(bool is_player)
 {
-	uintptr_t my_ivehicle = nfsc::IVehicleList->begin[0];
-	if (!my_ivehicle)
+	uintptr_t my_vehicle = 0;
+	nfsc::BulbToys_GetMyVehicle(&my_vehicle, nullptr);
+	if (!my_vehicle)
 	{
 		// Use fallback
 		return "player_cop";
 	}
 
-	uintptr_t my_pvehicle = my_ivehicle - 0xD0;
+	uintptr_t my_pvehicle = my_vehicle - 0xD0;
 
 	int tier = nfsc::BulbToys_GetPVehicleTier(my_pvehicle);
 	if (tier < 1 || tier > 3)
@@ -619,9 +622,9 @@ void __fastcall hooks::UpdateIconHook(uintptr_t car_render_conn, uintptr_t edx, 
 	uint32_t world_id = ReadMemory<uint32_t>(car_render_conn + 0x2C);
 
 	uintptr_t this_vehicle = 0;
-	for (size_t i = 0; i < nfsc::IVehicleList->size; i++)
+	for (size_t i = 0; i < nfsc::VehicleList[nfsc::vehicle_list::aicops]->size; i++)
 	{
-		uintptr_t vehicle = nfsc::IVehicleList->begin[i];
+		uintptr_t vehicle = nfsc::VehicleList[nfsc::vehicle_list::aicops]->begin[i];
 		uintptr_t simable = nfsc::PVehicle_GetSimable(vehicle);
 
 		uint32_t simable_wid = reinterpret_cast<uint32_t(__thiscall*)(uintptr_t)>(0x6D6D10)(simable);
@@ -636,15 +639,7 @@ void __fastcall hooks::UpdateIconHook(uintptr_t car_render_conn, uintptr_t edx, 
 	{
 		return;
 	}
-	if (nfsc::PVehicle_GetDriverClass(this_vehicle) != nfsc::driver_class::cop)
-	{
-		return;
-	}
 	uintptr_t i_damageable = ReadMemory<uintptr_t>(this_vehicle + 0x44);
-	if (!i_damageable)
-	{
-		return;
-	}
 
 	// Set icon
 	constexpr uint32_t INGAME_ICON_PLAYERCAR = 0x3E9CCFFA;

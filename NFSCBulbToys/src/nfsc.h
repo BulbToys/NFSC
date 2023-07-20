@@ -92,6 +92,25 @@ namespace nfsc
 		spikestrip = 3
 	};
 
+	inline const char* veh_lists[] = { "All", "Players", "AI", "AI Racers", "AI Cops", "AI Traffic", "Racers", "Remote", "Inactive", "Trailers", "Active Racers", "Ghosts" };
+	enum vehicle_list : int
+	{
+		all          = 0x0,
+		players      = 0x1,
+		ai           = 0x2,
+		airacers     = 0x3,
+		aicops       = 0x4,
+		aitraffic    = 0x5,
+		racers       = 0x6,
+		remote       = 0x7,
+		inactive     = 0x8,
+		trailers     = 0x9,
+		activeracers = 0xA,
+		ghost        = 0xB,
+		max          = 0xC,
+	};
+
+
 	enum vehicle_param_flags : uint32_t
 	{
 		spool_resources     = 0x1,
@@ -230,12 +249,31 @@ namespace nfsc
 	LS(0xA83AE8, AITargetsList, uintptr_t);
 	LS(0xA9FE98, EntityList, uintptr_t);
 	LS(0xA9FF28, IPlayerList, uintptr_t);
-	LS(0xA9F158, IVehicleList, uintptr_t);
+
+	inline ListableSet<uintptr_t>* VehicleList[vehicle_list::max] = {
+		reinterpret_cast<ListableSet<uintptr_t>*>(0xA9F158 + 0x88 * 0x0),
+		reinterpret_cast<ListableSet<uintptr_t>*>(0xA9F158 + 0x88 * 0x1),
+		reinterpret_cast<ListableSet<uintptr_t>*>(0xA9F158 + 0x88 * 0x2),
+		reinterpret_cast<ListableSet<uintptr_t>*>(0xA9F158 + 0x88 * 0x3),
+		reinterpret_cast<ListableSet<uintptr_t>*>(0xA9F158 + 0x88 * 0x4),
+		reinterpret_cast<ListableSet<uintptr_t>*>(0xA9F158 + 0x88 * 0x5),
+		reinterpret_cast<ListableSet<uintptr_t>*>(0xA9F158 + 0x88 * 0x6),
+		reinterpret_cast<ListableSet<uintptr_t>*>(0xA9F158 + 0x88 * 0x7),
+		reinterpret_cast<ListableSet<uintptr_t>*>(0xA9F158 + 0x88 * 0x8),
+		reinterpret_cast<ListableSet<uintptr_t>*>(0xA9F158 + 0x88 * 0x9),
+		reinterpret_cast<ListableSet<uintptr_t>*>(0xA9F158 + 0x88 * 0xA),
+		reinterpret_cast<ListableSet<uintptr_t>*>(0xA9F158 + 0x88 * 0xB)
+	};
 
 	// Misc
 	inline Vector3* ZeroV3 = reinterpret_cast<Vector3*>(0x9D780C);
 	inline bool* SkipNIS = reinterpret_cast<bool*>(0xA9E64E);
 
+	namespace spectate
+	{
+		inline bool* enabled = reinterpret_cast<bool*>(0xA888F1);
+	}
+	
 	/* ===== GAME FUNCTIONS ===== */
 
 	FUNC(0x436820, void, __thiscall, AIGoal_AddAction, uintptr_t ai_goal, char const* name);
@@ -362,7 +400,7 @@ namespace nfsc
 
 	void BulbToys_DrawObject(ImDrawList* draw_list, Vector3& position, Vector3& dimension, Vector3& rotation, ImVec4& color, float thickness);
 
-	void BulbToys_DrawVehicleInfo(ImDrawList* draw_list, uintptr_t vehicle, ImVec4& color);
+	void BulbToys_DrawVehicleInfo(ImDrawList* draw_list, uintptr_t vehicle, vehicle_list type, ImVec4& color);
 
 	template <uintptr_t handle>
 	inline uintptr_t BulbToys_FindInterface(uintptr_t iface)
@@ -374,6 +412,8 @@ namespace nfsc
 	}
 
 	uintptr_t BulbToys_GetAIVehicleGoal(uintptr_t ai_vehicle_ivehicleai);
+
+	const char* BulbToys_GetCameraName();
 
 	bool BulbToys_GetDebugCamCoords(Vector3* position, Vector3* fwd_vec);
 
