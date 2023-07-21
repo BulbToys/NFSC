@@ -872,7 +872,7 @@ void __fastcall hooks::WorldMapScreenTickHook(uintptr_t fe_state_manager)
 void __fastcall hooks::WorldMapButton4Hook(uintptr_t fe_state_manager)
 {
 	// if (this->mCurState == 6)
-	if (ReadMemory<int>(fe_state_manager + 4) == 6)
+	if (g::wrong_warp_fix::enabled && ReadMemory<int>(fe_state_manager + 4) == 6)
 	{
 		// FEManager::mInstance->mEventKey = WorldMap::GetEventHash(WorldMap::mInstance);
 		WriteMemory<uint32_t>(ReadMemory<uintptr_t>(0xA97A7C) + 0xEC,

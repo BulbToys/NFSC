@@ -173,6 +173,7 @@ namespace g
 		inline nfsc::Vector3 location = { 0, 0, 0 };
 	}
 
+	// Health icon render
 	namespace health_icon
 	{
 		inline bool show = false;
@@ -220,6 +221,12 @@ namespace g
 	{
 		inline bool hooked = false;
 		inline nfsc::Vector3 target = { 0, 0, 0 };
+	}
+	
+	// Wrong warp fix
+	namespace wrong_warp_fix
+	{
+		inline bool enabled = false;
 	}
 
 	// Extra height for teleportation

@@ -912,6 +912,9 @@ void gui::Render()
 				// ShowAllPresetsInFE
 				ImGui::Checkbox("ShowAllPresetsInFE", reinterpret_cast<bool*>(0xA9E6C3));
 
+				// Wrong warp fix
+				ImGui::Checkbox("Wrong warp fix", &g::wrong_warp_fix::enabled);
+
 				ImGui::Separator();
 
 				// Character key & Add to crew
