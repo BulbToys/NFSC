@@ -62,21 +62,31 @@ bool hooks::SetupPart2(uintptr_t device)
 	/* Non-critical hooks go here */
 
 	// Optionally override encounter spawn requirement
-	g::needs_encounter::hooked = CreateHook(0x422BF0, &NeedsEncounterHook, &NeedsEncounter) == MH_OK;
+	CreateHook(0x422BF0, &NeedsEncounterHook, &NeedsEncounter);
 
 	// Optionally override traffic spawn requirement
-	g::needs_traffic::hooked = CreateHook(0x422990, &NeedsTrafficHook, &NeedsTraffic) == MH_OK;
+	CreateHook(0x422990, &NeedsTrafficHook, &NeedsTraffic);
 
 	// Optionally override whether racers should be pursued or not
-	g::pursue_racers::hooked = CreateHook(0x423F40, &PursueRacersHook, &PursueRacers) == MH_OK;
+	CreateHook(0x423F40, &PursueRacersHook, &PursueRacers);
 
 	// Smart AI hooks
 	// - Make autopilot drive to the location marked by the GPS
 	// - Make autopilot drive to the location after a navigation reset
-	g::smart_ai::hooked = CreateHook(0x433930, &GpsEngageHook, &GpsEngage) == MH_OK && CreateHook(0x427AD0, &ResetDriveToNavHook, &ResetDriveToNav) == MH_OK;
+	CreateHook(0x433930, &GpsEngageHook, &GpsEngage);
+	CreateHook(0x427AD0, &ResetDriveToNavHook, &ResetDriveToNav);
 
 	// Calculate world positions from map positions
+	// Disable snapping to world map icons if we're holding shift
+	// GPS only mode
+	// Wrong warp fix
 	CreateHook(0x5B3850, &WorldMapPadAcceptHook, &WorldMapPadAccept);
+	CreateHook(0x5C3330, &WorldMapSnapHook, &WorldMapSnap);
+	CreateHook(0x5CF890, &WorldMapShowDialogHook, &WorldMapShowDialog);
+	CreateHook(0x5B3570, &WorldMapButtonPressedHook, &WorldMapButtonPressed);
+	CreateHook(0x5B3A10, &WorldMapStateChangeHook, &WorldMapStateChange);
+	CreateHook(0x5CAED0, &WorldMapScreenTickHook, &WorldMapScreenTick);
+	CreateHook(0x5B3CF0, &WorldMapButton4Hook, &WorldMapButton4);
 
 	// Create player (Sim::Entity, IPlayer) instances for AI if we're playing PTag/PKO, necessary for vehicle switching to work
 	CreateHook(0x6298C0, &RacerInfoCreateVehicleHook, &RacerInfoCreateVehicle);
@@ -100,10 +110,6 @@ bool hooks::SetupPart2(uintptr_t device)
 
 	// Instead of resuming career, reload the Career menu if we load a save (or if we create a new one (patches::MemcardManagement))
 	CreateHook(0x5BD860, &CareerManagerChildFlowDoneHook, &CareerManagerChildFlowDone);
-
-	// GPS only mode
-	CreateHook(0x5CF890, &WorldMapShowDialogHook, &WorldMapShowDialog);
-	CreateHook(0x5B3570, &WorldMapButtonPressedHook, &WorldMapButtonPressed);
 
 	// Custom encounter vehicles
 	CreateHook(0x42CB70, &GetAvailablePresetVehicleHook, &GetAvailablePresetVehicle);
@@ -680,92 +686,84 @@ void __fastcall hooks::UpdateIconHook(uintptr_t car_render_conn, uintptr_t edx, 
 
 void __fastcall hooks::WorldMapPadAcceptHook(uintptr_t fe_state_manager)
 {
-	WorldMapPadAccept(fe_state_manager);
+	// mCurrentState
+	auto type = ReadMemory<int>(fe_state_manager + 4);
 
-	// Get current WorldMap and TrackInfo
-	auto world_map = ReadMemory<uintptr_t>(0xA977F0);
-	auto track_info = ReadMemory<uintptr_t>(0xB69BA0);
-	if (!world_map || !track_info)
+	if (g::world_map::shift_held && type == 3)
 	{
-		g::location[0] = NAN;
-		g::location[1] = NAN;
-		g::location[2] = NAN;
+		reinterpret_cast<void(__thiscall*)(uintptr_t, bool)>(0x582D90)(ReadMemory<uintptr_t>(nfsc::WorldMap), true);
+		nfsc::FEStateManager_ShowDialog(fe_state_manager, (int)g::world_map::state::click_tp);
 		return;
 	}
 
-	// Get the current position of the cursor relative to the screen
-	float x, y;
-	nfsc::FE_Object_GetCenter(ReadMemory<uintptr_t>(world_map + 0x28), &x, &y);
+	WorldMapPadAccept(fe_state_manager);
+}
 
-	// Account for WorldMap pan
-	nfsc::Vector2 temp;
-	temp.x = x;
-	temp.y = y;
+bool __fastcall hooks::WorldMapSnapHook(uintptr_t world_map)
+{
+	if (g::world_map::shift_held)
+	{
+		return 0;
+	}
 
-	nfsc::WorldMap_GetPanFromMapCoordLocation(world_map, &temp, &temp);
-
-	x = temp.x;
-	y = temp.y;
-
-	// Account for WorldMap zoom
-	nfsc::Vector2 top_left = ReadMemory<nfsc::Vector2>(world_map + 0x44);
-	nfsc::Vector2 size = ReadMemory<nfsc::Vector2>(world_map + 0x4C);
-
-	x = x * size.x + top_left.x;
-	y = y * size.y + top_left.y;
-
-	// Inverse WorldMap::ConvertPos to get world coordinates
-	float calibration_width = ReadMemory<float>(track_info + 0xB4);
-	float calibration_offset_x = ReadMemory<float>(track_info + 0xAC);
-	float calibration_offset_y = ReadMemory<float>(track_info + 0xB0);
-
-	x = x - top_left.x;
-	y = y - top_left.y;
-	x = x / size.x;
-	y = y / size.y;
-	y = y - 1.0f;
-	y = y * calibration_width;
-	x = x * calibration_width;
-	x = x + calibration_offset_x;
-	y = -y;
-	y = y - calibration_offset_y - calibration_width;
-
-	// Inverse GetVehicleVectors to get position from world coordinates
-	nfsc::Vector3 position;
-	position.x = -y;
-	position.y = 0; // z
-	position.z = x;
-
-	// Attempt to get world height at given position. If it can't (returns false), height will be NaN
-	nfsc::WCollisionMgr mgr;
-	mgr.fSurfaceExclusionMask = 0;
-	mgr.fPrimitiveMask = 3;
-
-	float height = NAN;
-	nfsc::WCollisionMgr_GetWorldHeightAtPointRigorous(&mgr, &position, &height, nullptr);
-	position.y = height;
-
-	// Return
-	g::location[0] = position.x;
-	g::location[1] = position.y + g::extra_height;
-	g::location[2] = position.z;
+	return WorldMapSnap(world_map);
 }
 
 void __fastcall hooks::WorldMapButtonPressedHook(uintptr_t fe_state_manager, uintptr_t edx, uint32_t unk)
 {
-	// Only offer GPS if the option is enabled and we're not in FE
-	if (g::gps_only::enabled && *nfsc::GameFlowManager_State == nfsc::gameflow_state::racing)
-	{
-		// mCurrentState
-		auto type = ReadMemory<g::gps_only::dialog_type>(fe_state_manager + 4);
+	// mCurrentState
+	auto type = ReadMemory<g::world_map::state>(fe_state_manager + 4);
 
-		if (type == g::gps_only::dialog_type::race_event || type == g::gps_only::dialog_type::car_lot || type == g::gps_only::dialog_type::safehouse)
+	uintptr_t dialog_screen = ReadMemory<uintptr_t>(0xA97B14);
+	if (!dialog_screen)
+	{
+		WorldMapButtonPressed(fe_state_manager, edx, unk);
+		return;
+	}
+
+	uint32_t* button_hashes = ReadMemory<uint32_t*>(dialog_screen + 0x2C);
+
+	if (type == g::world_map::state::click_tp)
+	{
+		if (*nfsc::GameFlowManager_State == nfsc::gameflow_state::racing && !isnan(g::world_map::location.y))
+		{
+			// First button - Jump to Location
+			if (unk == button_hashes[0])
+			{
+				nfsc::FEStateManager_ChangeState(fe_state_manager, (int)g::world_map::state::click_tp_jump);
+			}
+
+			// Second button - Activate GPS
+			else if (unk == button_hashes[1])
+			{
+				nfsc::FEStateManager_ChangeState(fe_state_manager, (int)g::world_map::state::click_tp_gps);
+			}
+
+			// Third button - Cancel
+			else if (unk == button_hashes[2])
+			{
+				nfsc::FEStateManager_PopBack(fe_state_manager, 3);
+			}
+		}
+
+		// First button - OK
+		else if (unk == button_hashes[0])
+		{
+			nfsc::FEStateManager_PopBack(fe_state_manager, 3);
+		}
+
+		return;
+	}
+
+	// Only offer GPS if the option is enabled and we're not in FE
+	if (g::world_map::gps_only && *nfsc::GameFlowManager_State == nfsc::gameflow_state::racing)
+	{
+		if (type == g::world_map::state::race_event || type == g::world_map::state::car_lot || type == g::world_map::state::safehouse)
 		{
 			// For these types of dialogs, use the button hashes of the GPS to safehouse prompt during pursuits
-			WriteMemory<int>(fe_state_manager + 4, 18);
+			//WriteMemory<int>(fe_state_manager + 4, 18);
 
-			uintptr_t dialog_screen = ReadMemory<uintptr_t>(0xA97B14);
-			uint32_t* button_hashes = ReadMemory<uint32_t*>(dialog_screen + 0x2C);
+			// ???
 
 			// First button - Activate GPS
 			if (unk == button_hashes[0])
@@ -786,18 +784,138 @@ void __fastcall hooks::WorldMapButtonPressedHook(uintptr_t fe_state_manager, uin
 	WorldMapButtonPressed(fe_state_manager, edx, unk);
 }
 
-void __fastcall hooks::WorldMapShowDialogHook(uintptr_t fe_state_manager)
+void __fastcall hooks::WorldMapStateChangeHook(uintptr_t fe_state_manager)
 {
-	// Only offer GPS if the option is enabled and we're not in FE
-	if (g::gps_only::enabled && *nfsc::GameFlowManager_State == nfsc::gameflow_state::racing)
+	// mCurrentState
+	auto type = ReadMemory<g::world_map::state>(fe_state_manager + 4);
+
+	if (type == g::world_map::state::click_tp_jump)
 	{
-		// mCurrentState
-		auto type = ReadMemory<g::gps_only::dialog_type>(fe_state_manager + 4);
+		uintptr_t simable = 0;
+		nfsc::BulbToys_GetMyVehicle(nullptr, &simable);
+		if (!simable)
+		{
+			return;
+		}
 
-		const char* DIALOG_MSG_ACTIVATE_GPS = nfsc::GetLocalizedString(0x6EB0EACE);
-		const char* COMMON_CANCEL = nfsc::GetLocalizedString(0x1A294DAD);
+		uintptr_t rigid_body = nfsc::PhysicsObject_GetRigidBody(simable);
 
-		if (type == g::gps_only::dialog_type::race_event)
+		g::world_map::location.y += g::extra_height;
+		nfsc::RigidBody_SetPosition(rigid_body, &g::world_map::location);
+
+		// this->mNextManager = this->mParentManager;
+		WriteMemory<uintptr_t>(fe_state_manager + 0xB4, ReadMemory<uintptr_t>(fe_state_manager + 0xAC));
+
+		// this->mExitPoint = 2;
+		WriteMemory<int>(fe_state_manager + 0xC, 2);
+
+		// this->mSubState = 3;
+		WriteMemory<int>(fe_state_manager + 0x18, 3);
+
+		// FEStateManager::ProcessScreenTransition(this);
+		reinterpret_cast<void(__thiscall*)(uintptr_t)>(0x59B1B0)(fe_state_manager);
+
+		return;
+	}
+	else if (type == g::world_map::state::click_tp_gps)
+	{
+		g::world_map::location.y += g::extra_height;
+		if (nfsc::GPS_Engage(&g::world_map::location, 0.0, false))
+		{
+			nfsc::Vector3 position = { g::world_map::location.z, -g::world_map::location.x, g::world_map::location.y };
+			auto icon = nfsc::GManager_AllocIcon(ReadMemory<uintptr_t>(0xA98294), 0x15, &position, 0, false);
+
+			// Set flag to ShowOnSpawn
+			//WriteMemory<uint8_t>(icon_addr + 1, 0x40);
+
+			// Set flag to ShowInWorld + ShowOnMap
+			WriteMemory<uint8_t>(icon + 0x1, 3);
+
+			// Set color to white
+			WriteMemory<uint32_t>(icon + 0x20, 0xFFFFFFFF);
+
+			// Set tex hash
+			WriteMemory<uint32_t>(icon + 0x24, nfsc::bStringHash("MINIMAP_ICON_EVENT"));
+
+			nfsc::GIcon_Spawn(icon);
+			nfsc::WorldMap_SetGPSIng(icon);
+
+			// Set flag to previous + Spawned + Enabled + GPSing
+			WriteMemory<uint8_t>(icon + 1, 0x8F);
+
+			// this->mNextManager = this->mParentManager;
+			WriteMemory<uintptr_t>(fe_state_manager + 0xB4, ReadMemory<uintptr_t>(fe_state_manager + 0xAC));
+
+			// this->mExitPoint = 2;
+			WriteMemory<int>(fe_state_manager + 0xC, 2);
+
+			// this->mSubState = 3;
+			WriteMemory<int>(fe_state_manager + 0x18, 3);
+
+			// FEStateManager::ProcessScreenTransition(this);
+			reinterpret_cast<void(__thiscall*)(uintptr_t)>(0x59B1B0)(fe_state_manager);
+
+			return;
+		}
+	}
+
+	WorldMapStateChange(fe_state_manager);
+}
+
+void __fastcall hooks::WorldMapScreenTickHook(uintptr_t fe_state_manager)
+{
+	nfsc::BulbToys_UpdateWorldMapCursor();
+
+	WorldMapScreenTick(fe_state_manager);
+}
+
+void __fastcall hooks::WorldMapButton4Hook(uintptr_t fe_state_manager)
+{
+	// if (this->mCurState == 6)
+	if (ReadMemory<int>(fe_state_manager + 4) == 6)
+	{
+		// FEManager::mInstance->mEventKey = WorldMap::GetEventHash(WorldMap::mInstance);
+		WriteMemory<uint32_t>(ReadMemory<uintptr_t>(0xA97A7C) + 0xEC,
+			reinterpret_cast<uint32_t(__thiscall*)(uintptr_t)>(0x58FDC0)(ReadMemory<uintptr_t>(nfsc::WorldMap)));
+	}
+
+	WorldMapButton4(fe_state_manager);
+}
+
+void __fastcall hooks::WorldMapShowDialogHook(uintptr_t fe_state_manager)
+{	
+	const char* COMMON_CANCEL = nfsc::GetLocalizedString(0x1A294DAD);
+	const char* COMMON_OK = nfsc::GetLocalizedString(0x417B2601);	
+	const char* DIALOG_MSG_ACTIVATE_GPS = nfsc::GetLocalizedString(0x6EB0EACE);
+
+	// mCurrentState
+	auto type = ReadMemory<g::world_map::state>(fe_state_manager + 4);
+
+	if (type == g::world_map::state::click_tp)
+	{
+		WriteMemory<bool>(0xA97B38, false);
+
+		char title[64];
+		if (isnan(g::world_map::location.y))
+		{
+			sprintf_s(title, 64, "Selected coordinates: (%.2f, N/A, %.2f)", g::world_map::location.x, g::world_map::location.z);
+
+			nfsc::FEDialogScreen_ShowDialog(title, COMMON_OK, nullptr, nullptr);
+		}
+		else
+		{
+			sprintf_s(title, 64, "Selected coordinates: (%.2f, %.2f, %.2f)", g::world_map::location.x, g::world_map::location.y, g::world_map::location.z);
+
+			nfsc::FEDialogScreen_ShowDialog(title, "Jump to Location", DIALOG_MSG_ACTIVATE_GPS, COMMON_CANCEL);
+		}
+
+		return;
+	}
+
+	// Only offer GPS if the option is enabled and we're not in FE
+	if (g::world_map::gps_only && *nfsc::GameFlowManager_State == nfsc::gameflow_state::racing)
+	{
+		if (type == g::world_map::state::race_event)
 		{
 			// Unhide the cursor and show the dialog with its respective string
 			WriteMemory<bool>(0xA97B38, false);
@@ -806,7 +924,7 @@ void __fastcall hooks::WorldMapShowDialogHook(uintptr_t fe_state_manager)
 			nfsc::FEDialogScreen_ShowDialog(nfsc::GetLocalizedString(0xCF93709B), DIALOG_MSG_ACTIVATE_GPS, COMMON_CANCEL, nullptr);
 			return;
 		}
-		else if (type == g::gps_only::dialog_type::car_lot)
+		else if (type == g::world_map::state::car_lot)
 		{
 			WriteMemory<bool>(0xA97B38, false);
 			
@@ -815,7 +933,7 @@ void __fastcall hooks::WorldMapShowDialogHook(uintptr_t fe_state_manager)
 
 			return;
 		}
-		else if (type == g::gps_only::dialog_type::safehouse)
+		else if (type == g::world_map::state::safehouse)
 		{
 			WriteMemory<bool>(0xA97B38, false);
 

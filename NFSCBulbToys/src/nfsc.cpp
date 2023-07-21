@@ -165,7 +165,6 @@ int nfsc::BulbToys_GetPVehicleTier(uintptr_t pvehicle)
 	uintptr_t attributes = pvehicle + 0xF0;
 
 	uintptr_t layout_ptr = ReadMemory<uintptr_t>(attributes + 4);
-
 	if (!layout_ptr)
 	{
 		return -1;
@@ -552,6 +551,78 @@ void __fastcall nfsc::BulbToys_SwitchPTagTarget(uintptr_t race_status, bool bust
 	nfsc::Game_TagPursuit(runner_index, min_index, busted);
 
 	// FIXME: AI TARGETING LOGIC GOES HERE
+}
+
+void nfsc::BulbToys_UpdateWorldMapCursor()
+{
+	nfsc::FEColor color = { 255, 255, 255, 255 }; // white/none
+	auto world_map = ReadMemory<uintptr_t>(nfsc::WorldMap);
+
+	if (world_map)
+	{
+		if (g::world_map::shift_held)
+		{
+			color = { 0, 0, 255, 255 }; // red
+
+			auto track_info = ReadMemory<uintptr_t>(0xB69BA0);
+
+			// Get the current position of the cursor relative to the screen
+			float x, y;
+			nfsc::FE_Object_GetCenter(ReadMemory<uintptr_t>(world_map + 0x28), &x, &y);
+
+			// Account for WorldMap pan
+			nfsc::Vector2 temp;
+			temp.x = x;
+			temp.y = y;
+
+			nfsc::WorldMap_GetPanFromMapCoordLocation(world_map, &temp, &temp);
+
+			x = temp.x;
+			y = temp.y;
+
+			// Account for WorldMap zoom
+			nfsc::Vector2 top_left = ReadMemory<nfsc::Vector2>(world_map + 0x44);
+			nfsc::Vector2 size = ReadMemory<nfsc::Vector2>(world_map + 0x4C);
+
+			x = x * size.x + top_left.x;
+			y = y * size.y + top_left.y;
+
+			// Inverse WorldMap::ConvertPos to get world coordinates
+			float calibration_width = ReadMemory<float>(track_info + 0xB4);
+			float calibration_offset_x = ReadMemory<float>(track_info + 0xAC);
+			float calibration_offset_y = ReadMemory<float>(track_info + 0xB0);
+
+			x = x - top_left.x;
+			y = y - top_left.y;
+			x = x / size.x;
+			y = y / size.y;
+			y = y - 1.0f;
+			y = y * calibration_width;
+			x = x * calibration_width;
+			x = x + calibration_offset_x;
+			y = -y;
+			y = y - calibration_offset_y - calibration_width;
+
+			// Inverse GetVehicleVectors to get position from world coordinates
+			g::world_map::location.x = -y;
+			g::world_map::location.y = 0; // z
+			g::world_map::location.z = x;
+
+			// Attempt to get world height at given position
+			nfsc::WCollisionMgr mgr;
+			mgr.fSurfaceExclusionMask = 0;
+			mgr.fPrimitiveMask = 3;
+
+			float height = NAN;
+			if (nfsc::WCollisionMgr_GetWorldHeightAtPointRigorous(&mgr, &g::world_map::location, &height, nullptr))
+			{
+				color = { 0, 255, 0, 255 }; // green
+			}
+			g::world_map::location.y = height;
+		}
+
+		nfsc::FE_Object_SetColor(ReadMemory<uintptr_t>(world_map + 0x28), &color);
+	}
 }
 
 /* ===== AIPLAYER ===== */

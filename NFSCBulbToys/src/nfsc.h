@@ -125,6 +125,11 @@ namespace nfsc
 
 	/* ===== GAME OBJECTS ===== */
 
+	struct FEColor
+	{
+		int b = 0, g = 0, r = 0, a = 0;
+	};
+
 	// fuck templates
 	uint32_t ListableSet_GetGrowSizeVirtually(void* ls, uint32_t amount);
 
@@ -237,6 +242,7 @@ namespace nfsc
 	inline gameflow_state* GameFlowManager_State = reinterpret_cast<gameflow_state*>(0xA99BBC);
 	constexpr uintptr_t GRaceStatus = 0xA98284;
 	constexpr uintptr_t ThePursuitSimables = 0xA98140;
+	constexpr uintptr_t WorldMap = 0xA977F0;
 
 	// FastMem is an OBJECT
 	constexpr uintptr_t FastMem = 0xA99720;
@@ -295,11 +301,13 @@ namespace nfsc
 	FUNC(0x5227F0, void, __thiscall, EAXSound_StartNewGamePlay, uintptr_t eax_sound);
 
 	FUNC(0x597900, void, , FE_Object_GetCenter, uintptr_t object, float* x, float* y);
+	FUNC(0x570CC0, void, , FE_Object_SetColor, uintptr_t object, FEColor* color);
 
 	FUNC(0x5CDEA0, void, , FEDialogScreen_ShowDialog, const char* message, const char* button1, const char* button2, const char* button3);
 
-	FUNC(0x5A53A0, void, __thiscall, FEStateManager_PopBack, uintptr_t state_manager, int next_state);
 	FUNC(0x579200, void, __thiscall, FEStateManager_ChangeState, uintptr_t state_manager, int current_state);
+	FUNC(0x5A53A0, void, __thiscall, FEStateManager_PopBack, uintptr_t state_manager, int next_state);
+	FUNC(0x579C10, void, __thiscall, FEStateManager_ShowDialog, uintptr_t state_manager, int next_state);
 
 	FUNC(0x65C330, void, , Game_ClearAIControl, int unk);
 	FUNC(0x65C2C0, void, , Game_ForceAIControl, int unk);
@@ -486,6 +494,8 @@ namespace nfsc
 	*/
 
 	void __fastcall BulbToys_SwitchPTagTarget(uintptr_t race_status, bool busted);
+
+	void BulbToys_UpdateWorldMapCursor();
 
 	/* ===== AI PLAYER ===== */
 	struct AIPlayer

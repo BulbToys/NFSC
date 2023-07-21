@@ -104,7 +104,7 @@ inline void ImGui::Location(const char* label, const char* id, float* location)
 
 	ImGui::Text(label);
 	ImGui::SameLine();
-
+	/*
 	sprintf_s(buffer, 32, "From [*]##%s_F", id);
 	if (ImGui::Button(buffer))
 	{
@@ -113,7 +113,7 @@ inline void ImGui::Location(const char* label, const char* id, float* location)
 		location[2] = g::location[1];
 	}
 	ImGui::SameLine();
-
+	*/
 	sprintf_s(buffer, 32, "Mine##%s_M", id);
 	if (ImGui::Button(buffer) && *nfsc::GameFlowManager_State == nfsc::gameflow_state::racing)
 	{
@@ -984,7 +984,7 @@ void gui::Render()
 				ImGui::Checkbox("Use as next encounter", &g::encounter::overridden);
 
 				ImGui::Separator();
-
+				/*
 				// Location
 				ImGui::Text("[*] Location:");
 				ImGui::InputFloat3("##Location1", g::location);
@@ -1042,7 +1042,7 @@ void gui::Render()
 				}
 
 				ImGui::Separator();
-
+				*/
 				// Tires 0-4
 				static bool tire_popped[4] = { false };
 				static uintptr_t i_damageable = 0;
@@ -1167,9 +1167,9 @@ void gui::Render()
 				}
 
 				// World map GPS only
-				if (ImGui::Checkbox("GPS only", &g::gps_only::enabled))
+				if (ImGui::Checkbox("GPS only", &g::world_map::gps_only))
 				{
-					if (g::gps_only::enabled)
+					if (g::world_map::gps_only)
 					{
 						// Remove the "Jump to Safehouse" button from the pause menu
 						PatchMemory<uint8_t>(0x5D59F4, 0xEB);
@@ -1229,28 +1229,19 @@ void gui::Render()
 				ImGui::Separator();
 
 				// Override NeedsEncounter
-				if (g::needs_encounter::hooked)
-				{
-					ImGui::Checkbox("Override NeedsEncounter:", &g::needs_encounter::overridden);
-					ImGui::SameLine();
-					ImGui::Checkbox("##NEValue", &g::needs_encounter::value);
-				}
+				ImGui::Checkbox("Override NeedsEncounter:", &g::needs_encounter::overridden);
+				ImGui::SameLine();
+				ImGui::Checkbox("##NEValue", &g::needs_encounter::value);
 
 				// Override NeedsTraffic
-				if (g::needs_traffic::hooked)
-				{
-					ImGui::Checkbox("Override NeedsTraffic:", &g::needs_traffic::overridden);
-					ImGui::SameLine();
-					ImGui::Checkbox("##NTValue", &g::needs_traffic::value);
-				}
+				ImGui::Checkbox("Override NeedsTraffic:", &g::needs_traffic::overridden);
+				ImGui::SameLine();
+				ImGui::Checkbox("##NTValue", &g::needs_traffic::value);
 
 				// Override PursueRacers
-				if (g::pursue_racers::hooked)
-				{
-					ImGui::Checkbox("Override PursueRacers:", &g::pursue_racers::overridden);
-					ImGui::SameLine();
-					ImGui::Checkbox("##PRValue", &g::pursue_racers::value);
-				}
+				ImGui::Checkbox("Override PursueRacers:", &g::pursue_racers::overridden);
+				ImGui::SameLine();
+				ImGui::Checkbox("##PRValue", &g::pursue_racers::value);
 
 				// Disable cops
 				ImGui::Checkbox("Disable cops", reinterpret_cast<bool*>(0xA83A50));
@@ -1780,9 +1771,24 @@ LRESULT CALLBACK WindowProcess(HWND window, UINT message, WPARAM wideParam, LPAR
 			ShowCursor(gui::menu_open);
 		}
 
-		if (gui::debug_shortcut && wideParam == VK_BACK)
+		else if (gui::debug_shortcut && wideParam == VK_BACK)
 		{
 			nfsc::CameraAI_SetAction(1, "CDActionDebug");
+		}
+
+		else if (wideParam == VK_SHIFT)
+		{
+			g::world_map::shift_held = true;
+			//nfsc::BulbToys_UpdateWorldMapCursor();
+		}
+	}
+
+	else if (message == WM_KEYUP)
+	{
+		if (wideParam == VK_SHIFT)
+		{
+			g::world_map::shift_held = false;
+			//nfsc::BulbToys_UpdateWorldMapCursor();
 		}
 	}
 

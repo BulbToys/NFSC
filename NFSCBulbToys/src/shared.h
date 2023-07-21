@@ -154,16 +154,23 @@ namespace g
 	}
 
 	// GPS only
-	namespace gps_only
+	namespace world_map
 	{
-		inline bool enabled = false;
-
-		enum class dialog_type : int
+		enum class state : int
 		{
 			race_event = 13,
-			car_lot    = 16,
-			safehouse  = 17
+			car_lot = 16,
+			safehouse = 17,
+
+			click_tp = 100,
+			click_tp_jump = 101,
+			click_tp_gps = 102
 		};
+
+		inline bool gps_only = false;
+		inline bool shift_held = false;
+
+		inline nfsc::Vector3 location = { 0, 0, 0 };
 	}
 
 	namespace health_icon
@@ -180,7 +187,6 @@ namespace g
 	// NeedsEncounter hook
 	namespace needs_encounter
 	{
-		inline bool hooked = false;
 		inline bool value = false;
 		inline bool overridden = false;
 	}
@@ -188,7 +194,6 @@ namespace g
 	// NeedsTraffic hook
 	namespace needs_traffic
 	{
-		inline bool hooked = false;
 		inline bool value = false;
 		inline bool overridden = false;
 	}
@@ -196,7 +201,6 @@ namespace g
 	// NeedsTraffic hook
 	namespace pursue_racers
 	{
-		inline bool hooked = false;
 		inline bool value = false;
 		inline bool overridden = false;
 	}
@@ -217,9 +221,6 @@ namespace g
 		inline bool hooked = false;
 		inline nfsc::Vector3 target = { 0, 0, 0 };
 	}
-
-	// Float3 element location
-	inline float location[3] = { 0, 0, 0 };
 
 	// Extra height for teleportation
 	constexpr float extra_height = 1;
