@@ -89,6 +89,9 @@ namespace hooks
 	void __fastcall UpdateIconHook(uintptr_t car_render_conn, uintptr_t edx, uintptr_t pkt);
 	static inline decltype (&UpdateIconHook) UpdateIcon;
 
+	//void* __cdecl PickRoadblockSetupHook(float width, int num_vehicles, bool use_spikes);
+	//static inline decltype (&PickRoadblockSetupHook) PickRoadblockSetup;
+
 	//void CreateRoadBlockHook();
 	void UpdateCopElementsHook1();
 	void UpdateCopElementsHook2();

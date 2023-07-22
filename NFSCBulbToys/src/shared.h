@@ -156,6 +156,8 @@ namespace g
 	// GPS only
 	namespace world_map
 	{
+		constexpr float extra_height = 1;
+
 		enum class state : int
 		{
 			race_event = 13,
@@ -214,6 +216,8 @@ namespace g
 
 		constexpr size_t size = 100;
 		inline nfsc::RoadblockSetup* mine;
+
+		//inline nfsc::RoadblockSetup* force = nullptr;
 	}
 
 	// Smart AI hook(s)
@@ -228,7 +232,4 @@ namespace g
 	{
 		inline bool enabled = false;
 	}
-
-	// Extra height for teleportation
-	constexpr float extra_height = 1;
 }

@@ -143,6 +143,8 @@ namespace nfsc
 
 		/* ===== STRUCT END, HELPER FUNCTIONS BELOW ===== */
 
+		//ListableSet(size_t capacity) : vtbl(0x9C3A98), begin(new T[capacity]), capacity(capacity), size(0) {}
+
 		void Add(T elem, uintptr_t pfnPushback)
 		{
 			if (capacity >= size)
@@ -249,6 +251,7 @@ namespace nfsc
 
 	// Interfaces
 	constexpr uintptr_t IVehicle = 0x403D30;
+	constexpr uintptr_t IInput = 0x403AA0;
 
 	// ListableSets
 	LS(0xA83E90, AIPursuitList, uintptr_t);
@@ -345,6 +348,8 @@ namespace nfsc
 	FUNC(0x6D6CD0, uintptr_t, __thiscall, PhysicsObject_GetRigidBody, uintptr_t physics_object);
 	FUNC(0x6D19A0, void, __thiscall, PhysicsObject_Kill, uintptr_t physics_object);
 
+	FUNC(0x803B40, bool, , Props_CreateInstance, uintptr_t& placeable_scenery, const char* name, uint32_t attributes);
+
 	FUNC(0x6C0BE0, void, __thiscall, PVehicle_Activate, uintptr_t pvehicle);
 	FUNC(0x6C0C00, void, __thiscall, PVehicle_Deactivate, uintptr_t pvehicle);
 	FUNC(0x6C0C40, void, __thiscall, PVehicle_ForceStopOn, uintptr_t pvehicle, uint8_t force_stop);
@@ -371,11 +376,15 @@ namespace nfsc
 	FUNC(0x761550, float, , Sim_DistanceToCamera, Vector3* target);
 
 	FUNC(0x411FD0, float, , UMath_Distance, Vector3* vec1, Vector3* vec2);
+	FUNC(0x401DD0, float, , UMath_DistanceNoSqrt, Vector3* vec1, Vector3* vec2);
 	FUNC(0x412190, void, , UMath_Normalize, Vector3* vec);
+	FUNC(0x401B50, void, , UMath_Rotate, Vector3* vec, Matrix4* rot, Vector3* result);
 
 	FUNC(0x764E00, void, , Util_GenerateMatrix, Matrix4* result, Vector3* fwd_vec, Vector3* in_up);
 
-	FUNC(0x816DF0, bool, __thiscall, WCollisionMgr_GetWorldHeightAtPointRigorous, WCollisionMgr* mgr, Vector3* point, float* height, Vector3* normal);
+	FUNC(0x406340, void, , VU0_v3add, float a1, Vector3* a2, Vector3* a3);
+
+	FUNC(0x816DF0, bool, __thiscall, WCollisionMgr_GetWorldHeightAtPointRigorous, WCollisionMgr& mgr, Vector3* point, float* height, Vector3* normal);
 
 	FUNC(0x7CA1A0, void, , World_RestoreProps);
 
@@ -447,13 +456,15 @@ namespace nfsc
 
 	void BulbToys_GetScreenPosition(Vector3& world_position, Vector3& screen_position);
 
-	float BulbToys_GetStreetWidth(Vector3* position, Vector3* direction, float distance, Vector3* left_pos, Vector3* right_pos);
+	float BulbToys_GetStreetWidth(Vector3* position, Vector3* direction, float distance, Vector3* left_pos, Vector3* right_pos, Vector3* fwd_vec);
 
 	race_type BulbToys_GetRaceType();
 
 	bool BulbToys_IsGPSDown();
 
 	void BulbToys_PathToTarget(uintptr_t ai_vehicle, Vector3* target);
+
+	void* BulbToys_RoadblockCalculations(nfsc::RoadblockSetup* setup, uintptr_t rigid_body);
 
 	enum class sv_mode
 	{

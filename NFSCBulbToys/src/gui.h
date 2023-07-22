@@ -11,17 +11,9 @@ namespace gui
 	namespace roadblock
 	{
 		inline bool menu_open = false;
-
-		inline nfsc::RoadblockSetup* cur = nullptr;
 		inline bool overlay = false;
+		inline bool draw_objects = false;
 		inline bool use_camera = false;
-
-		inline float width = NAN;
-
-		inline ImVec2 min, max;
-		inline ImVec4 color;
-		inline float thickness = 1.0f;
-		inline bool valid = false;
 	}
 
 	namespace overlays
@@ -92,6 +84,29 @@ namespace gui
 	};
 	inline uint32_t MemoryWindow::id = 0;
 	inline std::vector<MemoryWindow*> mem_windows;
+
+	struct RoadblockInfo
+	{
+		// For drawing the street width line
+		bool line_valid = false;
+		ImVec2 line_min, line_max;
+		ImVec4 line_color;
+		nfsc::Vector3 line_center;
+
+		// For displaying street width (and checking if the line is drawable or not)
+		float width;
+
+		// For drawing roadblock objects
+		struct Object
+		{
+			bool valid = false;
+			nfsc::Vector3 position;
+			nfsc::Vector3 dimension;
+			nfsc::Vector3 fwd_vec;
+			ImVec4 color;
+		} 
+		object[6];
+	};
 }
 
 namespace ImGui

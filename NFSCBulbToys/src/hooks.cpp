@@ -123,6 +123,10 @@ bool hooks::SetupPart2(uintptr_t device)
 	// Add health icons above vehicles
 	CreateHook(0x7AEFD0, &UpdateIconHook, &UpdateIcon);
 
+	// Override the chosen roadblock with our own when manually spawning roadblocks
+	// TODO: uncomment when i've unfucked roadblock creation (might even be useless)
+	//CreateHook(0x407040, &PickRoadblockSetupHook, &PickRoadblockSetup);
+
 	// Increment cop counter by 1 per roadblock vehicle
 	// TODO: if re-enabling this, make sure roadblock cops that get attached don't increment again
 	//WriteJmp(0x445A9D, CreateRoadBlockHook, 6);
@@ -683,7 +687,12 @@ void __fastcall hooks::UpdateIconHook(uintptr_t car_render_conn, uintptr_t edx, 
 	// Set color
 	WriteMemory<color_>(car_render_conn + 0x1B0, color);
 }
-
+/*
+void* __cdecl hooks::PickRoadblockSetupHook(float width, int num_vehicles, bool use_spikes)
+{
+	return g::roadblock_setups::force ? g::roadblock_setups::force : PickRoadblockSetup(width, num_vehicles, use_spikes);
+}
+*/
 void __fastcall hooks::WorldMapPadAcceptHook(uintptr_t fe_state_manager)
 {
 	// mCurrentState
@@ -800,7 +809,7 @@ void __fastcall hooks::WorldMapStateChangeHook(uintptr_t fe_state_manager)
 
 		uintptr_t rigid_body = nfsc::PhysicsObject_GetRigidBody(simable);
 
-		g::world_map::location.y += g::extra_height;
+		g::world_map::location.y += g::world_map::extra_height;
 		nfsc::RigidBody_SetPosition(rigid_body, &g::world_map::location);
 
 		// this->mNextManager = this->mParentManager;
@@ -819,7 +828,7 @@ void __fastcall hooks::WorldMapStateChangeHook(uintptr_t fe_state_manager)
 	}
 	else if (type == g::world_map::state::click_tp_gps)
 	{
-		g::world_map::location.y += g::extra_height;
+		g::world_map::location.y += g::world_map::extra_height;
 		if (nfsc::GPS_Engage(&g::world_map::location, 0.0, false))
 		{
 			nfsc::Vector3 position = { g::world_map::location.z, -g::world_map::location.x, g::world_map::location.y };

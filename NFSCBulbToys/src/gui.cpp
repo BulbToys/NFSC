@@ -330,51 +330,13 @@ void gui::Render()
 	nfsc::BulbToys_GetMyVehicle(&my_vehicle, &my_simable);
 	uintptr_t my_rigid_body = my_simable ? nfsc::PhysicsObject_GetRigidBody(my_simable) : 0;
 
+	static nfsc::RoadblockSetup* rs = nullptr;
+	RoadblockInfo* ri = nullptr;
+
 	// Roadblock info
-	if ((roadblock::overlay || roadblock::menu_open) && my_rigid_body)
+	if (roadblock::overlay || roadblock::menu_open)
 	{
-		nfsc::Vector3 pos = { 0, 0, 0 };
-		pos = *nfsc::RigidBody_GetPosition(my_rigid_body);
-
-		nfsc::Vector3 fwd_vec = { 0, 0, 0 };
-		nfsc::RigidBody_GetForwardVector(my_rigid_body, &fwd_vec);
-
-		// Direction and Position
-		if (roadblock::use_camera)
-		{
-			nfsc::BulbToys_GetDebugCamCoords(&pos, &fwd_vec);
-		}
-
-		nfsc::Vector3 left_pos = { 0, 0, 0 };
-		nfsc::Vector3 right_pos = { 0, 0, 0 };
-		roadblock::width = nfsc::BulbToys_GetStreetWidth(&pos, &fwd_vec, ReadMemory<float>(0x44529C), &left_pos, &right_pos);
-
-		if (isnan(roadblock::width))
-		{
-			roadblock::color = ImVec4(1, 0, 0, 1); // red
-		}
-		else
-		{
-			nfsc::Vector3 left_pos_s, right_pos_s;
-			nfsc::BulbToys_GetScreenPosition(left_pos, left_pos_s);
-			nfsc::BulbToys_GetScreenPosition(right_pos, right_pos_s);
-
-			// Only valid if the Z coordinates are under 1
-			if (left_pos_s.z < 1.0f && right_pos_s.z < 1.0f)
-			{
-				nfsc::Vector3 center = { (left_pos.x + right_pos.x) / 2, (left_pos.y + right_pos.y) / 2, (left_pos.z + right_pos.z) / 2 };
-				roadblock::thickness = ImGui::DynamicDistance(center);
-				roadblock::min = ImVec2(left_pos_s.x, left_pos_s.y);
-				roadblock::max = ImVec2(right_pos_s.x, right_pos_s.y);
-				roadblock::color = ImVec4(1, 0, 0, 1); // red
-				roadblock::valid = true;
-
-				if (roadblock::cur && roadblock::width > roadblock::cur->minimum_width)
-				{
-					roadblock::color = ImVec4(0, 1, 0, 1); // green
-				}
-			}
-		}
+		ri = (RoadblockInfo*)nfsc::BulbToys_RoadblockCalculations(rs, roadblock::use_camera ? 0 : my_rigid_body);
 	}
 
 	// Set CameraDebugWatchCar to false if we're no longer spectating
@@ -577,7 +539,7 @@ void gui::Render()
 			ImGui::Text("Last: %d", last);
 
 			// Set our current roadblock for calculation
-			roadblock::cur = &rb[i];
+			rs = &rb[i];
 
 			// Save & Load setup
 			if (ImGui::Button("Save setup"))
@@ -641,47 +603,47 @@ void gui::Render()
 						}
 						else
 						{
-							nfsc::RoadblockSetup buffer;
-							size_t len = sizeof(nfsc::RoadblockSetup);
+						nfsc::RoadblockSetup buffer;
+						size_t len = sizeof(nfsc::RoadblockSetup);
 
-							// Length of the file must match the struct size
-							fseek(file, 0, SEEK_END);
-							int size = ftell(file);
-							fseek(file, 0, SEEK_SET);
-							if (size != len)
-							{
-								Error("Error opening file %s.\n\nNot a valid Roadblock Setup file.", ofn.lpstrFile);
-							}
-							else 
-							{
-								fread_s(&buffer, len, 1, len, file);
+						// Length of the file must match the struct size
+						fseek(file, 0, SEEK_END);
+						int size = ftell(file);
+						fseek(file, 0, SEEK_SET);
+						if (size != len)
+						{
+							Error("Error opening file %s.\n\nNot a valid Roadblock Setup file.", ofn.lpstrFile);
+						}
+						else
+						{
+							fread_s(&buffer, len, 1, len, file);
 
-								int j;
-								for (j = 0; j < 6; j++)
+							int j;
+							for (j = 0; j < 6; j++)
+							{
+								// All data must be within bounds
+								if (j == 0 && (buffer.minimum_width < .0f || buffer.minimum_width > 100.0f || buffer.required_vehicles < 0 || buffer.required_vehicles > 6))
 								{
-									// All data must be within bounds
-									if (j == 0 && (buffer.minimum_width < .0f || buffer.minimum_width > 100.0f || buffer.required_vehicles < 0 || buffer.required_vehicles > 6))
-									{
-										Error("Error opening file %s.\n\nNot a valid Roadblock Setup file.", ofn.lpstrFile);
-									}
+									Error("Error opening file %s.\n\nNot a valid Roadblock Setup file.", ofn.lpstrFile);
+								}
 
-									if ((int)buffer.contents[j].type < 0 || (int)buffer.contents[j].type > 3 ||
-										buffer.contents[j].offset_x < -50.0f || buffer.contents[j].offset_x > 50.0f ||
-										buffer.contents[j].offset_z < -50.0f || buffer.contents[j].offset_z > 50.0f ||
-										buffer.contents[j].angle < -1.0f || buffer.contents[j].angle > 1.0f)
-									{
-										Error("Error opening file %s.\n\nNot a valid Roadblock Setup file.", ofn.lpstrFile);
-									}
+								if ((int)buffer.contents[j].type < 0 || (int)buffer.contents[j].type > 3 ||
+									buffer.contents[j].offset_x < -50.0f || buffer.contents[j].offset_x > 50.0f ||
+									buffer.contents[j].offset_z < -50.0f || buffer.contents[j].offset_z > 50.0f ||
+									buffer.contents[j].angle < -1.0f || buffer.contents[j].angle > 1.0f)
+								{
+									Error("Error opening file %s.\n\nNot a valid Roadblock Setup file.", ofn.lpstrFile);
+								}
 
-									// File is valid
-									else if (j == 5)
-									{
-										rb[i] = buffer;
-									}
+								// File is valid
+								else if (j == 5)
+								{
+									rb[i] = buffer;
 								}
 							}
+						}
 
-							fclose(file);
+						fclose(file);
 						}
 					}
 				}
@@ -716,13 +678,13 @@ void gui::Render()
 			// Street width at X distance: Y
 			ImGui::Text("Street width (at %.2f distance):", ReadMemory<float>(0x44529C));
 			ImGui::SameLine();
-			if (isnan(roadblock::width))
+			if (!ri || isnan(ri->width))
 			{
-				ImGui::TextColored(roadblock::color, "N/A"); // red
+				ImGui::TextColored(ImVec4(1, 0, 0, 1), "N/A"); // red
 			}
 			else
 			{
-				ImGui::TextColored(roadblock::color, "%.2f", roadblock::width);
+				ImGui::TextColored(ri->line_color, "%.2f", ri->width);
 			}
 
 			// Overlay
@@ -734,18 +696,77 @@ void gui::Render()
 			// Spawn setup
 			if (ImGui::Button("Spawn setup"))
 			{
-				/*for (int j = 0; j < 6; j++)
+				if (ri)
 				{
-					nfsc::rbelem_t type = rb[i].contents[j].type;
-
-					if (type == nfsc::rbelem_t::none)
+					if (strlen(vehicle) == 0)
 					{
-						break;
+						sprintf_s(vehicle, 32, "copmidsize");
 					}
 
-					// to-fucking-dooooo
-						
-				}*/
+					for (int j = 0; j < 6; j++)
+					{
+						nfsc::rbelem_t type = rb[i].contents[j].type;
+						if (type == nfsc::rbelem_t::none)
+						{
+							break;
+						}
+
+						RoadblockInfo::Object* o = &ri->object[j];
+						if (type == nfsc::rbelem_t::car)
+						{
+							uintptr_t simable = nfsc::BulbToys_CreateSimable(ReadMemory<uintptr_t>(nfsc::GRaceStatus), nfsc::driver_class::none,
+								nfsc::Attrib_StringToKey(vehicle), &o->fwd_vec, &o->position, nfsc::vehicle_param_flags::snap_to_ground, 0, 0);
+
+							if (simable)
+							{
+								uintptr_t input = nfsc::BulbToys_FindInterface<nfsc::IInput>(simable);
+								reinterpret_cast<void(__thiscall*)(uintptr_t, float)>(VirtualFunction(input, 12))(input, 1.0);
+							}
+						}
+						else
+						{
+							uintptr_t prop = 0;
+							if (type == nfsc::rbelem_t::barrier)
+							{
+								nfsc::Props_CreateInstance(prop, "XO_Sawhorse_1b_00", 0x9663AD06);
+							}
+							else if (type == nfsc::rbelem_t::spikestrip)
+							{
+								nfsc::Props_CreateInstance(prop, "XO_SpikeBelt_1b_DW_00", 0xCA89EF8F);
+							}
+
+							if (prop)
+							{
+								float _;
+								nfsc::Vector3 normal = { 0, 0, 0 };
+								nfsc::Vector3* in_up = nullptr;
+
+								nfsc::WCollisionMgr mgr;
+								mgr.fSurfaceExclusionMask = 0;
+								mgr.fPrimitiveMask = 3;
+								if (nfsc::WCollisionMgr_GetWorldHeightAtPointRigorous(mgr, &o->position, &_, &normal))
+								{
+									if (normal.y < 0)
+									{
+										normal.x *= -1.0;
+										normal.y *= -1.0;
+										normal.z *= -1.0;
+									}
+									in_up = &normal;
+								}
+
+								nfsc::Matrix4 matrix;
+								nfsc::Util_GenerateMatrix(&matrix, &o->fwd_vec, in_up);
+
+								matrix.v3.x = o->position.x;
+								matrix.v3.y = o->position.y;
+								matrix.v3.z = o->position.z;
+
+								reinterpret_cast<bool(__thiscall*)(uintptr_t, nfsc::Matrix4*, bool)>(0x817350)(prop, &matrix, true);
+							}
+						}
+					}
+				}
 			}
 
 			ImGui::Separator();
@@ -1712,24 +1733,38 @@ void gui::Render()
 		{
 			ImGui::Text("Street width (at %.2f distance):", ReadMemory<float>(0x44529C));
 			ImGui::SameLine();
-			if (isnan(roadblock::width))
+			if (!ri || isnan(ri->width))
 			{
-				ImGui::TextColored(roadblock::color, "N/A");
+				ImGui::TextColored(ImVec4(1, 0, 0, 1), "N/A"); // red
 			}
 			else
 			{
-				ImGui::TextColored(roadblock::color, "%.2f", roadblock::width);
+				ImGui::TextColored(ri->line_color, "%.2f", ri->width);
 			}
 
-			if (roadblock::valid)
+			if (ri && !isnan(ri->width))
 			{
-				draw_list->AddLine(roadblock::min, roadblock::max, ImGui::ColorConvertFloat4ToU32(roadblock::color), roadblock::thickness);
-				roadblock::valid = false;
+				if (ri->line_valid)
+				{
+					draw_list->AddLine(ri->line_min, ri->line_max, ImGui::ColorConvertFloat4ToU32(ri->line_color), ImGui::DynamicDistance(ri->line_center));
+				}
+
+				for (int i = 0; i < 6; i++)
+				{
+					RoadblockInfo::Object* o = &ri->object[i];
+
+					if (o->valid)
+					{
+						nfsc::BulbToys_DrawObject(draw_list, o->position, o->dimension, o->fwd_vec, o->color, ImGui::DynamicDistance(o->position));
+					}
+				}
 			}
 		}
 
 		ImGui::End();
 	}
+
+	delete ri;
 }
 
 // Pass 0xFFFFFFFF (-1) as the address to make a Playground (memory allocated memory editor) instead

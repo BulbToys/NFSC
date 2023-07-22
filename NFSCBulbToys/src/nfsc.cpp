@@ -11,7 +11,7 @@ uintptr_t nfsc::BulbToys_CreatePursuitSimable(nfsc::driver_class dc)
 	nfsc::Vector3 p = { 0, 0, 0 };
 	nfsc::Vector3 r = { 1, 0, 0 };
 
-	uintptr_t simable = nfsc::BulbToys_CreateSimable(ReadMemory<uintptr_t>(0xA98284), dc, cop_key, &r, &p, nfsc::vehicle_param_flags::critical, 0, 0);
+	uintptr_t simable = nfsc::BulbToys_CreateSimable(ReadMemory<uintptr_t>(nfsc::GRaceStatus), dc, cop_key, &r, &p, nfsc::vehicle_param_flags::critical, 0, 0);
 
 	return simable;
 }
@@ -31,6 +31,16 @@ void nfsc::BulbToys_DrawObject(ImDrawList* draw_list, Vector3& position, Vector3
 		{ dimension.x, -dimension.y, -dimension.z },
 		{ -dimension.x, -dimension.y, -dimension.z },
 	};
+
+	Vector3 front = {
+		(dots[0].x + dots[1].x) / 2,
+		(dots[0].y + dots[1].y) / 2 - dimension.y,
+		(dots[0].z + dots[1].z) / 2
+	};
+	reinterpret_cast<void(*)(nfsc::Vector3*, nfsc::Matrix4*, nfsc::Vector3*)>(0x401B50)(&front, &rotation, &front);
+	front.x += position.x;
+	front.y += position.y;
+	front.z += position.z;
 
 	for (int i = 0; i < 8; i++)
 	{
@@ -59,6 +69,7 @@ void nfsc::BulbToys_DrawObject(ImDrawList* draw_list, Vector3& position, Vector3
 		{6,7}
 	};
 
+	// Draw the rectangle
 	for (int i = 0; i < 12; i++)
 	{
 		int p1 = (int)connections[i].x;
@@ -68,6 +79,16 @@ void nfsc::BulbToys_DrawObject(ImDrawList* draw_list, Vector3& position, Vector3
 		{
 			draw_list->AddLine({ dots[p1].x, dots[p1].y }, { dots[p2].x, dots[p2].y }, ImGui::ColorConvertFloat4ToU32(color), thickness);
 		}
+	}
+
+	// Draw the forward line
+	Vector3 center;
+	nfsc::BulbToys_GetScreenPosition(position, center);
+	nfsc::BulbToys_GetScreenPosition(front, front);
+
+	if (center.z < 1.0f && front.z < 1.0f)
+	{
+		draw_list->AddLine({ center.x, center.y }, { front.x, front.y }, ImGui::ColorConvertFloat4ToU32(color), thickness / 2);
 	}
 }
 
@@ -191,7 +212,7 @@ void nfsc::BulbToys_GetScreenPosition(Vector3& world, Vector3& screen)
 	screen.z = i_w * out.z;
 }
 
-float nfsc::BulbToys_GetStreetWidth(Vector3* position, Vector3* direction, float distance, Vector3* left_pos, Vector3* right_pos)
+float nfsc::BulbToys_GetStreetWidth(Vector3* position, Vector3* direction, float distance, Vector3* left_pos, Vector3* right_pos, Vector3* fwd_vec)
 {
 	struct WRoadNav // 780u
 	{ 
@@ -215,10 +236,13 @@ float nfsc::BulbToys_GetStreetWidth(Vector3* position, Vector3* direction, float
 
 		nfsc::Vector3 fLeftPosition = { 0, 0, 0 };
 		nfsc::Vector3 fRightPosition = { 0, 0, 0 };
+		nfsc::Vector3 fForwardVector = { 0, 0, 0 };
 
-		uint8_t pad5[0x254]{ 0 };
+		uint8_t pad5[0x248]{ 0 };
 
 	} nav;
+
+	constexpr int a = sizeof(nav);
 
 	// WRoadNav::WRoadNav(&nav);
 	reinterpret_cast<uintptr_t(__thiscall*)(WRoadNav&)>(0x806820)(nav);
@@ -286,6 +310,10 @@ float nfsc::BulbToys_GetStreetWidth(Vector3* position, Vector3* direction, float
 	if (right_pos)
 	{
 		*right_pos = nav.fRightPosition;
+	}
+	if (fwd_vec)
+	{
+		*fwd_vec = nav.fForwardVector;
 	}
 
 	// nav.fRightPosition & nav.fLeftPosition
@@ -408,6 +436,169 @@ void nfsc::BulbToys_PathToTarget(uintptr_t ai_vehicle, Vector3* target)
 	}
 
 	nfsc::WRoadNav_FindPath(road_nav, target, nullptr, 1);
+}
+
+void* nfsc::BulbToys_RoadblockCalculations(nfsc::RoadblockSetup* setup, uintptr_t rigid_body)
+{
+	// Reference point for calculating street width
+	nfsc::Vector3 sw_position;
+	nfsc::Vector3 sw_fwd_vec;
+	if (!rigid_body)
+	{
+		if (!nfsc::BulbToys_GetDebugCamCoords(&sw_position, &sw_fwd_vec))
+		{
+			return nullptr;
+		}
+	}
+	else
+	{
+		sw_position = *nfsc::RigidBody_GetPosition(rigid_body);
+		nfsc::RigidBody_GetForwardVector(rigid_body, &sw_fwd_vec);
+	}
+
+
+
+	// Distance from reference point to where the roadblock should be calculated
+	// This uses the same value as gameplay logic and is adjustable in the GUI
+	float distance = ReadMemory<float>(0x44529C);
+
+	nfsc::Vector3 nav_left_pos, nav_right_pos, nav_fwd_vec;
+	float width = nfsc::BulbToys_GetStreetWidth(&sw_position, &sw_fwd_vec, distance, &nav_left_pos, &nav_right_pos, &nav_fwd_vec) + 1.0;
+	
+	// Street width calculation successful
+	if (!isnan(width))
+	{
+		// Create rendering/spawning roadblock info adapter
+		gui::RoadblockInfo* ri = new gui::RoadblockInfo();
+
+		ri->width = width;
+		ri->line_color = ImVec4(1, 0, 0, 1); // red
+
+		nfsc::Vector3 left_pos_sp, right_pos_sp;
+		nfsc::BulbToys_GetScreenPosition(nav_left_pos, left_pos_sp);
+		nfsc::BulbToys_GetScreenPosition(nav_right_pos, right_pos_sp);
+
+		// Only valid if the Z coordinates are under 1
+		if (left_pos_sp.z < 1.0f && right_pos_sp.z < 1.0f)
+		{
+			ri->line_center = {
+				(nav_left_pos.x + nav_right_pos.x) / 2,
+				(nav_left_pos.y + nav_right_pos.y) / 2,
+				(nav_left_pos.z + nav_right_pos.z) / 2
+			};
+
+			ri->line_min = ImVec2(left_pos_sp.x, left_pos_sp.y);
+			ri->line_max = ImVec2(right_pos_sp.x, right_pos_sp.y);
+
+			if (setup && ri->width > setup->minimum_width)
+			{
+				ri->line_color = ImVec4(0, 1, 0, 1); // green
+			}
+
+			ri->line_valid = true;
+		}
+
+		if (setup)
+		{
+			int count = setup->required_vehicles;
+			if (count > 0)
+			{
+				// the next like 100 lines or so are taken straight from AICopManager::CreateRoadblock
+				// i have little to no fucking clue what's going on here. godspeed. o7
+				nfsc::Vector3 some_vector, other_vector;
+
+				float left_to_target = nfsc::UMath_DistanceNoSqrt(&nav_left_pos, &sw_position);
+				float right_to_target = nfsc::UMath_DistanceNoSqrt(&nav_right_pos, &sw_position);
+				if (left_to_target <= right_to_target)
+				{
+					other_vector = nav_left_pos;
+
+					some_vector.x = nav_right_pos.x - nav_left_pos.x;
+					some_vector.y = nav_right_pos.y - nav_left_pos.y;
+					some_vector.z = nav_right_pos.z - nav_left_pos.z;
+				}
+				else
+				{
+					other_vector = nav_right_pos;
+
+					some_vector.x = nav_left_pos.x - nav_right_pos.x;
+					some_vector.y = nav_left_pos.y - nav_right_pos.y;
+					some_vector.z = nav_left_pos.z - nav_right_pos.z;
+				}
+
+				float width_thing = setup->minimum_width / ri->width * 0.5;
+
+				nfsc::Vector3 vecB;
+				vecB.x = some_vector.x * width_thing + other_vector.x;
+				vecB.y = some_vector.y * width_thing + other_vector.y;
+				vecB.z = some_vector.z * width_thing + other_vector.z;
+
+				// ?????????????????????????????????????
+				float what = sw_position.x;
+				float clamp_thing = reinterpret_cast<float(*)(float, float, float)>(0x4010E0)(what, 1.0, 1.14);
+
+				nfsc::Matrix4 rotation;
+				nfsc::Util_GenerateMatrix(&rotation, &nav_fwd_vec, 0);
+
+				for (int i = 0; i < 6; i++)
+				{
+					nfsc::rbelem_t type = setup->contents[i].type;
+
+					if (type == nfsc::rbelem_t::none)
+					{
+						// Note we have a break here and not a continue - the roadblock ends as soon as it finds the first "rbelem_t::none" element!!
+						break;
+					}
+
+					nfsc::Vector3 vecA;
+					vecA.x = clamp_thing * setup->contents[i].offset_x;
+					vecA.y = 0.0;
+					vecA.z = setup->contents[i].offset_z;
+					nfsc::UMath_Rotate(&vecA, &rotation, &vecA);
+
+					nfsc::Vector3 forward;
+					forward = nav_fwd_vec;
+					nfsc::VU0_v3add(setup->contents[i].angle, &forward, &forward);
+
+					nfsc::Vector3 position;
+					position.x = vecA.x + vecB.x;
+					position.y = vecA.y + vecB.y;
+					position.z = vecA.z + vecB.z;
+
+					nfsc::Vector3 dimension;
+
+					if (type == nfsc::rbelem_t::car)
+					{
+						// Using copmidsize dimensions here as it is the largest by width and length
+						dimension = { 1.09, 0.72, 2.80 };
+						ri->object[i].color = ImVec4(.25f, .25f, 1, 1); // light blue
+					}
+					else if (type == nfsc::rbelem_t::barrier)
+					{
+						dimension = { 1.58, 0.70, 0.63 };
+						ri->object[i].color = ImVec4(1, 0, 0, 1); // red
+					}
+					else if (type == nfsc::rbelem_t::spikestrip)
+					{
+						dimension = { 3.27, 0.25, 0.38 };
+						ri->object[i].color = ImVec4(1, 1, 0, 1); // yellow
+					}
+
+					position.y += dimension.y;
+
+					ri->object[i].position = position;
+					ri->object[i].dimension = dimension;
+					ri->object[i].fwd_vec = forward;
+					ri->object[i].valid = true;
+				}
+			}
+		}
+
+		return ri;
+	}
+
+	// Street width calculation unsuccessful
+	return nullptr;
 }
 
 bool nfsc::BulbToys_SwitchVehicle(uintptr_t simable, uintptr_t simable2, sv_mode mode)
@@ -614,7 +805,7 @@ void nfsc::BulbToys_UpdateWorldMapCursor()
 			mgr.fPrimitiveMask = 3;
 
 			float height = NAN;
-			if (nfsc::WCollisionMgr_GetWorldHeightAtPointRigorous(&mgr, &g::world_map::location, &height, nullptr))
+			if (nfsc::WCollisionMgr_GetWorldHeightAtPointRigorous(mgr, &g::world_map::location, &height, nullptr))
 			{
 				color = { 0, 255, 0, 255 }; // green
 			}
