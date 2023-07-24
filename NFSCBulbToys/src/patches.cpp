@@ -33,6 +33,9 @@ void patches::Do()
 
 	// DebugCamSlowMo
 	PatchMemory<float>(0xA4F74C, 0.1f);
+
+	// DebugCamFOV
+	PatchMemory<uint8_t>(0x4938B8, 0xEB);
 }
 
 void patches::Undo()
@@ -88,6 +91,9 @@ void patches::Undo()
 
 	// DebugCamSlowMo
 	Unpatch(0xA4F74C);
+
+	// DebugCamFOV
+	Unpatch(0x4938B8);
 }
 
 // NOTE: Doesn't actually always show the cursor, as it depends on whether the ImGui menu is open or not, which is handled in the WindowProcess callback

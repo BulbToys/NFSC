@@ -16,6 +16,12 @@ inline bool ImGui::MySliderFloat(const char* text, const char* id, float* v, flo
 	return ImGui::SliderFloat(id, v, v_min, v_max, format);
 }
 
+inline bool ImGui::MySliderInt(const char* text, const char* id, int* v, int v_min, int v_max, const char* format = "%d")
+{
+	ImGui::Text(text);
+	return ImGui::SliderInt(id, v, v_min, v_max, format);
+}
+
 inline bool ImGui::MyMenu(const char* text, bool* show)
 {
 	ImGui::SeparatorText(text);
@@ -964,16 +970,6 @@ void gui::Render()
 			/* ===== CAMERAS ===== */
 			if (ImGui::MyMenu("Cameras", &menu[id++]))
 			{
-				// DebugCamera + Shortcut
-				if (ImGui::Button("DebugCamera"))
-				{
-					nfsc::CameraAI_SetAction(1, "CDActionDebug");
-				}
-				ImGui::SameLine();
-				ImGui::Checkbox("Shortcut", &debug_shortcut);
-
-				ImGui::Separator();
-
 				// Spectate vehicles
 				if (ImGui::Checkbox("Spectate vehicles", nfsc::spectate::enabled))
 				{
@@ -986,6 +982,55 @@ void gui::Render()
 						nfsc::CameraAI_SetAction(1, "CDActionDrive");
 					}
 				}
+
+				ImGui::Separator();
+
+				// DebugCamera + Shortcut
+				if (ImGui::Button("DebugCamera"))
+				{
+					nfsc::CameraAI_SetAction(1, "CDActionDebug");
+				}
+				ImGui::SameLine();
+				ImGui::Checkbox("Shortcut", &debug_shortcut);
+
+				// FOV
+				static int fov = 0;
+				uint16_t* fov_ptr = nullptr;
+				if (*nfsc::GameFlowManager_State == nfsc::gameflow_state::racing)
+				{
+					uintptr_t first_camera_director = ReadMemory<uintptr_t>(0xA8ACC4 + 4);
+					if (first_camera_director)
+					{
+						uintptr_t camera_director = ReadMemory<uintptr_t>(first_camera_director);
+						if (camera_director)
+						{
+							// Must be DebugCam
+							uintptr_t cd_action = ReadMemory<uintptr_t>(camera_director + 0x18);
+							if (cd_action && ReadMemory<uintptr_t>(cd_action) == 0x9C7EE0)
+							{
+								uintptr_t camera_mover = ReadMemory<uintptr_t>(cd_action + 0x2BC);
+								if (camera_mover)
+								{
+									uintptr_t camera = ReadMemory<uintptr_t>(camera_mover + 0x1C);
+									if (camera)
+									{
+										fov_ptr = reinterpret_cast<uint16_t*>(camera + 0xE4);
+										fov = *fov_ptr;
+									}
+								}
+							}
+						}
+					}
+				}
+				ImGui::BeginDisabled(!fov_ptr);
+				if (ImGui::MySliderInt("FOV", "##FOV", &fov, 0, 65535))
+				{
+					if (fov_ptr)
+					{
+						*fov_ptr = fov;
+					}
+				}
+				ImGui::EndDisabled();		
 			}
 
 			/* ===== PLAYER ===== */
