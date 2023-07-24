@@ -1356,7 +1356,7 @@ void gui::Render()
 				ImGui::Checkbox("Ignore (use default) goal", &ignore);
 
 				// Spawn vehicle
-				if (ImGui::Button("Spawn vehicle") && *nfsc::GameFlowManager_State == nfsc::gameflow_state::racing)
+				if (ImGui::Button("Spawn vehicle"))
 				{
 					nfsc::Vector3 r = { 1, 0, 0 };
 					nfsc::Vector3 p;
