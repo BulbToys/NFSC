@@ -16,6 +16,9 @@ void patches::Do()
 	PatchNop(0x4B9545, 6);
 	PatchNop(0x4B9557, 6);
 
+	// PTagBusted
+	PatchNop(0x44A588, 6);
+
 	// SixtyMinutePTag
 	PatchMemory<uint8_t>(0x4AC819, 60);
 	PatchMemory<uint8_t>(0x4AC82D, 60);
@@ -69,6 +72,9 @@ void patches::Undo()
 	// EnableSoloPursuitQR
 	Unpatch(0x4B9545);
 	Unpatch(0x4B9557);
+
+	// PTagBusted
+	Unpatch(0x44A588);
 
 	// SixtyMinutePTag
 	Unpatch(0x4AC819);
@@ -133,8 +139,6 @@ void patches::FastBootFlow()
 	// Patch out everything but STATE_SPLASH and STATE_AUTOLOAD in FEBFSM::ShowEverythingElse() (STATE_EA_LOGO, STATE_PSA and STATE_ATTRACT)
 	PatchNop(0x716583, 34);
 	PatchNop(0x7165B1, 12);
-
-	PatchNop(0x44A588, 6);
 }
 
 void patches::DebugCarCustomizeHelp()
