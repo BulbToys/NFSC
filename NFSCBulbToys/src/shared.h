@@ -223,7 +223,6 @@ namespace g
 	// Smart AI hook(s)
 	namespace smart_ai
 	{
-		inline bool hooked = false;
 		inline nfsc::Vector3 target = { 0, 0, 0 };
 	}
 	

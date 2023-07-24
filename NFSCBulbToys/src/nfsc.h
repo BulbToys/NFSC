@@ -398,6 +398,11 @@ namespace nfsc
 	inline uintptr_t BulbToys_CreateSimable(uintptr_t vehicle_cache, driver_class dc, uint32_t key, Vector3* rotation, Vector3* position, uint32_t vpf,
 		uintptr_t customization_record, uintptr_t performance_matching)
 	{
+		if (*nfsc::GameFlowManager_State != nfsc::gameflow_state::racing)
+		{
+			return 0;
+		}
+
 		struct VehicleParams { uint8_t _[0x3C]; } params;
 
 		// void __thiscall VehicleParams::VehicleParams(...);

@@ -762,6 +762,7 @@ void gui::Render()
 								matrix.v3.y = o->position.y;
 								matrix.v3.z = o->position.z;
 
+								// Props::Placeable::Place
 								reinterpret_cast<bool(__thiscall*)(uintptr_t, nfsc::Matrix4*, bool)>(0x817350)(prop, &matrix, true);
 							}
 						}
@@ -936,36 +937,17 @@ void gui::Render()
 				// Wrong warp fix
 				ImGui::Checkbox("Wrong warp fix", &g::wrong_warp_fix::enabled);
 
-				ImGui::Separator();
-
-				// Character key & Add to crew
-				ImGui::Text("Character key:");
-				static char character[64];
-				ImGui::InputText("##charkey", character, IM_ARRAYSIZE(character));
-
-				// Add to crew
-				if (ImGui::Button("Add to crew"))
+				// World map GPS only
+				if (ImGui::Checkbox("GPS only", &g::world_map::gps_only))
 				{
-					uintptr_t KEY_NIKKI = 0xA982BC;
-					uint32_t nikki = ReadMemory<uint32_t>(KEY_NIKKI);
-
-					WriteMemory<uint32_t>(KEY_NIKKI, nfsc::Attrib_StringToKey(character));
-					nfsc::Game_UnlockNikki();
-
-					WriteMemory<uint32_t>(KEY_NIKKI, nikki);
-				}
-
-				// No wingman speech
-				static bool no_speech = false;
-				if (ImGui::Checkbox("No wingman speech", &no_speech))
-				{
-					if (no_speech)
+					if (g::world_map::gps_only)
 					{
-						PatchNop(0x79390D, 22);
+						// Remove the "Jump to Safehouse" button from the pause menu
+						PatchMemory<uint8_t>(0x5D59F4, 0xEB);
 					}
 					else
 					{
-						Unpatch(0x79390D);
+						Unpatch(0x5D59F4);
 					}
 				}
 
@@ -979,15 +961,43 @@ void gui::Render()
 				}
 			}
 
+			/* ===== CAMERAS ===== */
+			if (ImGui::MyMenu("Cameras", &menu[id++]))
+			{
+				// DebugCamera + Shortcut
+				if (ImGui::Button("DebugCamera"))
+				{
+					nfsc::CameraAI_SetAction(1, "CDActionDebug");
+				}
+				ImGui::SameLine();
+				ImGui::Checkbox("Shortcut", &debug_shortcut);
+
+				ImGui::Separator();
+
+				// Spectate vehicles
+				if (ImGui::Checkbox("Spectate vehicles", nfsc::spectate::enabled))
+				{
+					if (*nfsc::spectate::enabled)
+					{
+						nfsc::CameraAI_SetAction(1, "CDActionDebugWatchCar");
+					}
+					else
+					{
+						nfsc::CameraAI_SetAction(1, "CDActionDrive");
+					}
+				}
+			}
+
 			/* ===== PLAYER ===== */
 			if (ImGui::MyMenu("Player", &menu[id++]))
 			{
 				// Vehicle name
+				static char vehicle[32];
 				ImGui::Text("Vehicle name:");
-				ImGui::InputText("##vehicle1", g::encounter::vehicle, IM_ARRAYSIZE(g::encounter::vehicle));
+				ImGui::InputText("##vehicle1", vehicle, IM_ARRAYSIZE(vehicle));
 
 				// Switch to vehicle
-				if (ImGui::Button("Switch to vehicle") && *nfsc::GameFlowManager_State == nfsc::gameflow_state::racing)
+				if (ImGui::Button("Switch to vehicle"))
 				{
 					if (my_simable)
 					{
@@ -995,7 +1005,7 @@ void gui::Render()
 						nfsc::Vector3 r = { 1, 0, 0 };
 
 						uintptr_t new_simable = nfsc::BulbToys_CreateSimable(ReadMemory<uintptr_t>(nfsc::GRaceStatus), nfsc::driver_class::human,
-							nfsc::Attrib_StringToKey(g::encounter::vehicle), &r, &p, 0, 0, 0);
+							nfsc::Attrib_StringToKey(vehicle), &r, &p, 0, 0, 0);
 
 						if (new_simable)
 						{
@@ -1004,69 +1014,8 @@ void gui::Render()
 					}
 				}
 
-				// Use (vehicle) as next encounter
-				ImGui::Checkbox("Use as next encounter", &g::encounter::overridden);
-
 				ImGui::Separator();
-				/*
-				// Location
-				ImGui::Text("[*] Location:");
-				ImGui::InputFloat3("##Location1", g::location);
 
-				// Teleport to location
-				if (ImGui::Button("Teleport to location"))
-				{
-					if (my_rigid_body)
-					{
-						nfsc::Vector3 position;
-						position.x = g::location[0];
-						position.y = g::location[1];
-						position.z = g::location[2];
-
-						nfsc::RigidBody_SetPosition(my_rigid_body, &position);
-					}
-				}
-
-				// GPS to location
-				if (ImGui::Button("GPS to location"))
-				{
-					nfsc::Vector3 position;
-					position.x = g::location[0];
-					position.y = g::location[1];
-					position.z = g::location[2];
-
-					if (nfsc::GPS_Engage(&position, 0.0, false))
-					{
-						auto g_manager_base = ReadMemory<uintptr_t>(0xA98294);
-
-						position.x = g::location[2];
-						position.y = -g::location[0];
-						position.z = g::location[1];
-
-						auto icon = nfsc::GManager_AllocIcon(g_manager_base, 0x15, &position, 0, false);
-
-						// Set flag to ShowOnSpawn
-						//WriteMemory<uint8_t>(icon_addr + 1, 0x40);
-
-						// Set flag to ShowInWorld + ShowOnMap
-						WriteMemory<uint8_t>(icon + 0x1, 3);
-
-						// Set color to white
-						WriteMemory<uint32_t>(icon + 0x20, 0xFFFFFFFF);
-
-						// Set tex hash
-						WriteMemory<uint32_t>(icon + 0x24, nfsc::bStringHash("MINIMAP_ICON_EVENT"));
-
-						nfsc::GIcon_Spawn(icon);
-						nfsc::WorldMap_SetGPSIng(icon);
-
-						// Set flag to previous + Spawned + Enabled + GPSing
-						WriteMemory<uint8_t>(icon + 1, 0x8F);
-					}
-				}
-
-				ImGui::Separator();
-				*/
 				// Tires 0-4
 				static bool tire_popped[4] = { false };
 				static uintptr_t i_damageable = 0;
@@ -1138,17 +1087,14 @@ void gui::Render()
 					{
 						nfsc::Game_ForceAIControl(1);
 
-						if (g::smart_ai::hooked)
+						if (my_vehicle)
 						{
-							if (my_vehicle)
+							auto ai_vehicle = nfsc::PVehicle_GetAIVehiclePtr(my_vehicle);
+							if (ai_vehicle)
 							{
-								auto ai_vehicle = nfsc::PVehicle_GetAIVehiclePtr(my_vehicle);
-								if (ai_vehicle)
+								if (!nfsc::BulbToys_IsGPSDown())
 								{
-									if (!nfsc::BulbToys_IsGPSDown())
-									{
-										nfsc::BulbToys_PathToTarget(ai_vehicle, &g::smart_ai::target);
-									}
+									nfsc::BulbToys_PathToTarget(ai_vehicle, &g::smart_ai::target);
 								}
 							}
 						}
@@ -1167,40 +1113,39 @@ void gui::Render()
 				}
 
 				ImGui::Separator();
+			}
 
-				// DebugCamera + Shortcut
-				if (ImGui::Button("DebugCamera"))
+			/* ===== CREW/WINGMAN ===== */
+			if (ImGui::MyMenu("Crew/Wingman", &menu[id++]))
+			{
+				// Character key & Add to crew
+				ImGui::Text("Character key:");
+				static char character[64];
+				ImGui::InputText("##charkey", character, IM_ARRAYSIZE(character));
+
+				// Add to crew
+				if (ImGui::Button("Add to crew"))
 				{
-					nfsc::CameraAI_SetAction(1, "CDActionDebug");
+					uintptr_t KEY_NIKKI = 0xA982BC;
+					uint32_t nikki = ReadMemory<uint32_t>(KEY_NIKKI);
+
+					WriteMemory<uint32_t>(KEY_NIKKI, nfsc::Attrib_StringToKey(character));
+					nfsc::Game_UnlockNikki();
+
+					WriteMemory<uint32_t>(KEY_NIKKI, nikki);
 				}
-				ImGui::SameLine();
-				ImGui::Checkbox("Shortcut", &debug_shortcut);
 
-				// No Busted
-				static bool no_busted = false;
-				if (ImGui::Checkbox("No Busted", &no_busted))
+				// No wingman speech
+				static bool no_speech = false;
+				if (ImGui::Checkbox("No wingman speech", &no_speech))
 				{
-					if (no_busted)
+					if (no_speech)
 					{
-						PatchMemory<patches::no_busted>(0x449836, patches::no_busted());
+						PatchNop(0x79390D, 22);
 					}
 					else
 					{
-						Unpatch(0x449836);
-					}
-				}
-
-				// World map GPS only
-				if (ImGui::Checkbox("GPS only", &g::world_map::gps_only))
-				{
-					if (g::world_map::gps_only)
-					{
-						// Remove the "Jump to Safehouse" button from the pause menu
-						PatchMemory<uint8_t>(0x5D59F4, 0xEB);
-					}
-					else
-					{
-						Unpatch(0x5D59F4);
+						Unpatch(0x79390D);
 					}
 				}
 			}
@@ -1208,25 +1153,16 @@ void gui::Render()
 			/* ===== AI/WORLD ===== */
 			if (ImGui::MyMenu("AI/World", &menu[id++]))
 			{
+				// Vehicle name
+				ImGui::Checkbox("Next encounter vehicle:", &g::encounter::overridden);
+				ImGui::InputText("##NEVehicle", g::encounter::vehicle, IM_ARRAYSIZE(g::encounter::vehicle));
+
+				ImGui::Separator();
+
 				// Roadblock setups
 				if (ImGui::Button("Roadblock setups"))
 				{
 					roadblock::menu_open = true;
-				}
-
-				ImGui::Separator();
-
-				// Spectate vehicles
-				if (ImGui::Checkbox("Spectate vehicles", nfsc::spectate::enabled))
-				{
-					if (*nfsc::spectate::enabled)
-					{
-						nfsc::CameraAI_SetAction(1, "CDActionDebugWatchCar");
-					}
-					else
-					{
-						nfsc::CameraAI_SetAction(1, "CDActionDrive");
-					}
 				}
 
 				ImGui::Separator();
@@ -1267,13 +1203,29 @@ void gui::Render()
 				ImGui::SameLine();
 				ImGui::Checkbox("##PRValue", &g::pursue_racers::value);
 
+				ImGui::Separator();
+
 				// Disable cops
 				ImGui::Checkbox("Disable cops", reinterpret_cast<bool*>(0xA83A50));
 
+				// Disable busting
+				static bool no_busted = false;
+				if (ImGui::Checkbox("Disable busting", &no_busted))
+				{
+					if (no_busted)
+					{
+						PatchMemory<patches::no_busted>(0x449836, patches::no_busted());
+					}
+					else
+					{
+						Unpatch(0x449836);
+					}
+				}
+
 				ImGui::Separator();
 
-				// Kill skids & Restore props
-				if (ImGui::Button("Kill skids"))
+				// Clear skids & Restore props
+				if (ImGui::Button("Clear skids"))
 				{
 					nfsc::KillSkidsOnRaceRestart();
 				}
@@ -1640,7 +1592,7 @@ void gui::Render()
 		ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoBackground))
 	{
 		/* ===== MAIN ===== */
-		ImGui::Text("Powered by BulbToys");
+		ImGui::Text("Powered by BulbToys - " __DATE__ " " __TIME__);
 		auto draw_list = ImGui::GetWindowDrawList();
 
 		/* ===== COORDS ===== */
