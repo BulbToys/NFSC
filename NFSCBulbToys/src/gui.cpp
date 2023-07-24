@@ -1198,12 +1198,12 @@ void gui::Render()
 				ImGui::SameLine();
 				ImGui::Checkbox("##NTValue", &g::needs_traffic::value);
 
+				ImGui::Separator();
+
 				// Override PursueRacers
 				ImGui::Checkbox("Override PursueRacers:", &g::pursue_racers::overridden);
 				ImGui::SameLine();
 				ImGui::Checkbox("##PRValue", &g::pursue_racers::value);
-
-				ImGui::Separator();
 
 				// Disable cops
 				ImGui::Checkbox("Disable cops", reinterpret_cast<bool*>(0xA83A50));

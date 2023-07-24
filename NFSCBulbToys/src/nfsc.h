@@ -511,6 +511,24 @@ namespace nfsc
 
 	void __fastcall BulbToys_SwitchPTagTarget(uintptr_t race_status, bool busted);
 
+	inline void BulbToys_DebugActionDropCar()
+	{
+		uintptr_t my_vehicle = 0;
+		BulbToys_GetMyVehicle(&my_vehicle, nullptr);
+		if (!my_vehicle)
+		{
+			return;
+		}
+
+		Vector3 pos, fwd;
+		if (!BulbToys_GetDebugCamCoords(&pos, &fwd))
+		{
+			return;
+		}
+
+		PVehicle_SetVehicleOnGround(my_vehicle, &pos, &fwd);
+	}
+
 	void BulbToys_UpdateWorldMapCursor();
 
 	/* ===== AI PLAYER ===== */

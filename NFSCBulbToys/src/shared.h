@@ -156,8 +156,6 @@ namespace g
 	// GPS only
 	namespace world_map
 	{
-		constexpr float extra_height = 1;
-
 		enum class state : int
 		{
 			race_event = 13,

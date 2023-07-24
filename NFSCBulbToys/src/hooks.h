@@ -101,4 +101,5 @@ namespace hooks
 	void VehicleChangeCacheHook();
 	void UpdateAIPlayerListingHook();
 	void PTagBustedHook();
+	void DebugActionDropCarHook();
 }

@@ -30,6 +30,9 @@ void patches::Do()
 	memcpy(g::roadblock_setups::normal, reinterpret_cast<void*>(0xA4C420), sizeof(nfsc::RoadblockSetup) * 16);
 	memcpy(g::roadblock_setups::spiked, reinterpret_cast<void*>(0xA4CAA0), sizeof(nfsc::RoadblockSetup) * 10);
 	g::roadblock_setups::mine = new nfsc::RoadblockSetup[g::roadblock_setups::size];
+
+	// DebugCamSlowMo
+	PatchMemory<float>(0xA4F74C, 0.1f);
 }
 
 void patches::Undo()
@@ -82,6 +85,9 @@ void patches::Undo()
 
 	// AllowEndgameCreditsSkip
 	Unpatch(0x8484AC);
+
+	// DebugCamSlowMo
+	Unpatch(0xA4F74C);
 }
 
 // NOTE: Doesn't actually always show the cursor, as it depends on whether the ImGui menu is open or not, which is handled in the WindowProcess callback

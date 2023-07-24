@@ -155,6 +155,8 @@ bool hooks::SetupPart2(uintptr_t device)
 
 	// Check who got busted in pursuit tag and switch vehicles accordingly
 	PatchJmp(0x44A596, PTagBustedHook, 5);
+
+	PatchJmp(0x49319E, DebugActionDropCarHook);
 	
 	return true;
 }
@@ -800,17 +802,24 @@ void __fastcall hooks::WorldMapStateChangeHook(uintptr_t fe_state_manager)
 
 	if (type == g::world_map::state::click_tp_jump)
 	{
+		uintptr_t vehicle = 0;
 		uintptr_t simable = 0;
-		nfsc::BulbToys_GetMyVehicle(nullptr, &simable);
-		if (!simable)
+		nfsc::BulbToys_GetMyVehicle(&vehicle, &simable);
+		if (!vehicle || !simable)
 		{
 			return;
 		}
 
 		uintptr_t rigid_body = nfsc::PhysicsObject_GetRigidBody(simable);
 
-		g::world_map::location.y += g::world_map::extra_height;
-		nfsc::RigidBody_SetPosition(rigid_body, &g::world_map::location);
+		nfsc::Vector3 fwd_vec;
+		nfsc::RigidBody_GetForwardVector(rigid_body, &fwd_vec);
+
+		nfsc::Vector3 dimensions;
+		nfsc::RigidBody_GetDimension(rigid_body, &dimensions);
+		g::world_map::location.y += dimensions.y + 0.5;
+
+		nfsc::PVehicle_SetVehicleOnGround(vehicle, &g::world_map::location, &fwd_vec);
 
 		// this->mNextManager = this->mParentManager;
 		WriteMemory<uintptr_t>(fe_state_manager + 0xB4, ReadMemory<uintptr_t>(fe_state_manager + 0xAC));
@@ -828,7 +837,6 @@ void __fastcall hooks::WorldMapStateChangeHook(uintptr_t fe_state_manager)
 	}
 	else if (type == g::world_map::state::click_tp_gps)
 	{
-		g::world_map::location.y += g::world_map::extra_height;
 		if (nfsc::GPS_Engage(&g::world_map::location, 0.0, false))
 		{
 			nfsc::Vector3 position = { g::world_map::location.z, -g::world_map::location.x, g::world_map::location.y };
@@ -1197,7 +1205,7 @@ __declspec(naked) void hooks::UpdateAIPlayerListingHook()
 	}
 }
 
-void hooks::PTagBustedHook()
+__declspec(naked) void hooks::PTagBustedHook()
 {
 	__asm
 	{
@@ -1216,5 +1224,18 @@ void hooks::PTagBustedHook()
 		ret
 
 		// No need to redo what we've overwritten cuz it's useless lol (we overwrote some call to an online-related function)
+	}
+}
+
+nfsc::Vector3 pos, dir;
+__declspec(naked) void hooks::DebugActionDropCarHook()
+{
+	__asm
+	{
+		call    nfsc::BulbToys_DebugActionDropCar
+
+		// Return to the end of the case instead of where we left off
+		push    0x49321D
+		ret
 	}
 }
