@@ -787,9 +787,10 @@ void nfsc::BulbToys_UpdateWorldMapCursor(uintptr_t fe_state_manager)
 				x = x * size.x + top_left.x;
 				y = y * size.y + top_left.y;
 
-				// Inverse WorldMap::ConvertPos to get world coordinates
-				auto track_info = ReadMemory<uintptr_t>(0xB69BA0);
+				// it just works tm
+				auto track_info = reinterpret_cast<uintptr_t(*)(int)>(0x7990C0)(5000);
 
+				// Inverse WorldMap::ConvertPos to get world coordinates
 				float calibration_width = ReadMemory<float>(track_info + 0xB4);
 				float calibration_offset_x = ReadMemory<float>(track_info + 0xAC);
 				float calibration_offset_y = ReadMemory<float>(track_info + 0xB0);

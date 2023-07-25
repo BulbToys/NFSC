@@ -123,6 +123,9 @@ bool hooks::SetupPart2(uintptr_t device)
 	// Add health icons above vehicles
 	CreateHook(0x7AEFD0, &UpdateIconHook, &UpdateIcon);
 
+	// FOV overrides
+	CreateHook(0x4822F0, &SetCameraMatrixHook, &SetCameraMatrix);
+
 	// Override the chosen roadblock with our own when manually spawning roadblocks
 	// TODO: uncomment when i've unfucked roadblock creation (might even be useless)
 	//CreateHook(0x407040, &PickRoadblockSetupHook, &PickRoadblockSetup);
@@ -689,6 +692,55 @@ void __fastcall hooks::UpdateIconHook(uintptr_t car_render_conn, uintptr_t edx, 
 	// Set color
 	WriteMemory<color_>(car_render_conn + 0x1B0, color);
 }
+
+void __fastcall hooks::SetCameraMatrixHook(uintptr_t camera, uintptr_t edx, void* matrix4, float dt)
+{
+	uintptr_t fov = camera + 0xE4;
+	if (camera == g::fov::player)
+	{
+		if (g::fov::player_override)
+		{
+			WriteMemory<int>(fov, g::fov::player_fov);
+			SetCameraMatrix(camera, edx, matrix4, dt);
+		}
+		else
+		{
+			SetCameraMatrix(camera, edx, matrix4, dt);
+			g::fov::player_fov = ReadMemory<int>(fov);
+		}
+	}
+	else if (camera == g::fov::rvm)
+	{
+		if (g::fov::rvm_override)
+		{
+			WriteMemory<int>(fov, g::fov::rvm_fov);
+			SetCameraMatrix(camera, edx, matrix4, dt);
+		}
+		else
+		{
+			SetCameraMatrix(camera, edx, matrix4, dt);
+			g::fov::rvm_fov = ReadMemory<int>(fov);
+		}
+	}
+	else if (camera == g::fov::pip)
+	{
+		if (g::fov::pip_override)
+		{
+			WriteMemory<int>(fov, g::fov::pip_fov);
+			SetCameraMatrix(camera, edx, matrix4, dt);
+		}
+		else
+		{
+			SetCameraMatrix(camera, edx, matrix4, dt);
+			g::fov::pip_fov = ReadMemory<int>(fov);
+		}
+	}
+	else
+	{
+		SetCameraMatrix(camera, edx, matrix4, dt);
+	}
+}
+
 /*
 void* __cdecl hooks::PickRoadblockSetupHook(float width, int num_vehicles, bool use_spikes)
 {
@@ -708,16 +760,6 @@ void __fastcall hooks::WorldMapPadAcceptHook(uintptr_t fe_state_manager)
 	}
 
 	WorldMapPadAccept(fe_state_manager);
-}
-
-bool __fastcall hooks::WorldMapSnapHook(uintptr_t world_map)
-{
-	if (g::world_map::shift_held)
-	{
-		return 0;
-	}
-
-	return WorldMapSnap(world_map);
 }
 
 void __fastcall hooks::WorldMapButtonPressedHook(uintptr_t fe_state_manager, uintptr_t edx, uint32_t unk)

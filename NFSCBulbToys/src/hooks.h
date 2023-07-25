@@ -32,9 +32,6 @@ namespace hooks
 	void __fastcall WorldMapPadAcceptHook(uintptr_t fe_state_manager);
 	static inline decltype(&WorldMapPadAcceptHook) WorldMapPadAccept;
 
-	bool __fastcall WorldMapSnapHook(uintptr_t world_map);
-	static inline decltype(&WorldMapSnapHook) WorldMapSnap;
-
 	void __fastcall WorldMapShowDialogHook(uintptr_t fe_state_manager);
 	static inline decltype(&WorldMapShowDialogHook) WorldMapShowDialog;
 
@@ -88,6 +85,9 @@ namespace hooks
 
 	void __fastcall UpdateIconHook(uintptr_t car_render_conn, uintptr_t edx, uintptr_t pkt);
 	static inline decltype (&UpdateIconHook) UpdateIcon;
+
+	void __fastcall SetCameraMatrixHook(uintptr_t camera, uintptr_t edx, void* matrix4, float dt);
+	static inline decltype (&SetCameraMatrixHook) SetCameraMatrix;
 
 	//void* __cdecl PickRoadblockSetupHook(float width, int num_vehicles, bool use_spikes);
 	//static inline decltype (&PickRoadblockSetupHook) PickRoadblockSetup;

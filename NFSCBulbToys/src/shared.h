@@ -214,6 +214,22 @@ namespace g
 	{
 		inline nfsc::Vector3 target = { 0, 0, 0 };
 	}
+
+	// FOV overrides
+	namespace fov
+	{
+		constexpr uintptr_t player = 0xB1D520;
+		inline int player_fov = 0;
+		inline bool player_override = false;
+
+		constexpr uintptr_t rvm = 0xB1EE00;
+		inline int rvm_fov = 0;
+		inline bool rvm_override = false;
+
+		constexpr uintptr_t pip = 0xAB0C90;
+		inline int pip_fov = 0;
+		inline bool pip_override = false;
+	}
 	
 	// Wrong warp fix
 	namespace wrong_warp_fix

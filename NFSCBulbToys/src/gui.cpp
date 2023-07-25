@@ -993,44 +993,25 @@ void gui::Render()
 				ImGui::SameLine();
 				ImGui::Checkbox("Shortcut", &debug_shortcut);
 
-				// FOV
-				static int fov = 0;
-				uint16_t* fov_ptr = nullptr;
-				if (*nfsc::GameFlowManager_State == nfsc::gameflow_state::racing)
-				{
-					uintptr_t first_camera_director = ReadMemory<uintptr_t>(0xA8ACC4 + 4);
-					if (first_camera_director)
-					{
-						uintptr_t camera_director = ReadMemory<uintptr_t>(first_camera_director);
-						if (camera_director)
-						{
-							// Must be DebugCam
-							uintptr_t cd_action = ReadMemory<uintptr_t>(camera_director + 0x18);
-							if (cd_action && ReadMemory<uintptr_t>(cd_action) == 0x9C7EE0)
-							{
-								uintptr_t camera_mover = ReadMemory<uintptr_t>(cd_action + 0x2BC);
-								if (camera_mover)
-								{
-									uintptr_t camera = ReadMemory<uintptr_t>(camera_mover + 0x1C);
-									if (camera)
-									{
-										fov_ptr = reinterpret_cast<uint16_t*>(camera + 0xE4);
-										fov = *fov_ptr;
-									}
-								}
-							}
-						}
-					}
-				}
-				ImGui::BeginDisabled(!fov_ptr);
-				if (ImGui::MySliderInt("FOV", "##FOV", &fov, 0, 65535))
-				{
-					if (fov_ptr)
-					{
-						*fov_ptr = fov;
-					}
-				}
-				ImGui::EndDisabled();		
+				ImGui::Separator();
+
+				// Player FOV
+				ImGui::Checkbox("Player FOV:", &g::fov::player_override);
+				ImGui::BeginDisabled(!g::fov::player_override);
+				ImGui::SliderInt("##PFOV", &g::fov::player_fov, 0, 65535);
+				ImGui::EndDisabled();
+
+				// RVM FOV
+				ImGui::Checkbox("RVM FOV:", &g::fov::rvm_override);
+				ImGui::BeginDisabled(!g::fov::rvm_override);
+				ImGui::SliderInt("##RVMFOV", &g::fov::rvm_fov, 0, 65535);
+				ImGui::EndDisabled();
+
+				// PIP FOV
+				ImGui::Checkbox("PIP FOV:", &g::fov::pip_override);
+				ImGui::BeginDisabled(!g::fov::pip_override);
+				ImGui::SliderInt("##PIPFOV", &g::fov::pip_fov, 0, 65535);
+				ImGui::EndDisabled();
 			}
 
 			/* ===== PLAYER ===== */
