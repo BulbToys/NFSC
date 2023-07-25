@@ -26,6 +26,7 @@
     <ClInclude Include="ext\minhook\trampoline.h" />
     <ClInclude Include="src\nfsc.h" />
     <ClInclude Include="src\patches.h" />
+    <ClInclude Include="src\rev_count.h" />
     <ClInclude Include="src\shared.h" />
     <ClInclude Include="src\gui.h" />
     <ClInclude Include="src\hooks.h" />
