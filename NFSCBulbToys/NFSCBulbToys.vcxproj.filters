@@ -23,7 +23,6 @@
     <ClInclude Include="src\nfsc.h" />
     <ClInclude Include="ext\imgui\imgui_memory_editor.h" />
     <ClInclude Include="src\patches.h" />
-    <ClInclude Include="src\rev_count.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ext\imgui\imgui.cpp" />
