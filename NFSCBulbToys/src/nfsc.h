@@ -36,7 +36,7 @@ namespace nfsc
 		none              = 1,
 		racer             = 2,
 		traffic           = 3,
-		patrol            = 4
+		patrol            = 4,
 	};
 
 	inline const char* driver_classes[] = { "traffic", "cop", "racer", "none", "nis", "remote", "remote_racer", "ghost", "hub" };
@@ -52,13 +52,13 @@ namespace nfsc
 		remote_racer = 0x7,
 		ghost        = 0x8,
 		hub          = 0x9,
-		max          = 0xA
+		max          = 0xA,
 	};
 
 	enum class gameflow_state : int
 	{
 		in_frontend = 3,
-		racing      = 6
+		racing      = 6,
 	};
 
 	enum class race_type : int
@@ -89,7 +89,7 @@ namespace nfsc
 		none       = 0,
 		car        = 1,
 		barrier    = 2,
-		spikestrip = 3
+		spikestrip = 3,
 	};
 
 	inline const char* veh_lists[] = { "All", "Players", "AI", "AI Racers", "AI Cops", "AI Traffic", "Racers", "Remote", "Inactive", "Trailers", "Active Racers", "Ghosts" };
@@ -110,7 +110,6 @@ namespace nfsc
 		max          = 0xC,
 	};
 
-
 	enum vehicle_param_flags : uint32_t
 	{
 		spool_resources     = 0x1,
@@ -120,7 +119,26 @@ namespace nfsc
 		force_nos           = 0x10,
 		low_rez             = 0x20,
 		critical            = 0x40,
-		physics_only        = 0x80
+		physics_only        = 0x80,
+	};
+
+	enum class world_map_state : int
+	{
+		// Normal states
+		normal       = 3,
+		territories  = 4,
+		quick_list   = 5,
+		engage_event = 6,
+
+		// Dialog states
+		race_event = 13,
+		car_lot    = 16,
+		safehouse  = 17,
+
+		// Click TP states
+		click_tp      = 100,
+		click_tp_jump = 101,
+		click_tp_gps  = 102,
 	};
 
 	/* ===== GAME OBJECTS ===== */
@@ -355,7 +373,7 @@ namespace nfsc
 	FUNC(0x6C0C40, void, __thiscall, PVehicle_ForceStopOn, uintptr_t pvehicle, uint8_t force_stop);
 	FUNC(0x6C0C70, void, __thiscall, PVehicle_ForceStopOff, uintptr_t pvehicle, uint8_t force_stop);
 	FUNC(0x6D8110, uintptr_t, __thiscall, PVehicle_GetAIVehiclePtr, uintptr_t pvehicle);
-	FUNC(0x6D7F60, nfsc::driver_class, __thiscall, PVehicle_GetDriverClass, uintptr_t pvehicle);
+	FUNC(0x6D7F60, driver_class, __thiscall, PVehicle_GetDriverClass, uintptr_t pvehicle);
 	FUNC(0x6D7F80, uint8_t, __thiscall, PVehicle_GetForceStop, uintptr_t pvehicle);
 	FUNC(0x6D7EC0, uintptr_t, __thiscall, PVehicle_GetSimable, uintptr_t pvehicle);
 	FUNC(0x6D8070, float, __thiscall, PVehicle_GetSpeed, uintptr_t pvehicle);
@@ -469,7 +487,7 @@ namespace nfsc
 
 	void BulbToys_PathToTarget(uintptr_t ai_vehicle, Vector3* target);
 
-	void* BulbToys_RoadblockCalculations(nfsc::RoadblockSetup* setup, uintptr_t rigid_body);
+	void* BulbToys_RoadblockCalculations(RoadblockSetup* setup, uintptr_t rigid_body);
 
 	enum class sv_mode
 	{
@@ -529,7 +547,7 @@ namespace nfsc
 		PVehicle_SetVehicleOnGround(my_vehicle, &pos, &fwd);
 	}
 
-	void BulbToys_UpdateWorldMapCursor();
+	void BulbToys_UpdateWorldMapCursor(uintptr_t fe_state_manager);
 
 	/* ===== AI PLAYER ===== */
 	struct AIPlayer

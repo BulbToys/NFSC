@@ -5,23 +5,23 @@ uint32_t nfsc::ListableSet_GetGrowSizeVirtually(void* ls, uint32_t amount)
 	return reinterpret_cast<uint32_t(__thiscall*)(void*, uint32_t)>(VirtualFunction(reinterpret_cast<uintptr_t>(ls), 3))(ls, amount);
 }
 
-uintptr_t nfsc::BulbToys_CreatePursuitSimable(nfsc::driver_class dc)
+uintptr_t nfsc::BulbToys_CreatePursuitSimable(driver_class dc)
 {
-	uint32_t cop_key = nfsc::GKnockoutRacer_GetPursuitVehicleKey(1);
-	nfsc::Vector3 p = { 0, 0, 0 };
-	nfsc::Vector3 r = { 1, 0, 0 };
+	uint32_t cop_key = GKnockoutRacer_GetPursuitVehicleKey(1);
+	Vector3 p = { 0, 0, 0 };
+	Vector3 r = { 1, 0, 0 };
 
-	uintptr_t simable = nfsc::BulbToys_CreateSimable(ReadMemory<uintptr_t>(nfsc::GRaceStatus), dc, cop_key, &r, &p, nfsc::vehicle_param_flags::critical, 0, 0);
+	uintptr_t simable = BulbToys_CreateSimable(ReadMemory<uintptr_t>(GRaceStatus), dc, cop_key, &r, &p, vehicle_param_flags::critical, 0, 0);
 
 	return simable;
 }
 
 void nfsc::BulbToys_DrawObject(ImDrawList* draw_list, Vector3& position, Vector3& dimension, Vector3& fwd_vec, ImVec4& color, float thickness)
 {
-	nfsc::Matrix4 rotation;
-	nfsc::Util_GenerateMatrix(&rotation, &fwd_vec, 0);
+	Matrix4 rotation;
+	Util_GenerateMatrix(&rotation, &fwd_vec, 0);
 
-	nfsc::Vector3 dots[8] = {
+	Vector3 dots[8] = {
 		{ dimension.x, dimension.y, dimension.z },
 		{ -dimension.x, dimension.y, dimension.z },
 		{ dimension.x, dimension.y, -dimension.z },
@@ -37,7 +37,7 @@ void nfsc::BulbToys_DrawObject(ImDrawList* draw_list, Vector3& position, Vector3
 		(dots[0].y + dots[1].y) / 2 - dimension.y,
 		(dots[0].z + dots[1].z) / 2
 	};
-	reinterpret_cast<void(*)(nfsc::Vector3*, nfsc::Matrix4*, nfsc::Vector3*)>(0x401B50)(&front, &rotation, &front);
+	reinterpret_cast<void(*)(Vector3*, Matrix4*, Vector3*)>(0x401B50)(&front, &rotation, &front);
 	front.x += position.x;
 	front.y += position.y;
 	front.z += position.z;
@@ -45,13 +45,13 @@ void nfsc::BulbToys_DrawObject(ImDrawList* draw_list, Vector3& position, Vector3
 	for (int i = 0; i < 8; i++)
 	{
 		// UMath::Rotate
-		reinterpret_cast<void(*)(nfsc::Vector3*, nfsc::Matrix4*, nfsc::Vector3*)>(0x401B50)(&dots[i], &rotation, &dots[i]);
+		reinterpret_cast<void(*)(Vector3*, Matrix4*, Vector3*)>(0x401B50)(&dots[i], &rotation, &dots[i]);
 
 		dots[i].x += position.x;
 		dots[i].y += position.y;
 		dots[i].z += position.z;
 
-		nfsc::BulbToys_GetScreenPosition(dots[i], dots[i]);
+		BulbToys_GetScreenPosition(dots[i], dots[i]);
 	}
 
 	ImVec2 connections[12] = {
@@ -83,8 +83,8 @@ void nfsc::BulbToys_DrawObject(ImDrawList* draw_list, Vector3& position, Vector3
 
 	// Draw the forward line
 	Vector3 center;
-	nfsc::BulbToys_GetScreenPosition(position, center);
-	nfsc::BulbToys_GetScreenPosition(front, front);
+	BulbToys_GetScreenPosition(position, center);
+	BulbToys_GetScreenPosition(front, front);
 
 	if (center.z < 1.0f && front.z < 1.0f)
 	{
@@ -94,47 +94,49 @@ void nfsc::BulbToys_DrawObject(ImDrawList* draw_list, Vector3& position, Vector3
 
 void nfsc::BulbToys_DrawVehicleInfo(ImDrawList* draw_list, uintptr_t vehicle, vehicle_list type, ImVec4& color)
 {
+	// Distance at which the text stops rendering
 	constexpr float max_distance = 100.f;
 
 	// Vehicle can be either a pointer or the IVehicleList array index. If vehicle is a really small number, assume it's an array index
 	// For array indexes, just grab the vehicle at that index. Otherwise, iterate the list until the iterator pointer matches our pointer
 	uint32_t id = 0;
-	if (vehicle < nfsc::VehicleList[type]->size)
+	if (vehicle < VehicleList[type]->size)
 	{
 		id = vehicle;
-		vehicle = nfsc::VehicleList[type]->begin[id];
+		vehicle = VehicleList[type]->begin[id];
 	}
 	else
 	{
-		for (id = 0; id < nfsc::VehicleList[type]->size; id++)
+		for (id = 0; id < VehicleList[type]->size; id++)
 		{
-			if (nfsc::VehicleList[type]->begin[id] == vehicle)
+			if (VehicleList[type]->begin[id] == vehicle)
 			{
 				break;
 			}
 		}
 
-		if (id == nfsc::VehicleList[type]->size)
+		if (id == VehicleList[type]->size)
 		{
 			return;
 		}
 	}
 
-	uintptr_t other_rb = nfsc::PhysicsObject_GetRigidBody(nfsc::PVehicle_GetSimable(vehicle));
-	Vector3 other_position = *nfsc::RigidBody_GetPosition(other_rb);
+	uintptr_t other_rb = PhysicsObject_GetRigidBody(PVehicle_GetSimable(vehicle));
+	Vector3 other_position = *RigidBody_GetPosition(other_rb);
 
-	float distance = nfsc::Sim_DistanceToCamera(&other_position);
+	float distance = Sim_DistanceToCamera(&other_position);
 	if (distance > max_distance)
 	{
 		return;
 	}
 
 	Vector3 other_dims;
-	nfsc::RigidBody_GetDimension(other_rb, &other_dims);
+	RigidBody_GetDimension(other_rb, &other_dims);
 
+	// Put the text higher above the vehicle
 	other_position.y += other_dims.y * 5;
 
-	nfsc::BulbToys_GetScreenPosition(other_position, other_position);
+	BulbToys_GetScreenPosition(other_position, other_position);
 
 	// why the fuck
 	if (!isfinite(other_position.x) || !isfinite(other_position.y) || !isfinite(other_position.z))
@@ -143,7 +145,7 @@ void nfsc::BulbToys_DrawVehicleInfo(ImDrawList* draw_list, uintptr_t vehicle, ve
 	}
 
 	char text[32];
-	sprintf_s(text, 32, "%s (%d)", nfsc::PVehicle_GetVehicleName(vehicle), id);
+	sprintf_s(text, 32, "%s (%d)", PVehicle_GetVehicleName(vehicle), id);
 
 	ImVec2 text_size = ImGui::CalcTextSize(text);
 	if (other_position.z < 1.0)
@@ -167,7 +169,7 @@ uintptr_t nfsc::BulbToys_GetAIVehicleGoal(uintptr_t ai_vehicle_ivehicleai)
 
 const char* nfsc::BulbToys_GetCameraName()
 {
-	if (*nfsc::GameFlowManager_State != nfsc::gameflow_state::racing)
+	if (*GameFlowManager_State != gameflow_state::racing)
 	{
 		return "";
 	}
@@ -196,12 +198,12 @@ int nfsc::BulbToys_GetPVehicleTier(uintptr_t pvehicle)
 
 void nfsc::BulbToys_GetScreenPosition(Vector3& world, Vector3& screen)
 {
-	nfsc::Vector4 out, input { world.z, -world.x, world.y, 1.0 };
+	Vector4 out, input = { world.z, -world.x, world.y, 1.0 };
 
-	nfsc::Matrix4 proj = ReadMemory<nfsc::Matrix4>((0xB1A780 + 1 * 0x1A0) + 0x80);
+	Matrix4 proj = ReadMemory<Matrix4>((0xB1A780 + 1 * 0x1A0) + 0x80);
 
 	// D3DXVec4Transform
-	reinterpret_cast<nfsc::Vector4*(__stdcall*)(nfsc::Vector4*, nfsc::Vector4*, nfsc::Matrix4*)>(0x86B29C)(&out, &input, &proj);
+	reinterpret_cast<Vector4*(__stdcall*)(Vector4*, Vector4*, Matrix4*)>(0x86B29C)(&out, &input, &proj);
 
 	float i_w = 1.0f / out.w;
 	out.x *= i_w;
@@ -234,9 +236,9 @@ float nfsc::BulbToys_GetStreetWidth(Vector3* position, Vector3* direction, float
 
 		uint8_t pad4[0x14]{ 0 };
 
-		nfsc::Vector3 fLeftPosition = { 0, 0, 0 };
-		nfsc::Vector3 fRightPosition = { 0, 0, 0 };
-		nfsc::Vector3 fForwardVector = { 0, 0, 0 };
+		Vector3 fLeftPosition = { 0, 0, 0 };
+		Vector3 fRightPosition = { 0, 0, 0 };
+		Vector3 fForwardVector = { 0, 0, 0 };
 
 		uint8_t pad5[0x248]{ 0 };
 
@@ -264,7 +266,7 @@ float nfsc::BulbToys_GetStreetWidth(Vector3* position, Vector3* direction, float
 	}
 
 	// WRoadNav::IncNavPosition(&nav, distance, &UMath::Vector3::kZero, 0.0, 0);
-	reinterpret_cast<void(__thiscall*)(WRoadNav&, float, Vector3*, float, bool)>(0x80C600)(nav, distance, nfsc::ZeroV3, 0.0, 0);
+	reinterpret_cast<void(__thiscall*)(WRoadNav&, float, Vector3*, float, bool)>(0x80C600)(nav, distance, ZeroV3, 0.0, 0);
 
 	// segment = &WRoadNetwork::fSegments[nav.fSegmentInd];
 	uintptr_t segment = ReadMemory<uintptr_t>(0xB77ECC) + 0x16 * nav.fSegmentInd;
@@ -317,7 +319,7 @@ float nfsc::BulbToys_GetStreetWidth(Vector3* position, Vector3* direction, float
 	}
 
 	// nav.fRightPosition & nav.fLeftPosition
-	float width = nfsc::UMath_Distance(&nav.fRightPosition, &nav.fLeftPosition);
+	float width = UMath_Distance(&nav.fRightPosition, &nav.fLeftPosition);
 
 	// WRoadNav::~WRoadNav(&nav);
 	reinterpret_cast<void(__thiscall*)(WRoadNav&)>(0x7F7BF0)(nav);
@@ -327,19 +329,19 @@ float nfsc::BulbToys_GetStreetWidth(Vector3* position, Vector3* direction, float
 
 nfsc::race_type nfsc::BulbToys_GetRaceType()
 {
-	uintptr_t g_race_status = ReadMemory<uintptr_t>(nfsc::GRaceStatus);
+	uintptr_t g_race_status = ReadMemory<uintptr_t>(GRaceStatus);
 	if (!g_race_status)
 	{
-		return nfsc::race_type::none;
+		return race_type::none;
 	}
 
 	uintptr_t race_parameters = ReadMemory<uintptr_t>(g_race_status + 0x6A1C);
 	if (!race_parameters)
 	{
-		return nfsc::race_type::none;
+		return race_type::none;
 	}
 
-	return reinterpret_cast<nfsc::race_type(__thiscall*)(uintptr_t)>(0x6136A0)(race_parameters);
+	return reinterpret_cast<race_type(__thiscall*)(uintptr_t)>(0x6136A0)(race_parameters);
 }
 
 // Returns false if we're not in Debug Cam
@@ -438,7 +440,7 @@ void nfsc::BulbToys_PathToTarget(uintptr_t ai_vehicle, Vector3* target)
 	nfsc::WRoadNav_FindPath(road_nav, target, nullptr, 1);
 }
 
-void* nfsc::BulbToys_RoadblockCalculations(nfsc::RoadblockSetup* setup, uintptr_t rigid_body)
+void* nfsc::BulbToys_RoadblockCalculations(RoadblockSetup* setup, uintptr_t rigid_body)
 {
 	// Reference point for calculating street width
 	nfsc::Vector3 sw_position;
@@ -455,8 +457,6 @@ void* nfsc::BulbToys_RoadblockCalculations(nfsc::RoadblockSetup* setup, uintptr_
 		sw_position = *nfsc::RigidBody_GetPosition(rigid_body);
 		nfsc::RigidBody_GetForwardVector(rigid_body, &sw_fwd_vec);
 	}
-
-
 
 	// Distance from reference point to where the roadblock should be calculated
 	// This uses the same value as gameplay logic and is adjustable in the GUI
@@ -659,10 +659,10 @@ bool nfsc::BulbToys_SwitchVehicle(uintptr_t simable, uintptr_t simable2, sv_mode
 			nfsc::PVehicle_ForceStopOff(vehicle, 0x10);
 		}
 
-		if (nfsc::BulbToys_GetRaceType() != nfsc::race_type::none)
+		if (BulbToys_GetRaceType() != race_type::none)
 		{
-			uintptr_t racer_info = nfsc::GRaceStatus_GetRacerInfo2(ReadMemory<uintptr_t>(nfsc::GRaceStatus), simable);
-			nfsc::GRacerInfo_SetSimable(racer_info, simable2);
+			uintptr_t racer_info = GRaceStatus_GetRacerInfo2(ReadMemory<uintptr_t>(nfsc::GRaceStatus), simable);
+			GRacerInfo_SetSimable(racer_info, simable2);
 		}
 
 		/*
@@ -689,13 +689,13 @@ bool nfsc::BulbToys_SwitchVehicle(uintptr_t simable, uintptr_t simable2, sv_mode
 		// todo: fix camera
 		// todo: eloadingscreenoff/on
 
-		nfsc::PhysicsObject_Kill(simable);
+		PhysicsObject_Kill(simable);
 	}
 
-	nfsc::EAXSound_StartNewGamePlay(ReadMemory<uintptr_t>(0xA8BA38));
+	EAXSound_StartNewGamePlay(ReadMemory<uintptr_t>(0xA8BA38));
 
 	// Call ResetHUDType virtually (ie. our AIPlayer class uses OnlineRemotePlayer::ResetHUDType)
-	reinterpret_cast<decltype(nfsc::LocalPlayer_ResetHUDType)>(VirtualFunction(player, 9))(player, 1);
+	reinterpret_cast<decltype(LocalPlayer_ResetHUDType)>(VirtualFunction(player, 9))(player, 1);
 
 	return true;
 }
@@ -704,7 +704,7 @@ void __fastcall nfsc::BulbToys_SwitchPTagTarget(uintptr_t race_status, bool bust
 {
 	// Store information about our current runner here
 	int runner_index = -1;
-	uintptr_t runner_simable = nfsc::GRaceStatus_GetRacePursuitTarget(race_status, &runner_index);
+	uintptr_t runner_simable = GRaceStatus_GetRacePursuitTarget(race_status, &runner_index);
 
 	// Store information about our soon-to-be runner here
 	int min_index = -1;
@@ -712,17 +712,17 @@ void __fastcall nfsc::BulbToys_SwitchPTagTarget(uintptr_t race_status, bool bust
 
 	// Find the cop car closest to the current runner's car (minimum distance between the racer and each of the cop cars)
 	// TODO: use pursuit contribution instead?
-	for (int i = 0; i < nfsc::GRaceStatus_GetRacerCount(race_status); i++)
+	for (int i = 0; i < GRaceStatus_GetRacerCount(race_status); i++)
 	{
 		if (i == runner_index)
 		{
 			continue;
 		}
 
-		uintptr_t racer_info = nfsc::GRaceStatus_GetRacerInfo(race_status, i);
-		uintptr_t simable = nfsc::GRacerInfo_GetSimable(racer_info);
+		uintptr_t racer_info = GRaceStatus_GetRacerInfo(race_status, i);
+		uintptr_t simable = GRacerInfo_GetSimable(racer_info);
 
-		float distance = nfsc::BulbToys_GetDistanceBetween(runner_simable, simable);
+		float distance = BulbToys_GetDistanceBetween(runner_simable, simable);
 		if (distance < min)
 		{
 			min_index = i;
@@ -735,16 +735,16 @@ void __fastcall nfsc::BulbToys_SwitchPTagTarget(uintptr_t race_status, bool bust
 	// As a workaround, we're calling Game_TagPursuit two extra times here
 	// We specifically set busted to true because it doesn't increment the runner's time incorrectly here (false indicates an evasion, which gives the racer a time bonus)
 	// However, we do fuck up the "number of busts/number of times busted" stats for these racers, which will need to be unfucked (TODO?)
-	nfsc::Game_TagPursuit(runner_index, min_index, true);
-	nfsc::Game_TagPursuit(runner_index, min_index, true);
+	Game_TagPursuit(runner_index, min_index, true);
+	Game_TagPursuit(runner_index, min_index, true);
 
 	// Call Game_TagPursuit as intended
-	nfsc::Game_TagPursuit(runner_index, min_index, busted);
+	Game_TagPursuit(runner_index, min_index, busted);
 
 	// FIXME: AI TARGETING LOGIC GOES HERE
 }
 
-void nfsc::BulbToys_UpdateWorldMapCursor()
+void nfsc::BulbToys_UpdateWorldMapCursor(uintptr_t fe_state_manager)
 {
 	nfsc::FEColor color = { 255, 255, 255, 255 }; // white/none
 	auto world_map = ReadMemory<uintptr_t>(nfsc::WorldMap);
@@ -753,65 +753,71 @@ void nfsc::BulbToys_UpdateWorldMapCursor()
 	{
 		if (g::world_map::shift_held)
 		{
-			color = { 0, 0, 255, 255 }; // red
-
-			auto track_info = ReadMemory<uintptr_t>(0xB69BA0);
-
-			// Get the current position of the cursor relative to the screen
-			float x, y;
-			nfsc::FE_Object_GetCenter(ReadMemory<uintptr_t>(world_map + 0x28), &x, &y);
-
-			// Account for WorldMap pan
-			nfsc::Vector2 temp;
-			temp.x = x;
-			temp.y = y;
-
-			nfsc::WorldMap_GetPanFromMapCoordLocation(world_map, &temp, &temp);
-
-			x = temp.x;
-			y = temp.y;
-
-			// Account for WorldMap zoom
-			nfsc::Vector2 top_left = ReadMemory<nfsc::Vector2>(world_map + 0x44);
-			nfsc::Vector2 size = ReadMemory<nfsc::Vector2>(world_map + 0x4C);
-
-			x = x * size.x + top_left.x;
-			y = y * size.y + top_left.y;
-
-			// Inverse WorldMap::ConvertPos to get world coordinates
-			float calibration_width = ReadMemory<float>(track_info + 0xB4);
-			float calibration_offset_x = ReadMemory<float>(track_info + 0xAC);
-			float calibration_offset_y = ReadMemory<float>(track_info + 0xB0);
-
-			x = x - top_left.x;
-			y = y - top_left.y;
-			x = x / size.x;
-			y = y / size.y;
-			y = y - 1.0f;
-			y = y * calibration_width;
-			x = x * calibration_width;
-			x = x + calibration_offset_x;
-			y = -y;
-			y = y - calibration_offset_y - calibration_width;
-
-			// Inverse GetVehicleVectors to get position from world coordinates
-			g::world_map::location.x = -y;
-			g::world_map::location.y = 0; // z
-			g::world_map::location.z = x;
-
-			// Attempt to get world height at given position
-			nfsc::WCollisionMgr mgr;
-			mgr.fSurfaceExclusionMask = 0;
-			mgr.fPrimitiveMask = 3;
-
-			float height = NAN;
-			if (nfsc::WCollisionMgr_GetWorldHeightAtPointRigorous(mgr, &g::world_map::location, &height, nullptr))
+			// Only change the color for the "normal" mode of the world map (not quick list, etc...)
+			if (ReadMemory<world_map_state>(fe_state_manager + 4) == world_map_state::normal)
 			{
-				color = { 0, 255, 0, 255 }; // green
+				color = { 0, 0, 255, 255 }; // red
+
+				// Get the current position of the cursor relative to the screen
+				float x, y;
+				nfsc::FE_Object_GetCenter(ReadMemory<uintptr_t>(world_map + 0x28), &x, &y);
+
+				// Account for WorldMap pan
+				nfsc::Vector2 temp;
+				temp.x = x;
+				temp.y = y;
+
+				nfsc::WorldMap_GetPanFromMapCoordLocation(world_map, &temp, &temp);
+
+				x = temp.x;
+				y = temp.y;
+
+				// Account for WorldMap zoom
+				nfsc::Vector2 top_left = ReadMemory<nfsc::Vector2>(world_map + 0x44);
+				nfsc::Vector2 size = ReadMemory<nfsc::Vector2>(world_map + 0x4C);
+
+				x = x * size.x + top_left.x;
+				y = y * size.y + top_left.y;
+
+				// Inverse WorldMap::ConvertPos to get world coordinates
+				auto track_info = ReadMemory<uintptr_t>(0xB69BA0);
+
+				float calibration_width = ReadMemory<float>(track_info + 0xB4);
+				float calibration_offset_x = ReadMemory<float>(track_info + 0xAC);
+				float calibration_offset_y = ReadMemory<float>(track_info + 0xB0);
+
+				x = x - top_left.x;
+				y = y - top_left.y;
+				x = x / size.x;
+				y = y / size.y;
+				y = y - 1.0f;
+				y = y * calibration_width;
+				x = x * calibration_width;
+				x = x + calibration_offset_x;
+				y = -y;
+				y = y - calibration_offset_y - calibration_width;
+
+				// Inverse GetVehicleVectors to get position from world coordinates
+				g::world_map::location.x = -y;
+				g::world_map::location.y = 0; // z
+				g::world_map::location.z = x;
+
+				// Attempt to get world height at given position
+				nfsc::WCollisionMgr mgr;
+				mgr.fSurfaceExclusionMask = 0;
+				mgr.fPrimitiveMask = 3;
+
+				float height = NAN;
+				if (nfsc::WCollisionMgr_GetWorldHeightAtPointRigorous(mgr, &g::world_map::location, &height, nullptr))
+				{
+					// Successful
+					color = { 0, 255, 0, 255 }; // green
+				}
+				g::world_map::location.y = height;
 			}
-			g::world_map::location.y = height;
 		}
 
+		// WorldMap->mEventIconGlow
 		nfsc::FE_Object_SetColor(ReadMemory<uintptr_t>(world_map + 0x28), &color);
 	}
 }

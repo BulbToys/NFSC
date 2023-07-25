@@ -698,12 +698,12 @@ void* __cdecl hooks::PickRoadblockSetupHook(float width, int num_vehicles, bool 
 void __fastcall hooks::WorldMapPadAcceptHook(uintptr_t fe_state_manager)
 {
 	// mCurrentState
-	auto type = ReadMemory<int>(fe_state_manager + 4);
+	auto state = ReadMemory<nfsc::world_map_state>(fe_state_manager + 4);
 
-	if (g::world_map::shift_held && type == 3)
+	if (g::world_map::shift_held && state == nfsc::world_map_state::normal)
 	{
 		reinterpret_cast<void(__thiscall*)(uintptr_t, bool)>(0x582D90)(ReadMemory<uintptr_t>(nfsc::WorldMap), true);
-		nfsc::FEStateManager_ShowDialog(fe_state_manager, (int)g::world_map::state::click_tp);
+		nfsc::FEStateManager_ShowDialog(fe_state_manager, (int)nfsc::world_map_state::click_tp);
 		return;
 	}
 
@@ -723,7 +723,7 @@ bool __fastcall hooks::WorldMapSnapHook(uintptr_t world_map)
 void __fastcall hooks::WorldMapButtonPressedHook(uintptr_t fe_state_manager, uintptr_t edx, uint32_t unk)
 {
 	// mCurrentState
-	auto type = ReadMemory<g::world_map::state>(fe_state_manager + 4);
+	auto state = ReadMemory<nfsc::world_map_state>(fe_state_manager + 4);
 
 	uintptr_t dialog_screen = ReadMemory<uintptr_t>(0xA97B14);
 	if (!dialog_screen)
@@ -734,20 +734,20 @@ void __fastcall hooks::WorldMapButtonPressedHook(uintptr_t fe_state_manager, uin
 
 	uint32_t* button_hashes = ReadMemory<uint32_t*>(dialog_screen + 0x2C);
 
-	if (type == g::world_map::state::click_tp)
+	if (state == nfsc::world_map_state::click_tp)
 	{
 		if (*nfsc::GameFlowManager_State == nfsc::gameflow_state::racing && !isnan(g::world_map::location.y))
 		{
 			// First button - Jump to Location
 			if (unk == button_hashes[0])
 			{
-				nfsc::FEStateManager_ChangeState(fe_state_manager, (int)g::world_map::state::click_tp_jump);
+				nfsc::FEStateManager_ChangeState(fe_state_manager, (int)nfsc::world_map_state::click_tp_jump);
 			}
 
 			// Second button - Activate GPS
 			else if (unk == button_hashes[1])
 			{
-				nfsc::FEStateManager_ChangeState(fe_state_manager, (int)g::world_map::state::click_tp_gps);
+				nfsc::FEStateManager_ChangeState(fe_state_manager, (int)nfsc::world_map_state::click_tp_gps);
 			}
 
 			// Third button - Cancel
@@ -769,7 +769,7 @@ void __fastcall hooks::WorldMapButtonPressedHook(uintptr_t fe_state_manager, uin
 	// Only offer GPS if the option is enabled and we're not in FE
 	if (g::world_map::gps_only && *nfsc::GameFlowManager_State == nfsc::gameflow_state::racing)
 	{
-		if (type == g::world_map::state::race_event || type == g::world_map::state::car_lot || type == g::world_map::state::safehouse)
+		if (state == nfsc::world_map_state::race_event || state == nfsc::world_map_state::car_lot || state == nfsc::world_map_state::safehouse)
 		{
 			// For these types of dialogs, use the button hashes of the GPS to safehouse prompt during pursuits
 			//WriteMemory<int>(fe_state_manager + 4, 18);
@@ -798,9 +798,9 @@ void __fastcall hooks::WorldMapButtonPressedHook(uintptr_t fe_state_manager, uin
 void __fastcall hooks::WorldMapStateChangeHook(uintptr_t fe_state_manager)
 {
 	// mCurrentState
-	auto type = ReadMemory<g::world_map::state>(fe_state_manager + 4);
+	auto state = ReadMemory<nfsc::world_map_state>(fe_state_manager + 4);
 
-	if (type == g::world_map::state::click_tp_jump)
+	if (state == nfsc::world_map_state::click_tp_jump)
 	{
 		uintptr_t vehicle = 0;
 		uintptr_t simable = 0;
@@ -835,7 +835,7 @@ void __fastcall hooks::WorldMapStateChangeHook(uintptr_t fe_state_manager)
 
 		return;
 	}
-	else if (type == g::world_map::state::click_tp_gps)
+	else if (state == nfsc::world_map_state::click_tp_gps)
 	{
 		if (nfsc::GPS_Engage(&g::world_map::location, 0.0, false))
 		{
@@ -881,15 +881,16 @@ void __fastcall hooks::WorldMapStateChangeHook(uintptr_t fe_state_manager)
 
 void __fastcall hooks::WorldMapScreenTickHook(uintptr_t fe_state_manager)
 {
-	nfsc::BulbToys_UpdateWorldMapCursor();
+	nfsc::BulbToys_UpdateWorldMapCursor(fe_state_manager);
 
 	WorldMapScreenTick(fe_state_manager);
 }
 
+// The "2" key
 void __fastcall hooks::WorldMapButton4Hook(uintptr_t fe_state_manager)
 {
-	// if (this->mCurState == 6)
-	if (g::wrong_warp_fix::enabled && ReadMemory<int>(fe_state_manager + 4) == 6)
+	// Correctly set FEManager's event key if we press the "Select wingman" button when interacting with an event's engagement ring
+	if (g::wrong_warp_fix::enabled && ReadMemory<nfsc::world_map_state>(fe_state_manager + 4) == nfsc::world_map_state::engage_event)
 	{
 		// FEManager::mInstance->mEventKey = WorldMap::GetEventHash(WorldMap::mInstance);
 		WriteMemory<uint32_t>(ReadMemory<uintptr_t>(0xA97A7C) + 0xEC,
@@ -906,9 +907,9 @@ void __fastcall hooks::WorldMapShowDialogHook(uintptr_t fe_state_manager)
 	const char* DIALOG_MSG_ACTIVATE_GPS = nfsc::GetLocalizedString(0x6EB0EACE);
 
 	// mCurrentState
-	auto type = ReadMemory<g::world_map::state>(fe_state_manager + 4);
+	auto type = ReadMemory<nfsc::world_map_state>(fe_state_manager + 4);
 
-	if (type == g::world_map::state::click_tp)
+	if (type == nfsc::world_map_state::click_tp)
 	{
 		WriteMemory<bool>(0xA97B38, false);
 
@@ -932,7 +933,7 @@ void __fastcall hooks::WorldMapShowDialogHook(uintptr_t fe_state_manager)
 	// Only offer GPS if the option is enabled and we're not in FE
 	if (g::world_map::gps_only && *nfsc::GameFlowManager_State == nfsc::gameflow_state::racing)
 	{
-		if (type == g::world_map::state::race_event)
+		if (type == nfsc::world_map_state::race_event)
 		{
 			// Unhide the cursor and show the dialog with its respective string
 			WriteMemory<bool>(0xA97B38, false);
@@ -941,7 +942,7 @@ void __fastcall hooks::WorldMapShowDialogHook(uintptr_t fe_state_manager)
 			nfsc::FEDialogScreen_ShowDialog(nfsc::GetLocalizedString(0xCF93709B), DIALOG_MSG_ACTIVATE_GPS, COMMON_CANCEL, nullptr);
 			return;
 		}
-		else if (type == g::world_map::state::car_lot)
+		else if (type == nfsc::world_map_state::car_lot)
 		{
 			WriteMemory<bool>(0xA97B38, false);
 			
@@ -950,7 +951,7 @@ void __fastcall hooks::WorldMapShowDialogHook(uintptr_t fe_state_manager)
 
 			return;
 		}
-		else if (type == g::world_map::state::safehouse)
+		else if (type == nfsc::world_map_state::safehouse)
 		{
 			WriteMemory<bool>(0xA97B38, false);
 

@@ -156,17 +156,6 @@ namespace g
 	// GPS only
 	namespace world_map
 	{
-		enum class state : int
-		{
-			race_event = 13,
-			car_lot = 16,
-			safehouse = 17,
-
-			click_tp = 100,
-			click_tp_jump = 101,
-			click_tp_gps = 102
-		};
-
 		inline bool gps_only = false;
 		inline bool shift_held = false;
 
