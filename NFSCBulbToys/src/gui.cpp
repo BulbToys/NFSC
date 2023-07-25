@@ -1637,7 +1637,7 @@ void gui::Render()
 		ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoBackground))
 	{
 		/* ===== MAIN ===== */
-		ImGui::Text("Powered by BulbToys %d - " __DATE__ " " __TIME__, REV_COUNT);
+		ImGui::Text("Powered by BulbToys %d - " __DATE__ " " __TIME__, REV_COUNT + 1);
 		auto draw_list = ImGui::GetWindowDrawList();
 
 		/* ===== COORDS ===== */
