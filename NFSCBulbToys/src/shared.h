@@ -10,6 +10,8 @@
 #include "hooks.h"
 #include "patches.h"
 
+#include "rev_count.h"
+
 /* === Main project stuff === */
 
 #define PROJECT_NAME "NFSC Bulb Toys"

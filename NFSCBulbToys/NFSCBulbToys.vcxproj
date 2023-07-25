@@ -26,6 +26,7 @@
     <ClInclude Include="ext\minhook\trampoline.h" />
     <ClInclude Include="src\nfsc.h" />
     <ClInclude Include="src\patches.h" />
+    <ClInclude Include="src\rev_count.h" />
     <ClInclude Include="src\shared.h" />
     <ClInclude Include="src\gui.h" />
     <ClInclude Include="src\hooks.h" />
@@ -98,6 +99,9 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>d3d9.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <PreBuildEvent>
+      <Command>echo #pragma once &gt; src/rev_count.h &amp; echo|set /p="#define REV_COUNT " &gt;&gt; src/rev_count.h &amp; git rev-list --count master &gt;&gt; src/rev_count.h</Command>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
