@@ -81,7 +81,7 @@ bool hooks::SetupPart2(uintptr_t device)
 	// GPS only mode
 	// Wrong warp fix
 	CreateHook(0x5B3850, &WorldMapPadAcceptHook, &WorldMapPadAccept);
-	CreateHook(0x5C3330, &WorldMapSnapHook, &WorldMapSnap);
+	//CreateHook(0x5C3330, &WorldMapSnapHook, &WorldMapSnap);
 	CreateHook(0x5CF890, &WorldMapShowDialogHook, &WorldMapShowDialog);
 	CreateHook(0x5B3570, &WorldMapButtonPressedHook, &WorldMapButtonPressed);
 	CreateHook(0x5B3A10, &WorldMapStateChangeHook, &WorldMapStateChange);
@@ -817,7 +817,7 @@ void __fastcall hooks::WorldMapStateChangeHook(uintptr_t fe_state_manager)
 
 		nfsc::Vector3 dimensions;
 		nfsc::RigidBody_GetDimension(rigid_body, &dimensions);
-		g::world_map::location.y += dimensions.y + 0.5;
+		g::world_map::location.y += dimensions.y + 0.5f;
 
 		nfsc::PVehicle_SetVehicleOnGround(vehicle, &g::world_map::location, &fwd_vec);
 

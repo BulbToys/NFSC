@@ -403,7 +403,7 @@ void gui::Render()
 			// Iterate through lists until we find one with vehicles
 			// Need to do this here and not in MyInputInt because our size will not update accordingly otherwise
 			// Will infinitely loop if there are zero vehicles, but this should never happen
-			size_t size = nfsc::VehicleList[*list]->size;
+			int size = nfsc::VehicleList[*list]->size;
 			while (size == 0)
 			{
 				*i = 0;
@@ -684,13 +684,13 @@ void gui::Render()
 			// Street width at X distance: Y
 			ImGui::Text("Street width (at %.2f distance):", ReadMemory<float>(0x44529C));
 			ImGui::SameLine();
-			if (!ri || isnan(ri->width))
+			if (ri)
 			{
-				ImGui::TextColored(ImVec4(1, 0, 0, 1), "N/A"); // red
+				ImGui::TextColored(ri->line_color, "%.2f", ri->width);
 			}
 			else
 			{
-				ImGui::TextColored(ri->line_color, "%.2f", ri->width);
+				ImGui::TextColored(ImVec4(1, 0, 0, 1), "N/A"); // red
 			}
 
 			// Overlay
@@ -1730,17 +1730,10 @@ void gui::Render()
 		{
 			ImGui::Text("Street width (at %.2f distance):", ReadMemory<float>(0x44529C));
 			ImGui::SameLine();
-			if (!ri || isnan(ri->width))
-			{
-				ImGui::TextColored(ImVec4(1, 0, 0, 1), "N/A"); // red
-			}
-			else
+			if (ri)
 			{
 				ImGui::TextColored(ri->line_color, "%.2f", ri->width);
-			}
 
-			if (ri && !isnan(ri->width))
-			{
 				if (ri->line_valid)
 				{
 					draw_list->AddLine(ri->line_min, ri->line_max, ImGui::ColorConvertFloat4ToU32(ri->line_color), ImGui::DynamicDistance(ri->line_center));
@@ -1755,6 +1748,10 @@ void gui::Render()
 						nfsc::BulbToys_DrawObject(draw_list, o->position, o->dimension, o->fwd_vec, o->color, ImGui::DynamicDistance(o->position));
 					}
 				}
+			}
+			else
+			{
+				ImGui::TextColored(ImVec4(1, 0, 0, 1), "N/A"); // red
 			}
 		}
 

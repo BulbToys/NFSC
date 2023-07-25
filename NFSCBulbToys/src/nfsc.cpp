@@ -345,9 +345,9 @@ nfsc::race_type nfsc::BulbToys_GetRaceType()
 }
 
 // Returns false if we're not in Debug Cam
-bool nfsc::BulbToys_GetDebugCamCoords(nfsc::Vector3* position , nfsc::Vector3* fwd_vec)
+bool nfsc::BulbToys_GetDebugCamCoords(Vector3* position , Vector3* fwd_vec)
 {
-	if (*nfsc::GameFlowManager_State != nfsc::gameflow_state::racing)
+	if (*GameFlowManager_State != gameflow_state::racing)
 	{
 		return false;
 	}
@@ -386,19 +386,19 @@ bool nfsc::BulbToys_GetDebugCamCoords(nfsc::Vector3* position , nfsc::Vector3* f
 
 bool nfsc::BulbToys_GetMyVehicle(uintptr_t* my_vehicle, uintptr_t* my_simable)
 {
-	if (*nfsc::GameFlowManager_State == nfsc::gameflow_state::racing)
+	if (*GameFlowManager_State == gameflow_state::racing)
 	{
-		for (int i = 0; i < (int)nfsc::VehicleList[nfsc::vehicle_list::players]->size; i++)
+		for (int i = 0; i < (int)VehicleList[vehicle_list::players]->size; i++)
 		{
-			uintptr_t vehicle = nfsc::VehicleList[nfsc::vehicle_list::players]->begin[i];
+			uintptr_t vehicle = VehicleList[vehicle_list::players]->begin[i];
 
 			if (vehicle)
 			{
-				uintptr_t simable = nfsc::PVehicle_GetSimable(vehicle);
+				uintptr_t simable = PVehicle_GetSimable(vehicle);
 
 				if (simable)
 				{
-					uintptr_t player = nfsc::PhysicsObject_GetPlayer(simable);
+					uintptr_t player = PhysicsObject_GetPlayer(simable);
 
 					// RecordablePlayer::`vftable'{for `IPlayer'}
 					if (player && ReadMemory<uintptr_t>(player) == 0x9EC8C0)
@@ -437,33 +437,34 @@ void nfsc::BulbToys_PathToTarget(uintptr_t ai_vehicle, Vector3* target)
 		return;
 	}
 
-	nfsc::WRoadNav_FindPath(road_nav, target, nullptr, 1);
+	WRoadNav_FindPath(road_nav, target, nullptr, 1);
 }
 
+// Does not return RoadblockInfo if street width calculation is unsuccessful (ie. width = NAN)
 void* nfsc::BulbToys_RoadblockCalculations(RoadblockSetup* setup, uintptr_t rigid_body)
 {
 	// Reference point for calculating street width
-	nfsc::Vector3 sw_position;
-	nfsc::Vector3 sw_fwd_vec;
+	Vector3 sw_position;
+	Vector3 sw_fwd_vec;
 	if (!rigid_body)
 	{
-		if (!nfsc::BulbToys_GetDebugCamCoords(&sw_position, &sw_fwd_vec))
+		if (!BulbToys_GetDebugCamCoords(&sw_position, &sw_fwd_vec))
 		{
 			return nullptr;
 		}
 	}
 	else
 	{
-		sw_position = *nfsc::RigidBody_GetPosition(rigid_body);
-		nfsc::RigidBody_GetForwardVector(rigid_body, &sw_fwd_vec);
+		sw_position = *RigidBody_GetPosition(rigid_body);
+		RigidBody_GetForwardVector(rigid_body, &sw_fwd_vec);
 	}
 
 	// Distance from reference point to where the roadblock should be calculated
 	// This uses the same value as gameplay logic and is adjustable in the GUI
 	float distance = ReadMemory<float>(0x44529C);
 
-	nfsc::Vector3 nav_left_pos, nav_right_pos, nav_fwd_vec;
-	float width = nfsc::BulbToys_GetStreetWidth(&sw_position, &sw_fwd_vec, distance, &nav_left_pos, &nav_right_pos, &nav_fwd_vec) + 1.0;
+	Vector3 nav_left_pos, nav_right_pos, nav_fwd_vec;
+	float width = BulbToys_GetStreetWidth(&sw_position, &sw_fwd_vec, distance, &nav_left_pos, &nav_right_pos, &nav_fwd_vec) + 1.0f;
 	
 	// Street width calculation successful
 	if (!isnan(width))
@@ -474,9 +475,9 @@ void* nfsc::BulbToys_RoadblockCalculations(RoadblockSetup* setup, uintptr_t rigi
 		ri->width = width;
 		ri->line_color = ImVec4(1, 0, 0, 1); // red
 
-		nfsc::Vector3 left_pos_sp, right_pos_sp;
-		nfsc::BulbToys_GetScreenPosition(nav_left_pos, left_pos_sp);
-		nfsc::BulbToys_GetScreenPosition(nav_right_pos, right_pos_sp);
+		Vector3 left_pos_sp, right_pos_sp;
+		BulbToys_GetScreenPosition(nav_left_pos, left_pos_sp);
+		BulbToys_GetScreenPosition(nav_right_pos, right_pos_sp);
 
 		// Only valid if the Z coordinates are under 1
 		if (left_pos_sp.z < 1.0f && right_pos_sp.z < 1.0f)
@@ -505,10 +506,10 @@ void* nfsc::BulbToys_RoadblockCalculations(RoadblockSetup* setup, uintptr_t rigi
 			{
 				// the next like 100 lines or so are taken straight from AICopManager::CreateRoadblock
 				// i have little to no fucking clue what's going on here. godspeed. o7
-				nfsc::Vector3 some_vector, other_vector;
+				Vector3 some_vector, other_vector;
 
-				float left_to_target = nfsc::UMath_DistanceNoSqrt(&nav_left_pos, &sw_position);
-				float right_to_target = nfsc::UMath_DistanceNoSqrt(&nav_right_pos, &sw_position);
+				float left_to_target = UMath_DistanceNoSqrt(&nav_left_pos, &sw_position);
+				float right_to_target = UMath_DistanceNoSqrt(&nav_right_pos, &sw_position);
 				if (left_to_target <= right_to_target)
 				{
 					other_vector = nav_left_pos;
@@ -526,61 +527,61 @@ void* nfsc::BulbToys_RoadblockCalculations(RoadblockSetup* setup, uintptr_t rigi
 					some_vector.z = nav_left_pos.z - nav_right_pos.z;
 				}
 
-				float width_thing = setup->minimum_width / ri->width * 0.5;
+				float width_thing = setup->minimum_width / ri->width * 0.5f;
 
-				nfsc::Vector3 vecB;
+				Vector3 vecB;
 				vecB.x = some_vector.x * width_thing + other_vector.x;
 				vecB.y = some_vector.y * width_thing + other_vector.y;
 				vecB.z = some_vector.z * width_thing + other_vector.z;
 
 				// ?????????????????????????????????????
 				float what = sw_position.x;
-				float clamp_thing = reinterpret_cast<float(*)(float, float, float)>(0x4010E0)(what, 1.0, 1.14);
+				float clamp_thing = reinterpret_cast<float(*)(float, float, float)>(0x4010E0)(what, 1.0f, 1.14f);
 
-				nfsc::Matrix4 rotation;
-				nfsc::Util_GenerateMatrix(&rotation, &nav_fwd_vec, 0);
+				Matrix4 rotation;
+				Util_GenerateMatrix(&rotation, &nav_fwd_vec, 0);
 
 				for (int i = 0; i < 6; i++)
 				{
-					nfsc::rbelem_t type = setup->contents[i].type;
+					rbelem_t type = setup->contents[i].type;
 
-					if (type == nfsc::rbelem_t::none)
+					if (type == rbelem_t::none)
 					{
 						// Note we have a break here and not a continue - the roadblock ends as soon as it finds the first "rbelem_t::none" element!!
 						break;
 					}
 
-					nfsc::Vector3 vecA;
+					Vector3 vecA;
 					vecA.x = clamp_thing * setup->contents[i].offset_x;
 					vecA.y = 0.0;
 					vecA.z = setup->contents[i].offset_z;
-					nfsc::UMath_Rotate(&vecA, &rotation, &vecA);
+					UMath_Rotate(&vecA, &rotation, &vecA);
 
-					nfsc::Vector3 forward;
+					Vector3 forward;
 					forward = nav_fwd_vec;
-					nfsc::VU0_v3add(setup->contents[i].angle, &forward, &forward);
+					VU0_v3add(setup->contents[i].angle, &forward, &forward);
 
-					nfsc::Vector3 position;
+					Vector3 position;
 					position.x = vecA.x + vecB.x;
 					position.y = vecA.y + vecB.y;
 					position.z = vecA.z + vecB.z;
 
-					nfsc::Vector3 dimension;
+					Vector3 dimension;
 
-					if (type == nfsc::rbelem_t::car)
+					if (type == rbelem_t::car)
 					{
 						// Using copmidsize dimensions here as it is the largest by width and length
-						dimension = { 1.09, 0.72, 2.80 };
+						dimension = { 1.09f, 0.72f, 2.80f };
 						ri->object[i].color = ImVec4(.25f, .25f, 1, 1); // light blue
 					}
-					else if (type == nfsc::rbelem_t::barrier)
+					else if (type == rbelem_t::barrier)
 					{
-						dimension = { 1.58, 0.70, 0.63 };
+						dimension = { 1.58f, 0.70f, 0.63f };
 						ri->object[i].color = ImVec4(1, 0, 0, 1); // red
 					}
-					else if (type == nfsc::rbelem_t::spikestrip)
+					else if (type == rbelem_t::spikestrip)
 					{
-						dimension = { 3.27, 0.25, 0.38 };
+						dimension = { 3.27f, 0.25f, 0.38f };
 						ri->object[i].color = ImVec4(1, 1, 0, 1); // yellow
 					}
 
@@ -608,21 +609,21 @@ bool nfsc::BulbToys_SwitchVehicle(uintptr_t simable, uintptr_t simable2, sv_mode
 		return false;
 	}
 
-	uintptr_t player = nfsc::PhysicsObject_GetPlayer(simable);
+	uintptr_t player = PhysicsObject_GetPlayer(simable);
 	if (!player)
 	{
 		return false;
 	}
 
-	uintptr_t vehicle = nfsc::BulbToys_FindInterface<nfsc::IVehicle>(simable);
-	uintptr_t vehicle2 = nfsc::BulbToys_FindInterface<nfsc::IVehicle>(simable2);
+	uintptr_t vehicle = BulbToys_FindInterface<IVehicle>(simable);
+	uintptr_t vehicle2 = BulbToys_FindInterface<IVehicle>(simable2);
 	if (!vehicle || !vehicle2)
 	{
 		return false;
 	}
 
-	uintptr_t rbody = nfsc::PhysicsObject_GetRigidBody(simable);
-	uintptr_t rbody2 = nfsc::PhysicsObject_GetRigidBody(simable2);
+	uintptr_t rbody = PhysicsObject_GetRigidBody(simable);
+	uintptr_t rbody2 = PhysicsObject_GetRigidBody(simable2);
 	if (!rbody || !rbody2)
 	{
 		return false;
@@ -630,38 +631,38 @@ bool nfsc::BulbToys_SwitchVehicle(uintptr_t simable, uintptr_t simable2, sv_mode
 
 	if (mode == sv_mode::one_way)
 	{
-		nfsc::driver_class dc = nfsc::PVehicle_GetDriverClass(vehicle);
-		nfsc::PVehicle_SetDriverClass(vehicle, nfsc::driver_class::none);
-		nfsc::PVehicle_ReleaseBehaviorAudio(vehicle);
-		nfsc::PVehicle_Deactivate(vehicle);
+		driver_class dc = PVehicle_GetDriverClass(vehicle);
+		PVehicle_SetDriverClass(vehicle, driver_class::none);
+		PVehicle_ReleaseBehaviorAudio(vehicle);
+		PVehicle_Deactivate(vehicle);
 
 		Vector3 fwd_vec = { 1, 0, 0 };
-		Vector3* pos = nfsc::RigidBody_GetPosition(rbody);
-		nfsc::RigidBody_GetForwardVector(rbody, &fwd_vec);
-		nfsc::PVehicle_SetVehicleOnGround(vehicle2, pos, &fwd_vec);
+		Vector3* pos = RigidBody_GetPosition(rbody);
+		RigidBody_GetForwardVector(rbody, &fwd_vec);
+		PVehicle_SetVehicleOnGround(vehicle2, pos, &fwd_vec);
 
-		float speed = nfsc::PVehicle_GetSpeed(vehicle);
-		nfsc::PVehicle_SetSpeed(vehicle2, speed);
+		float speed = PVehicle_GetSpeed(vehicle);
+		PVehicle_SetSpeed(vehicle2, speed);
 
-		nfsc::PhysicsObject_Attach(simable2, player);
-		nfsc::PVehicle_GlareOn(vehicle2, 0x7); // headlights
-		nfsc::PVehicle_Activate(vehicle2);
+		PhysicsObject_Attach(simable2, player);
+		PVehicle_GlareOn(vehicle2, 0x7); // headlights
+		PVehicle_Activate(vehicle2);
 
-		uint8_t force_stop = nfsc::PVehicle_GetForceStop(vehicle);
+		uint8_t force_stop = PVehicle_GetForceStop(vehicle);
 
 		// todo: useless? (supposed to prevent race start unfreeze? but doesn't)
 		if ((force_stop & 0x10) != 0)
 		{
-			nfsc::PVehicle_ForceStopOn(vehicle, 0x10);
+			PVehicle_ForceStopOn(vehicle, 0x10);
 		}
 		else
 		{
-			nfsc::PVehicle_ForceStopOff(vehicle, 0x10);
+			PVehicle_ForceStopOff(vehicle, 0x10);
 		}
 
 		if (BulbToys_GetRaceType() != race_type::none)
 		{
-			uintptr_t racer_info = GRaceStatus_GetRacerInfo2(ReadMemory<uintptr_t>(nfsc::GRaceStatus), simable);
+			uintptr_t racer_info = GRaceStatus_GetRacerInfo2(ReadMemory<uintptr_t>(GRaceStatus), simable);
 			GRacerInfo_SetSimable(racer_info, simable2);
 		}
 
@@ -669,20 +670,20 @@ bool nfsc::BulbToys_SwitchVehicle(uintptr_t simable, uintptr_t simable2, sv_mode
 		int c = 0;
 
 		// Retarget all necessary AITargets to our new vehicle
-		for (int i = 0; i < nfsc::AITargetsList->size; i++)
+		for (int i = 0; i < AITargetsList->size; i++)
 		{
-			uintptr_t ai_target = nfsc::AITargetsList->begin[i];
+			uintptr_t ai_target = AITargetsList->begin[i];
 
 			uintptr_t ai_target_vehicle = nullptr;
-			nfsc::AITarget_GetVehicleInterface(ai_target, &ai_target_vehicle);
+			AITarget_GetVehicleInterface(ai_target, &ai_target_vehicle);
 			if (vehicle == ai_target_vehicle)
 			{
-				nfsc::AITarget_Acquire(ai_target, simable2);
+				AITarget_Acquire(ai_target, simable2);
 				c++;
 			}
 		}
 
-		Error("Retargeted %d/%d", c, nfsc::AITargetsList->size);
+		Error("Retargeted %d/%d", c, AITargetsList->size);
 		*/
 
 		// todo: fix pursuits here
@@ -746,8 +747,11 @@ void __fastcall nfsc::BulbToys_SwitchPTagTarget(uintptr_t race_status, bool bust
 
 void nfsc::BulbToys_UpdateWorldMapCursor(uintptr_t fe_state_manager)
 {
-	nfsc::FEColor color = { 255, 255, 255, 255 }; // white/none
-	auto world_map = ReadMemory<uintptr_t>(nfsc::WorldMap);
+	// Revert snap radius
+	WriteMemory<uintptr_t>(0x5C344D, 0x9D10A4);
+
+	FEColor color = { 255, 255, 255, 255 }; // white/none
+	auto world_map = ReadMemory<uintptr_t>(WorldMap);
 
 	if (world_map)
 	{
@@ -756,25 +760,29 @@ void nfsc::BulbToys_UpdateWorldMapCursor(uintptr_t fe_state_manager)
 			// Only change the color for the "normal" mode of the world map (not quick list, etc...)
 			if (ReadMemory<world_map_state>(fe_state_manager + 4) == world_map_state::normal)
 			{
+				// (Un)Patch non-conforming !!!
+				constexpr float zero = .0f;
+				WriteMemory<const float*>(0x5C344D, &zero);
+
 				color = { 0, 0, 255, 255 }; // red
 
 				// Get the current position of the cursor relative to the screen
 				float x, y;
-				nfsc::FE_Object_GetCenter(ReadMemory<uintptr_t>(world_map + 0x28), &x, &y);
+				FE_Object_GetCenter(ReadMemory<uintptr_t>(world_map + 0x28), &x, &y);
 
 				// Account for WorldMap pan
-				nfsc::Vector2 temp;
+				Vector2 temp;
 				temp.x = x;
 				temp.y = y;
 
-				nfsc::WorldMap_GetPanFromMapCoordLocation(world_map, &temp, &temp);
+				WorldMap_GetPanFromMapCoordLocation(world_map, &temp, &temp);
 
 				x = temp.x;
 				y = temp.y;
 
 				// Account for WorldMap zoom
-				nfsc::Vector2 top_left = ReadMemory<nfsc::Vector2>(world_map + 0x44);
-				nfsc::Vector2 size = ReadMemory<nfsc::Vector2>(world_map + 0x4C);
+				Vector2 top_left = ReadMemory<Vector2>(world_map + 0x44);
+				Vector2 size = ReadMemory<Vector2>(world_map + 0x4C);
 
 				x = x * size.x + top_left.x;
 				y = y * size.y + top_left.y;
@@ -803,12 +811,12 @@ void nfsc::BulbToys_UpdateWorldMapCursor(uintptr_t fe_state_manager)
 				g::world_map::location.z = x;
 
 				// Attempt to get world height at given position
-				nfsc::WCollisionMgr mgr;
+				WCollisionMgr mgr;
 				mgr.fSurfaceExclusionMask = 0;
 				mgr.fPrimitiveMask = 3;
 
 				float height = NAN;
-				if (nfsc::WCollisionMgr_GetWorldHeightAtPointRigorous(mgr, &g::world_map::location, &height, nullptr))
+				if (WCollisionMgr_GetWorldHeightAtPointRigorous(mgr, &g::world_map::location, &height, nullptr))
 				{
 					// Successful
 					color = { 0, 255, 0, 255 }; // green
@@ -818,7 +826,7 @@ void nfsc::BulbToys_UpdateWorldMapCursor(uintptr_t fe_state_manager)
 		}
 
 		// WorldMap->mEventIconGlow
-		nfsc::FE_Object_SetColor(ReadMemory<uintptr_t>(world_map + 0x28), &color);
+		FE_Object_SetColor(ReadMemory<uintptr_t>(world_map + 0x28), &color);
 	}
 }
 
@@ -828,7 +836,7 @@ void nfsc::BulbToys_UpdateWorldMapCursor(uintptr_t fe_state_manager)
 nfsc::AIPlayer* nfsc::AIPlayer::New()
 {
 	// uintptr_t FastMem::Alloc(&FastMem, size, 0);
-	auto malloc = reinterpret_cast<uintptr_t(__thiscall*)(uintptr_t, uint32_t, const char*)>(0x60BA70)(nfsc::FastMem, sizeof(nfsc::AIPlayer), 0);
+	auto malloc = reinterpret_cast<uintptr_t(__thiscall*)(uintptr_t, uint32_t, const char*)>(0x60BA70)(FastMem, sizeof(AIPlayer), 0);
 	if (!malloc)
 	{
 		return nullptr;
@@ -837,7 +845,7 @@ nfsc::AIPlayer* nfsc::AIPlayer::New()
 	// Sim::Entity::Entity(this);
 	auto entity = reinterpret_cast<uintptr_t(__thiscall*)(uintptr_t)>(0x76C5A0)(malloc);
 
-	auto ai_player = reinterpret_cast<nfsc::AIPlayer*>(entity);
+	auto ai_player = reinterpret_cast<AIPlayer*>(entity);
 
 	void* object = &ai_player->Sim_Entity.Sim_Object.UCOM_Object;
 
@@ -863,8 +871,8 @@ nfsc::AIPlayer* nfsc::AIPlayer::New()
 	ai_player->Sim_Entity.IAttachable.vtbl = reinterpret_cast<uintptr_t>(g::ai_player::iattachable_vtbl);
 	ai_player->IPlayer.vtbl = reinterpret_cast<uintptr_t>(g::ai_player::iplayer_vtbl);
 
-	nfsc::EntityList->Add(reinterpret_cast<uintptr_t>(&ai_player->Sim_Entity.Sim_IEntity), 0x6C9900);
-	nfsc::IPlayerList->Add(reinterpret_cast<uintptr_t>(&ai_player->IPlayer), 0x6C9890);
+	EntityList->Add(reinterpret_cast<uintptr_t>(&ai_player->Sim_Entity.Sim_IEntity), 0x6C9900);
+	IPlayerList->Add(reinterpret_cast<uintptr_t>(&ai_player->IPlayer), 0x6C9890);
 
 	return ai_player;
 }
@@ -875,7 +883,7 @@ nfsc::AIPlayer* nfsc::AIPlayer::VecDelDtor(AIPlayer* ai_player, int edx, uint8_t
 	if (ai_player && (flags & 1) != 0)
 	{
 		// FastMem::Free(&FastMem, this, size, 0);
-		reinterpret_cast<void(__thiscall*)(uintptr_t, void*, uint32_t, const char*)>(0x609E80)(nfsc::FastMem, ai_player, sizeof(AIPlayer), 0);
+		reinterpret_cast<void(__thiscall*)(uintptr_t, void*, uint32_t, const char*)>(0x609E80)(FastMem, ai_player, sizeof(AIPlayer), 0);
 	}
 	return ai_player;
 }

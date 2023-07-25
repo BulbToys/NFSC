@@ -4,8 +4,12 @@
 
 #define LS(address, name, type) inline ListableSet<type>* name = reinterpret_cast<decltype(name)>(address)
 
+// TODO fucking nuke me 
 struct ImDrawList;
 struct ImVec4;
+
+template <typename T>
+inline T ReadMemory(uintptr_t address);
 
 namespace nfsc
 {
@@ -168,7 +172,7 @@ namespace nfsc
 			if (capacity >= size)
 			{
 				// Calling UTL::Vector<...>::GetGrowSize (ListableSet<T>::GetGrowSize) virtually
-				uint32_t offset = nfsc::ListableSet_GetGrowSizeVirtually(this, size + 1);
+				uint32_t offset = ListableSet_GetGrowSizeVirtually(this, size + 1);
 
 				// Calls its respective vector's push_back function
 				// Pretty sure there is no way to get this information from the listable itself, definitely not virtually
@@ -416,7 +420,7 @@ namespace nfsc
 	inline uintptr_t BulbToys_CreateSimable(uintptr_t vehicle_cache, driver_class dc, uint32_t key, Vector3* rotation, Vector3* position, uint32_t vpf,
 		uintptr_t customization_record, uintptr_t performance_matching)
 	{
-		if (*nfsc::GameFlowManager_State != nfsc::gameflow_state::racing)
+		if (*GameFlowManager_State != gameflow_state::racing)
 		{
 			return 0;
 		}
@@ -436,7 +440,7 @@ namespace nfsc
 		return simable;
 	}
 
-	uintptr_t BulbToys_CreatePursuitSimable(nfsc::driver_class dc);
+	uintptr_t BulbToys_CreatePursuitSimable(driver_class dc);
 
 	void BulbToys_DrawObject(ImDrawList* draw_list, Vector3& position, Vector3& dimension, Vector3& rotation, ImVec4& color, float thickness);
 
@@ -459,18 +463,18 @@ namespace nfsc
 
 	inline float BulbToys_GetDistanceBetween(uintptr_t simable1, uintptr_t simable2)
 	{
-		uintptr_t rb1 = nfsc::PhysicsObject_GetRigidBody(simable1);
-		uintptr_t rb2 = nfsc::PhysicsObject_GetRigidBody(simable2);
+		uintptr_t rb1 = PhysicsObject_GetRigidBody(simable1);
+		uintptr_t rb2 = PhysicsObject_GetRigidBody(simable2);
 
-		return nfsc::UMath_Distance(nfsc::RigidBody_GetPosition(rb1), nfsc::RigidBody_GetPosition(rb2));
+		return UMath_Distance(RigidBody_GetPosition(rb1), RigidBody_GetPosition(rb2));
 	}
 
 	inline float BulbToys_GetDistanceBetween(uintptr_t simable, Vector3* pos)
 	{
-		uintptr_t rb = nfsc::PhysicsObject_GetRigidBody(simable);
+		uintptr_t rb = PhysicsObject_GetRigidBody(simable);
 
 		// UMath::Distance
-		return reinterpret_cast<float(*)(Vector3*, Vector3*)>(0x411FD0)(nfsc::RigidBody_GetPosition(rb), pos);
+		return reinterpret_cast<float(*)(Vector3*, Vector3*)>(0x411FD0)(RigidBody_GetPosition(rb), pos);
 	}
 
 	bool BulbToys_GetMyVehicle(uintptr_t* my_vehicle, uintptr_t* my_simable);
@@ -506,24 +510,24 @@ namespace nfsc
 	/*
 	inline void BulbToys_SetCopActions(uintptr_t ai_goal)
 	{
-		nfsc::AIGoal_ClearAllActions(ai_goal);
+		AIGoal_ClearAllActions(ai_goal);
 
-		nfsc::AIGoal_AddAction(ai_goal, "AIActionPursuitOffRoad");
-		nfsc::AIGoal_AddAction(ai_goal, "AIActionStunned");
-		nfsc::AIGoal_AddAction(ai_goal, "AIActionGetUnstuck");
+		AIGoal_AddAction(ai_goal, "AIActionPursuitOffRoad");
+		AIGoal_AddAction(ai_goal, "AIActionStunned");
+		AIGoal_AddAction(ai_goal, "AIActionGetUnstuck");
 
-		nfsc::AIGoal_ChooseAction(ai_goal, 0.0);
+		AIGoal_ChooseAction(ai_goal, 0.0);
 	}
 
 	inline void BulbToys_SetRacerActions(uintptr_t ai_goal)
 	{
-		nfsc::AIGoal_ClearAllActions(ai_goal);
+		AIGoal_ClearAllActions(ai_goal);
 
-		nfsc::AIGoal_AddAction(ai_goal, "AIActionRace");
-		nfsc::AIGoal_AddAction(ai_goal, "AIActionStunned");
-		nfsc::AIGoal_AddAction(ai_goal, "AIActionGetUnstuck");
+		AIGoal_AddAction(ai_goal, "AIActionRace");
+		AIGoal_AddAction(ai_goal, "AIActionStunned");
+		AIGoal_AddAction(ai_goal, "AIActionGetUnstuck");
 
-		nfsc::AIGoal_ChooseAction(ai_goal, 0.0);
+		AIGoal_ChooseAction(ai_goal, 0.0);
 	}
 	*/
 
@@ -658,13 +662,13 @@ namespace nfsc
 			uintptr_t simable = GetSimable_IPlayer(ai_player);
 			if (!simable)
 			{
-				return nfsc::ZeroV3;
+				return ZeroV3;
 			}
 
-			uintptr_t rigid_body = nfsc::PhysicsObject_GetRigidBody(simable);
+			uintptr_t rigid_body = PhysicsObject_GetRigidBody(simable);
 			if (!rigid_body)
 			{
-				return nfsc::ZeroV3;
+				return ZeroV3;
 			}
 
 			return RigidBody_GetPosition(rigid_body);
@@ -677,13 +681,13 @@ namespace nfsc
 				return false;
 			}
 
-			uintptr_t rigid_body = nfsc::PhysicsObject_GetRigidBody(simable);
+			uintptr_t rigid_body = PhysicsObject_GetRigidBody(simable);
 			if (!rigid_body)
 			{
 				return false;
 			}
 
-			nfsc::RigidBody_SetPosition(rigid_body, pos);
+			RigidBody_SetPosition(rigid_body, pos);
 			return true;
 		}
 	};

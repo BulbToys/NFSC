@@ -94,7 +94,7 @@ namespace gui
 		nfsc::Vector3 line_center;
 
 		// For displaying street width (and checking if the line is drawable or not)
-		float width;
+		float width = .0f;
 
 		// For drawing roadblock objects
 		struct Object
