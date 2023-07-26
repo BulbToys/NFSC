@@ -1214,6 +1214,16 @@ void gui::Render()
 
 				ImGui::Separator();
 
+				// Boss override
+				const char* bosses[] = { "None", "Angie", "Darius", "Wolf", "Kenji", "Neville" };
+				static int boss_override = 0;
+				if (ImGui::MyListBox("Boss override:", "##BOverride", &boss_override, bosses, IM_ARRAYSIZE(bosses)))
+				{
+					WriteMemory<int>(0xA9E66C, boss_override);
+				}
+
+				ImGui::Separator();
+
 				// Override NeedsEncounter
 				ImGui::Checkbox("Override NeedsEncounter:", &g::needs_encounter::overridden);
 				ImGui::SameLine();
