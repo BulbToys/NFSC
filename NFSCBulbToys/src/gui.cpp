@@ -504,7 +504,7 @@ void gui::Render()
 				ImGui::EndTabBar();
 			}
 
-			bool readonly = rb == g::roadblock_setups::mine ? false : true;
+			bool readonly = !(rb == g::roadblock_setups::mine);
 
 			// GetWindowWidth() - GetStyle().WindowPadding
 			auto width = ImGui::GetWindowWidth() - 16.0f;

@@ -901,21 +901,21 @@ void __fastcall hooks::WorldMapStateChangeHook(uintptr_t fe_state_manager)
 
 			// Set flag to previous + Spawned + Enabled + GPSing
 			WriteMemory<uint8_t>(icon + 1, 0x8F);
-
-			// this->mNextManager = this->mParentManager;
-			WriteMemory<uintptr_t>(fe_state_manager + 0xB4, ReadMemory<uintptr_t>(fe_state_manager + 0xAC));
-
-			// this->mExitPoint = 2;
-			WriteMemory<int>(fe_state_manager + 0xC, 2);
-
-			// this->mSubState = 3;
-			WriteMemory<int>(fe_state_manager + 0x18, 3);
-
-			// FEStateManager::ProcessScreenTransition(this);
-			reinterpret_cast<void(__thiscall*)(uintptr_t)>(0x59B1B0)(fe_state_manager);
-
-			return;
 		}
+
+		// this->mNextManager = this->mParentManager;
+		WriteMemory<uintptr_t>(fe_state_manager + 0xB4, ReadMemory<uintptr_t>(fe_state_manager + 0xAC));
+
+		// this->mExitPoint = 2;
+		WriteMemory<int>(fe_state_manager + 0xC, 2);
+
+		// this->mSubState = 3;
+		WriteMemory<int>(fe_state_manager + 0x18, 3);
+
+		// FEStateManager::ProcessScreenTransition(this);
+		reinterpret_cast<void(__thiscall*)(uintptr_t)>(0x59B1B0)(fe_state_manager);
+
+		return;
 	}
 
 	WorldMapStateChange(fe_state_manager);
