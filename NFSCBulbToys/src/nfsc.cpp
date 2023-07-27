@@ -5,17 +5,6 @@ uint32_t nfsc::ListableSet_GetGrowSizeVirtually(void* ls, uint32_t amount)
 	return reinterpret_cast<uint32_t(__thiscall*)(void*, uint32_t)>(VirtualFunction(reinterpret_cast<uintptr_t>(ls), 3))(ls, amount);
 }
 
-uintptr_t nfsc::BulbToys_CreatePursuitSimable(driver_class dc)
-{
-	uint32_t cop_key = GKnockoutRacer_GetPursuitVehicleKey(1);
-	Vector3 p = { 0, 0, 0 };
-	Vector3 r = { 1, 0, 0 };
-
-	uintptr_t simable = BulbToys_CreateSimable(ReadMemory<uintptr_t>(GRaceStatus), dc, cop_key, &r, &p, vehicle_param_flags::critical, 0, 0);
-
-	return simable;
-}
-
 void nfsc::BulbToys_DrawObject(ImDrawList* draw_list, Vector3& position, Vector3& dimension, Vector3& fwd_vec, ImVec4& color, float thickness)
 {
 	Matrix4 rotation;

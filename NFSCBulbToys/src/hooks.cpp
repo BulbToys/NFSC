@@ -379,7 +379,7 @@ uintptr_t __fastcall hooks::RacerInfoCreateVehicleHook(uintptr_t racer_info, uin
 				// Create AI pursuit simables first
 				for (int i = 1; i < nfsc::GRaceStatus_GetRacerCount(ReadMemory<uintptr_t>(nfsc::GRaceStatus)); i++)
 				{
-					uintptr_t pursuit_simable = nfsc::BulbToys_CreatePursuitSimable(nfsc::driver_class::none);
+					uintptr_t pursuit_simable = nfsc::BulbToys_CreatePursuitSimable();
 					WriteMemory<uintptr_t>(nfsc::ThePursuitSimables + 4 * i, pursuit_simable);
 
 					uintptr_t pursuit_vehicle = nfsc::BulbToys_FindInterface<nfsc::IVehicle>(pursuit_simable);
@@ -387,7 +387,7 @@ uintptr_t __fastcall hooks::RacerInfoCreateVehicleHook(uintptr_t racer_info, uin
 				}
 
 				// Then our own pursuit simable
-				uintptr_t pursuit_simable = nfsc::BulbToys_CreatePursuitSimable(nfsc::driver_class::none);
+				uintptr_t pursuit_simable = nfsc::BulbToys_CreatePursuitSimable();
 				WriteMemory<uintptr_t>(nfsc::ThePursuitSimables, pursuit_simable);
 
 				uintptr_t pursuit_vehicle = nfsc::BulbToys_FindInterface<nfsc::IVehicle>(pursuit_simable);
@@ -432,7 +432,7 @@ uintptr_t __fastcall hooks::RacerInfoCreateVehicleHook(uintptr_t racer_info, uin
 			{
 				for (int i = 0; i < racer_count; i++)
 				{
-					uintptr_t pursuit_simable = nfsc::BulbToys_CreatePursuitSimable(nfsc::driver_class::none);
+					uintptr_t pursuit_simable = nfsc::BulbToys_CreatePursuitSimable();
 					
 					// Store and deactivate
 					WriteMemory<uintptr_t>(nfsc::ThePursuitSimables + 4 * i, pursuit_simable);

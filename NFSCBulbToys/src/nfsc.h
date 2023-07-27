@@ -418,9 +418,9 @@ namespace nfsc
 	/* ===== CUSTOM FUNCTIONS ===== */
 
 	inline uintptr_t BulbToys_CreateSimable(uintptr_t vehicle_cache, driver_class dc, uint32_t key, Vector3* rotation, Vector3* position, uint32_t vpf,
-		uintptr_t customization_record, uintptr_t performance_matching)
+		uintptr_t customization_record, uintptr_t performance_matching, bool safe = true)
 	{
-		if (*GameFlowManager_State != gameflow_state::racing)
+		if (safe && *GameFlowManager_State != gameflow_state::racing)
 		{
 			return 0;
 		}
@@ -440,7 +440,13 @@ namespace nfsc
 		return simable;
 	}
 
-	uintptr_t BulbToys_CreatePursuitSimable(driver_class dc);
+	inline uintptr_t BulbToys_CreatePursuitSimable()
+	{
+		Vector3 p = { 0, 0, 0 };
+		Vector3 r = { 1, 0, 0 };
+
+		return BulbToys_CreateSimable(ReadMemory<uintptr_t>(GRaceStatus), driver_class::none, GKnockoutRacer_GetPursuitVehicleKey(1), &r, &p, vehicle_param_flags::critical, 0, 0, false);
+	}
 
 	void BulbToys_DrawObject(ImDrawList* draw_list, Vector3& position, Vector3& dimension, Vector3& rotation, ImVec4& color, float thickness);
 
