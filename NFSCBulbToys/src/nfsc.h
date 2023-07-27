@@ -554,7 +554,9 @@ namespace nfsc
 			return;
 		}
 
+		float speed = PVehicle_GetSpeed(my_vehicle);
 		PVehicle_SetVehicleOnGround(my_vehicle, &pos, &fwd);
+		PVehicle_SetSpeed(my_vehicle, speed);
 	}
 
 	void BulbToys_UpdateWorldMapCursor(uintptr_t fe_state_manager);

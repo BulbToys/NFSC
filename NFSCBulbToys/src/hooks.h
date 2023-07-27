@@ -92,6 +92,9 @@ namespace hooks
 	//void* __cdecl PickRoadblockSetupHook(float width, int num_vehicles, bool use_spikes);
 	//static inline decltype (&PickRoadblockSetupHook) PickRoadblockSetup;
 
+	uintptr_t __fastcall GetMainBossHook(uintptr_t g_race_status);
+	static inline decltype (&GetMainBossHook) GetMainBoss;
+
 	//void CreateRoadBlockHook();
 	void UpdateCopElementsHook1();
 	void UpdateCopElementsHook2();
@@ -102,4 +105,5 @@ namespace hooks
 	void UpdateAIPlayerListingHook();
 	void PTagBustedHook();
 	void DebugActionDropCarHook();
+	void NoWingmanSoundHook();
 }

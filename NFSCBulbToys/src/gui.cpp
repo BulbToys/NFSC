@@ -1144,35 +1144,51 @@ void gui::Render()
 			/* ===== CREW/WINGMAN ===== */
 			if (ImGui::MyMenu("Crew/Wingman", &menu[id++]))
 			{
-				// Character key & Add to crew
-				ImGui::Text("Character key:");
-				static char character[64];
-				ImGui::InputText("##charkey", character, IM_ARRAYSIZE(character));
+				ImGui::Text("Add to crew:");
 
-				// Add to crew
-				if (ImGui::Button("Add to crew"))
+				// Unlockable & Bosses + Manic
+				if (ImGui::Button("Unlockable"))
 				{
 					uintptr_t KEY_NIKKI = 0xA982BC;
 					uint32_t nikki = ReadMemory<uint32_t>(KEY_NIKKI);
 
-					WriteMemory<uint32_t>(KEY_NIKKI, nfsc::Attrib_StringToKey(character));
+					WriteMemory<uint32_t>(KEY_NIKKI, nfsc::Attrib_StringToKey("characters/sal"));
+					nfsc::Game_UnlockNikki();
+
+					WriteMemory<uint32_t>(KEY_NIKKI, nfsc::Attrib_StringToKey("characters/yumi"));
+					nfsc::Game_UnlockNikki();
+
+					WriteMemory<uint32_t>(KEY_NIKKI, nfsc::Attrib_StringToKey("characters/colin"));
+					nfsc::Game_UnlockNikki();
+
+					WriteMemory<uint32_t>(KEY_NIKKI, nfsc::Attrib_StringToKey("characters/samson"));
 					nfsc::Game_UnlockNikki();
 
 					WriteMemory<uint32_t>(KEY_NIKKI, nikki);
+					nfsc::Game_UnlockNikki();
 				}
-
-				// No wingman speech
-				static bool no_speech = false;
-				if (ImGui::Checkbox("No wingman speech", &no_speech))
+				ImGui::SameLine();
+				if (ImGui::Button("Bosses + Manic"))
 				{
-					if (no_speech)
-					{
-						PatchNop(0x79390D, 22);
-					}
-					else
-					{
-						Unpatch(0x79390D);
-					}
+					uintptr_t KEY_NIKKI = 0xA982BC;
+					uint32_t nikki = ReadMemory<uint32_t>(KEY_NIKKI);
+
+					WriteMemory<uint32_t>(KEY_NIKKI, nfsc::Attrib_StringToKey("characters/major_crew_darius/boss"));
+					nfsc::Game_UnlockNikki();
+
+					WriteMemory<uint32_t>(KEY_NIKKI, nfsc::Attrib_StringToKey("characters/major_crew_wolf/boss"));
+					nfsc::Game_UnlockNikki();
+
+					WriteMemory<uint32_t>(KEY_NIKKI, nfsc::Attrib_StringToKey("characters/major_crew_angela/boss"));
+					nfsc::Game_UnlockNikki();
+
+					WriteMemory<uint32_t>(KEY_NIKKI, nfsc::Attrib_StringToKey("characters/major_crew_kenji/boss"));
+					nfsc::Game_UnlockNikki();
+
+					WriteMemory<uint32_t>(KEY_NIKKI, nfsc::Attrib_StringToKey("characters/manic"));
+					nfsc::Game_UnlockNikki();
+
+					WriteMemory<uint32_t>(KEY_NIKKI, nikki);
 				}
 			}
 

@@ -126,6 +126,9 @@ bool hooks::SetupPart2(uintptr_t device)
 	// FOV overrides
 	CreateHook(0x4822F0, &SetCameraMatrixHook, &SetCameraMatrix);
 
+	// Make Neville a buggy "boss" if he's racing cuz it's funny lol
+	CreateHook(0x643A50, &GetMainBossHook, &GetMainBoss);
+
 	// Override the chosen roadblock with our own when manually spawning roadblocks
 	// TODO: uncomment when i've unfucked roadblock creation (might even be useless)
 	//CreateHook(0x407040, &PickRoadblockSetupHook, &PickRoadblockSetup);
@@ -159,7 +162,11 @@ bool hooks::SetupPart2(uintptr_t device)
 	// Check who got busted in pursuit tag and switch vehicles accordingly
 	PatchJmp(0x44A596, PTagBustedHook, 5);
 
+	// Better debug cam teleport (now properly on ground and takes forward vector into consideration)
 	PatchJmp(0x49319E, DebugActionDropCarHook);
+
+	// Fix crash when spawning a wingman lacking speech
+	PatchJmp(0x793914, NoWingmanSoundHook, 6);
 	
 	return true;
 }
@@ -741,6 +748,42 @@ void __fastcall hooks::SetCameraMatrixHook(uintptr_t camera, uintptr_t edx, void
 	}
 }
 
+uintptr_t __fastcall hooks::GetMainBossHook(uintptr_t g_race_status)
+{
+	uintptr_t racer_info = GetMainBoss(g_race_status);
+
+	if (!racer_info)
+	{
+		uintptr_t my_simable = 0;
+		nfsc::BulbToys_GetMyVehicle(nullptr, &my_simable);
+		if (!my_simable)
+		{
+			return 0;
+		}
+
+		uintptr_t wingman_simable = reinterpret_cast<uintptr_t(*)(uintptr_t)>(0x6517E0)(my_simable);
+		if (!wingman_simable)
+		{
+			return 0;
+		}
+
+		uintptr_t wingman_racer_info = nfsc::GRaceStatus_GetRacerInfo2(g_race_status, wingman_simable);
+		if (!wingman_racer_info)
+		{
+			return 0;
+		}
+
+		char* wingman_name = reinterpret_cast<char*>(wingman_racer_info + 8);
+		if (strncmp(wingman_name, "NEVILLE", 8))
+		{
+			return 0;
+		}
+
+		return wingman_racer_info;
+	}
+
+	return racer_info;
+}
 /*
 void* __cdecl hooks::PickRoadblockSetupHook(float width, int num_vehicles, bool use_spikes)
 {
@@ -1270,7 +1313,6 @@ __declspec(naked) void hooks::PTagBustedHook()
 	}
 }
 
-nfsc::Vector3 pos, dir;
 __declspec(naked) void hooks::DebugActionDropCarHook()
 {
 	__asm
@@ -1279,6 +1321,25 @@ __declspec(naked) void hooks::DebugActionDropCarHook()
 
 		// Return to the end of the case instead of where we left off
 		push    0x49321D
+		ret
+	}
+}
+
+__declspec(naked) void hooks::NoWingmanSoundHook()
+{
+	__asm
+	{
+		// Check if null, gtfo if it is to avoid a null dereference
+		test    eax, eax
+		jz      skip
+
+		// Redo what we've overwritten
+		mov     [esi + 0xDC], eax
+		push    0x79391A
+		ret
+
+	skip:
+		push    0x7939AB
 		ret
 	}
 }
