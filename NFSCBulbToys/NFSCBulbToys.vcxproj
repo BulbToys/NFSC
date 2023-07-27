@@ -100,7 +100,7 @@
       <AdditionalDependencies>d3d9.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PreBuildEvent>
-      <Command>echo #pragma once &gt; src/rev_count.h &amp; echo|set /p="#define REV_COUNT " &gt;&gt; src/rev_count.h &amp; git rev-list --count master &gt;&gt; src/rev_count.h</Command>
+      <Command>bulbtoys_prebuild</Command>
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
