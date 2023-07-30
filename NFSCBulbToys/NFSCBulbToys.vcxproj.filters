@@ -46,5 +46,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="cpp.hint" />
+    <None Include="bulbtoys_prebuild.bat" />
   </ItemGroup>
 </Project>
