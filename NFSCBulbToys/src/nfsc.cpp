@@ -410,14 +410,6 @@ bool nfsc::BulbToys_GetMyVehicle(uintptr_t* my_vehicle, uintptr_t* my_simable)
 	return false;
 }
 
-bool nfsc::BulbToys_IsGPSDown()
-{
-	auto gps = ReadMemory<uintptr_t>(0xA83E3C);
-
-	// Check if GPS state == GPS_DOWN
-	return !gps || ReadMemory<int>(gps + 0x6C) == 0;
-}
-
 void nfsc::BulbToys_PathToTarget(uintptr_t ai_vehicle, Vector3* target)
 {
 	auto road_nav = ReadMemory<uintptr_t>(ai_vehicle + 0x38);

@@ -158,6 +158,8 @@ namespace g
 	// GPS only
 	namespace world_map
 	{
+		constexpr uint32_t gps_color = 0xFFFFFFFF;
+
 		inline bool gps_only = false;
 		inline bool shift_held = false;
 

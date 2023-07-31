@@ -128,6 +128,9 @@ bool hooks::SetupPart2(uintptr_t device)
 
 	// Make Neville a buggy "boss" if he's racing cuz it's funny lol
 	CreateHook(0x643A50, &GetMainBossHook, &GetMainBoss);
+	
+	// Add racers and GPS icon to the world map
+	CreateHook(0x5ACB50, &AddPlayerCarHook, &AddPlayerCar);
 
 	// Override the chosen roadblock with our own when manually spawning roadblocks
 	// TODO: uncomment when i've unfucked roadblock creation (might even be useless)
@@ -300,7 +303,7 @@ void __fastcall hooks::ResetDriveToNavHook(uintptr_t ai_vehicle, uintptr_t edx, 
 {
 	ResetDriveToNav(ai_vehicle, edx, lane_selection);
 
-	if (nfsc::BulbToys_IsGPSDown())
+	if (!nfsc::GPS_IsEngaged())
 	{
 		return;
 	}
@@ -784,6 +787,133 @@ uintptr_t __fastcall hooks::GetMainBossHook(uintptr_t g_race_status)
 
 	return racer_info;
 }
+void __fastcall hooks::AddPlayerCarHook(uintptr_t world_map)
+{
+	constexpr uint32_t PLAYERCARINDICATOR = 0xDD9EF5FF;
+
+	constexpr uint32_t MMICON_ROADBLOCK_4 = 0xCBD81AE5;
+
+	// FEStateManager::IsGameMode
+	if (!reinterpret_cast<bool(__thiscall*)(uintptr_t, int)>(0x5792A0)(ReadMemory<uintptr_t>(0xA97A7C), 0))
+	{
+		// this->PackageFilename
+		char* package_name = ReadMemory<char*>(world_map + 0xC);
+		if (package_name)
+		{
+			// FE::Object::FindObject
+			uintptr_t object = reinterpret_cast<uintptr_t(*)(char*, uint32_t)>(0x5A0250)(package_name, PLAYERCARINDICATOR);
+
+			// Type == FE_Image
+			if (object && ReadMemory<int>(object + 0x18) == 1)
+			{
+				uintptr_t my_vehicle = 0;
+				nfsc::BulbToys_GetMyVehicle(&my_vehicle, nullptr);
+
+				auto list = nfsc::VehicleList[nfsc::vehicle_list::racers];
+				for (int i = 0; i < (int)list->size; i++)
+				{
+					// malloc
+					uintptr_t map_item = nfsc::malloc(0x30);
+					if (map_item)
+					{
+						uintptr_t new_object = 0;
+
+						auto racer = list->begin[i];
+						if (racer == my_vehicle)
+						{
+							new_object = object;
+
+							nfsc::FEColor cyan = { 255, 255, 115, 255 };
+							nfsc::FE_Object_SetColor(new_object, &cyan);
+						}
+						else
+						{
+							// WorldMap::IsInPursuit
+							if (reinterpret_cast<bool(__thiscall*)(uintptr_t)>(0x582E60)(world_map))
+							{
+								continue;
+							}
+							if (!nfsc::PVehicle_IsActive(racer))
+							{
+								continue;
+							}
+
+							// HIDING_SPOT_0 -> HIDING_SPOT_99
+							new_object = nfsc::FE_Object_FindObject(package_name, nfsc::FE_String_HashString("HIDING_SPOT_%d", i));
+
+							// FE::Image::SetTextureHash
+							nfsc::FE_Image_SetTextureHash(new_object, ReadMemory<uint32_t>(object + 0x24));
+
+							nfsc::FEColor orange = { 115, 195, 255, 255 };
+							nfsc::FE_Object_SetColor(new_object, &orange);
+						}
+
+						nfsc::Vector2 position, direction;
+
+						// GetVehicleVectors
+						reinterpret_cast<void(*)(nfsc::Vector2&, nfsc::Vector2&, uintptr_t)>(0x5D89B0)(position, direction, nfsc::PVehicle_GetSimable(racer));
+
+						nfsc::WorldMap_ConvertPos(position.x, position.y, *reinterpret_cast<nfsc::Vector2*>(world_map + 0x44),
+							*reinterpret_cast<nfsc::Vector2*>(world_map + 0x4C));
+
+						// bATan
+						float rotation = reinterpret_cast<uint16_t(*)(float, float)>(0x46DFD0)(direction.y, direction.x) * 0.0054931641f;
+
+						map_item = nfsc::MapItem_MapItem(map_item, 1, new_object, position, rotation, 0, 0);
+						if (map_item)
+						{
+							// Add node to map items
+							uintptr_t node = map_item + 4;
+							uintptr_t prev = ReadMemory<uintptr_t>(world_map + 0x64 + 0x4);
+
+							WriteMemory<uintptr_t>(prev, node);
+							WriteMemory<uintptr_t>(world_map + 0x64 + 0x4, node);
+							WriteMemory<uintptr_t>(node + 4, prev);
+							WriteMemory<uintptr_t>(node, world_map + 0x64);
+						}
+					}
+				}
+			}
+			/*
+			uintptr_t gps_icon = ReadMemory<uintptr_t>(0xA977EC);
+			if (gps_icon)
+			{
+				object = reinterpret_cast<uintptr_t(*)(char*, uint32_t)>(0x5A0250)(package_name, MMICON_ROADBLOCK_4);
+				if (object && ReadMemory<int>(object + 0x18) == 1)
+				{
+					uintptr_t map_item = nfsc::malloc(0x30);
+					if (map_item)
+					{
+						nfsc::Vector2 position = { ReadMemory<float>(gps_icon + 0x10), ReadMemory<float>(gps_icon + 0x10 + 4) };
+
+						nfsc::WorldMap_ConvertPos(position.x, position.y, *reinterpret_cast<nfsc::Vector2*>(world_map + 0x44),
+							*reinterpret_cast<nfsc::Vector2*>(world_map + 0x4C));
+
+						nfsc::FEColor white = { 255, 255, 255, 255 };
+						nfsc::FE_Object_SetColor(object, &white);
+
+						// MINIMAP_ICON_EVENT
+						nfsc::FE_Image_SetTextureHash(object, 0xB9358813);
+
+						map_item = nfsc::MapItem_MapItem(map_item, 1, object, position, 0.0, 0, gps_icon);
+						if (map_item)
+						{
+							// Add node to map items
+							uintptr_t node = map_item + 4;
+							uintptr_t prev = ReadMemory<uintptr_t>(world_map + 0x64 + 0x4);
+
+							WriteMemory<uintptr_t>(prev, node);
+							WriteMemory<uintptr_t>(world_map + 0x64 + 0x4, node);
+							WriteMemory<uintptr_t>(node + 4, prev);
+							WriteMemory<uintptr_t>(node, world_map + 0x64);
+						}
+					}
+				}
+			}
+			*/
+		}
+	}
+}
 /*
 void* __cdecl hooks::PickRoadblockSetupHook(float width, int num_vehicles, bool use_spikes)
 {
@@ -934,7 +1064,7 @@ void __fastcall hooks::WorldMapStateChangeHook(uintptr_t fe_state_manager)
 			WriteMemory<uint8_t>(icon + 0x1, 3);
 
 			// Set color to white
-			WriteMemory<uint32_t>(icon + 0x20, 0xFFFFFFFF);
+			WriteMemory<uint32_t>(icon + 0x20, g::world_map::gps_color);
 
 			// Set tex hash
 			WriteMemory<uint32_t>(icon + 0x24, nfsc::bStringHash("MINIMAP_ICON_EVENT"));

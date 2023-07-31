@@ -147,6 +147,7 @@ namespace nfsc
 
 	/* ===== GAME OBJECTS ===== */
 
+	// B, G, R, A (ints but they're actually chars)
 	struct FEColor
 	{
 		int b = 0, g = 0, r = 0, a = 0;
@@ -325,8 +326,13 @@ namespace nfsc
 
 	FUNC(0x5227F0, void, __thiscall, EAXSound_StartNewGamePlay, uintptr_t eax_sound);
 
+	FUNC(0x571040, void, , FE_Image_SetTextureHash, uintptr_t image, uint32_t key);
+
+	FUNC(0x5A0250, uintptr_t, , FE_Object_FindObject, const char* package_name, uint32_t key);
 	FUNC(0x597900, void, , FE_Object_GetCenter, uintptr_t object, float* x, float* y);
 	FUNC(0x570CC0, void, , FE_Object_SetColor, uintptr_t object, FEColor* color);
+
+	FUNC(0x5711C0, uint32_t, , FE_String_HashString, const char* fmt, ...);
 
 	FUNC(0x5CDEA0, void, , FEDialogScreen_ShowDialog, const char* message, const char* button1, const char* button2, const char* button3);
 
@@ -352,6 +358,7 @@ namespace nfsc
 	FUNC(0x626F90, uintptr_t, __thiscall, GManager_AllocIcon, uintptr_t g_manager, char type, Vector3* position, float rotation, bool is_disposable);
 
 	FUNC(0x433AB0, bool, , GPS_Engage, Vector3* target, float max_deviation, bool always_re_establish);
+	FUNC(0x43DC90, bool , , GPS_IsEngaged);
 
 	FUNC(0x422730, uintptr_t, __thiscall, GRacerInfo_GetSimable, uintptr_t g_racer_info);
 	FUNC(0x61B8F0, void, __thiscall, GRacerInfo_SetSimable, uintptr_t g_racer_info, uintptr_t simable);
@@ -364,6 +371,11 @@ namespace nfsc
 	FUNC(0x7BF9B0, void, , KillSkidsOnRaceRestart);
 
 	FUNC(0x75DA60, void, __thiscall, LocalPlayer_ResetHUDType, uintptr_t local_player, int hud_type);
+
+	FUNC(0x6A1560, uintptr_t, , malloc, size_t size);
+
+	FUNC(0x59DD90, uintptr_t, __thiscall, MapItem_MapItem, uintptr_t map_item, uint32_t flags, uintptr_t object, Vector2& position, float rotation, int unk,
+		uintptr_t icon);
 
 	FUNC(0x6C6740, bool, __thiscall, PhysicsObject_Attach, uintptr_t physics_object, uintptr_t player);
 	FUNC(0x6D6C40, uintptr_t, __thiscall, PhysicsObject_GetPlayer, uintptr_t physics_object);
@@ -410,6 +422,7 @@ namespace nfsc
 
 	FUNC(0x7CA1A0, void, , World_RestoreProps);
 
+	FUNC(0x56E770, void, , WorldMap_ConvertPos, float& x, float& y, Vector2& track_map_tl, Vector2& track_map_size);
 	FUNC(0x5ACA90, void, __thiscall, WorldMap_GetPanFromMapCoordLocation, uintptr_t world_map, Vector2* output, Vector2* input);
 	FUNC(0x582C30, void, , WorldMap_SetGPSIng, uintptr_t icon);
 
@@ -492,8 +505,6 @@ namespace nfsc
 	float BulbToys_GetStreetWidth(Vector3* position, Vector3* direction, float distance, Vector3* left_pos, Vector3* right_pos, Vector3* fwd_vec);
 
 	race_type BulbToys_GetRaceType();
-
-	bool BulbToys_IsGPSDown();
 
 	void BulbToys_PathToTarget(uintptr_t ai_vehicle, Vector3* target);
 

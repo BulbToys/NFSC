@@ -95,6 +95,9 @@ namespace hooks
 	uintptr_t __fastcall GetMainBossHook(uintptr_t g_race_status);
 	static inline decltype (&GetMainBossHook) GetMainBoss;
 
+	void __fastcall AddPlayerCarHook(uintptr_t world_map);
+	static inline decltype (&AddPlayerCarHook) AddPlayerCar;
+
 	//void CreateRoadBlockHook();
 	void UpdateCopElementsHook1();
 	void UpdateCopElementsHook2();

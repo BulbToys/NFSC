@@ -1118,7 +1118,7 @@ void gui::Render()
 							auto ai_vehicle = nfsc::PVehicle_GetAIVehiclePtr(my_vehicle);
 							if (ai_vehicle)
 							{
-								if (!nfsc::BulbToys_IsGPSDown())
+								if (nfsc::GPS_IsEngaged())
 								{
 									nfsc::BulbToys_PathToTarget(ai_vehicle, &g::smart_ai::target);
 								}
