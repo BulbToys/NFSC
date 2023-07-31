@@ -47,6 +47,15 @@ struct Patch
 	}
 };
 
+struct Stopwatch
+{
+	uint32_t s, i;
+
+	Stopwatch() : s(0), i(0) {}
+
+	void Add(uint32_t fps) { s += fps; i++; }
+};
+
 inline std::unordered_map<uintptr_t, Patch*> patch_map;
 
 void Error(const char* message, ...);
@@ -153,6 +162,16 @@ namespace g
 	{
 		inline char vehicle[32] = {0};
 		inline bool overridden = false;
+	}
+
+	namespace fps
+	{
+		inline LARGE_INTEGER frequency;
+
+		inline uint32_t count = 0;
+		inline uint32_t value = 0;
+
+		inline Stopwatch* sw = nullptr;
 	}
 
 	// GPS only

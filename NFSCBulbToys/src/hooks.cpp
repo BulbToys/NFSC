@@ -224,6 +224,26 @@ long __stdcall hooks::EndSceneHook(IDirect3DDevice9* device)
 	ImGui_ImplWin32_NewFrame();
 	ImGui::NewFrame();
 
+	static LARGE_INTEGER old_counter;
+	LARGE_INTEGER counter;
+	QueryPerformanceCounter(&counter);
+
+	if (counter.QuadPart - old_counter.QuadPart >= g::fps::frequency.QuadPart)
+	{
+		old_counter = counter;
+		g::fps::value = g::fps::count;
+		g::fps::count = 0;
+
+		if (g::fps::sw)
+		{
+			g::fps::sw->Add(g::fps::value);
+		}
+	}
+	else
+	{
+		g::fps::count++;
+	}
+
 	//static uint32_t frame_count[2] {0, 0};
 
 	//frame_count[0] = frame_count[1];

@@ -903,6 +903,32 @@ void gui::Render()
 				{
 					CreateMemoryWindow(-1);
 				}
+
+				ImGui::Separator();
+
+				static char results[64];
+
+				// Start/Stop Stopwatch
+				if (ImGui::Button(g::fps::sw ? "Stop Stopwatch" : "Start Stopwatch"))
+				{
+					if (g::fps::sw)
+					{
+						uint32_t count = g::fps::sw->i;
+						sprintf_s(results, 64, "%.2f FPS average across %u samples", (1.f * g::fps::sw->s) / count, count);
+
+						delete g::fps::sw;
+						g::fps::sw = nullptr;
+					}
+					else
+					{
+						results[0] = '\0';
+
+						g::fps::sw = new Stopwatch();
+					}
+				}
+
+				// Results
+				ImGui::Text(results);
 			}
 
 			/* ===== RENDER ===== */
@@ -1644,8 +1670,15 @@ void gui::Render()
 		ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoBackground))
 	{
 		/* ===== MAIN ===== */
-		ImGui::Text("Powered by BulbToys %d - " __DATE__ " " __TIME__, REV_COUNT + 1);
+		ImGui::Text("%u FPS | Powered by BulbToys %d - " __DATE__ " " __TIME__, g::fps::value, REV_COUNT + 1);
 		auto draw_list = ImGui::GetWindowDrawList();
+
+		/* ===== STOPWATCH ====== */
+		if (g::fps::sw)
+		{
+			uint32_t count = g::fps::sw->i;
+			ImGui::Text("Stopwatch: %.2f FPS average across %u samples", (1.f * g::fps::sw->s) / count, count);
+		}
 
 		/* ===== COORDS ===== */
 		if (overlays::coords)

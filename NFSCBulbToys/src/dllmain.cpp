@@ -15,6 +15,8 @@ void Error(const char* message, ...)
 
 void Setup(const HMODULE instance)
 {
+	QueryPerformanceFrequency(&g::fps::frequency);
+
 	patches::Do();
 
 	if (hooks::Setup())
