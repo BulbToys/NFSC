@@ -132,6 +132,8 @@ bool hooks::SetupPart2(uintptr_t device)
 	// Add racers and GPS icon to the world map
 	CreateHook(0x5ACB50, &AddPlayerCarHook, &AddPlayerCar);
 
+	CreateHook(0x44BCE0, &MLaunchPIPHook, &MLaunchPIP);
+
 	// Override the chosen roadblock with our own when manually spawning roadblocks
 	// TODO: uncomment when i've unfucked roadblock creation (might even be useless)
 	//CreateHook(0x407040, &PickRoadblockSetupHook, &PickRoadblockSetup);
@@ -223,26 +225,6 @@ long __stdcall hooks::EndSceneHook(IDirect3DDevice9* device)
 	ImGui_ImplDX9_NewFrame();
 	ImGui_ImplWin32_NewFrame();
 	ImGui::NewFrame();
-
-	static LARGE_INTEGER old_counter;
-	LARGE_INTEGER counter;
-	QueryPerformanceCounter(&counter);
-
-	if (counter.QuadPart - old_counter.QuadPart >= g::fps::frequency.QuadPart)
-	{
-		old_counter = counter;
-		g::fps::value = g::fps::count;
-		g::fps::count = 0;
-
-		if (g::fps::sw)
-		{
-			g::fps::sw->Add(g::fps::value);
-		}
-	}
-	else
-	{
-		g::fps::count++;
-	}
 
 	//static uint32_t frame_count[2] {0, 0};
 
@@ -934,6 +916,65 @@ void __fastcall hooks::AddPlayerCarHook(uintptr_t world_map)
 		}
 	}
 }
+
+const char* pip_names[]
+{
+	"PLAYER_HIT_BOSS",
+	"PLAYER_HIT_RIVAL",
+	"PLAYER_CRASHES",
+	"PLAYER_NEAR_FINISH",
+	"PLAYER_PASS_BOSS_LEFT",
+	"PLAYER_PASS_BOSS_RIGHT",
+	"PLAYER_ENTER_COOLDOWN",
+	"PLAYER_DRAFT_PAST_BOSS",
+	"PLAYER_HIT_RACEBREAKER",
+	"PLAYER_STAND_STILL",
+	"BOSS_HIT_PLAYER",
+	"BOSS_CRASHES",
+	"BOSS_CROSS_FINISH",
+	"BOSS_NEAR_FINISH",
+	"BOSS_PASS_PLAYER_LEFT",
+	"BOSS_PASS_PLAYER_RIGHT",
+	"RIVAL_CRASHES",
+	"RIVAL_CROSS_FINISH",
+	"WINGMAN_HIT_RIVAL",
+	"WINGMAN_CRASHES",
+	"WINGMAN_PASS_RIVAL",
+	"WINGMAN_NOS",
+	"WINGMAN_ENTER_FIRSTPLACE",
+	"WINGMAN_ENTER_LASTPLACE",
+	"WINGMAN_JUMPS",
+	"BLOCKER_ACTIVATE",
+	"BLOCKER_ATTACK_BEHIND",
+	"BLOCKER_ATTACK_FRONT",
+	"BLOCKER_HIT_BOSS",
+	"SCOUT_ACTIVATE",
+	"SCOUT_ENTER_SHORTCUT",
+	"DRAFTER_ACTIVATE",
+	"COP_JOIN_PURSUIT",
+	"CANYON_PLAYER_FALLBEHIND",
+	"CANYON_PLAYER_FALLBEHIND_REPEAT",
+	"CANYON_PLAYER_PULLAHEAD",
+	"CANYON_BOSS_BROKE_GUARDRAIL",
+	"CANYON_PLAYER_LOW_SCORE",
+	"CANYON_PLAYER_LOW_SCORE_REPEAT",
+	"CANYON_PLAYER_HIGH_SCORE",
+	"CANYON_PLAYER_HIGH_SCORE_REPEAT",
+	"CANYON_PLAYER_FAST_SCORE",
+	"CANYON_BOSS_OFF_CLIFF",
+	"TUTORIAL_IGNORED_COMMANDS",
+	"TUTORIAL_REPEAT_HIT",
+	"TUTORIAL_FAREWELL",
+	"TUTORIAL_START"
+};
+
+uintptr_t __fastcall hooks::MLaunchPIPHook(uintptr_t m_launch_pip, uintptr_t edx, int id, uintptr_t simable_handle)
+{
+	gui::logger.Add(new gui::Log(5, "PIP: %d (%s)", id, pip_names[id - 1]));
+
+	return MLaunchPIP(m_launch_pip, edx, id, simable_handle);
+}
+
 /*
 void* __cdecl hooks::PickRoadblockSetupHook(float width, int num_vehicles, bool use_spikes)
 {

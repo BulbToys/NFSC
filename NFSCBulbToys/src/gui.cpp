@@ -336,10 +336,10 @@ void gui::Render()
 	nfsc::BulbToys_GetMyVehicle(&my_vehicle, &my_simable);
 	uintptr_t my_rigid_body = my_simable ? nfsc::PhysicsObject_GetRigidBody(my_simable) : 0;
 
+	// Roadblock info
 	static nfsc::RoadblockSetup* rs = nullptr;
 	RoadblockInfo* ri = nullptr;
 
-	// Roadblock info
 	if (roadblock::overlay || roadblock::menu_open)
 	{
 		ri = (RoadblockInfo*)nfsc::BulbToys_RoadblockCalculations(rs, roadblock::use_camera ? 0 : my_rigid_body);
@@ -349,6 +349,40 @@ void gui::Render()
 	if (strncmp(nfsc::BulbToys_GetCameraName(), "CDActionDebugWatchCar", 22))
 	{
 		*nfsc::spectate::enabled = false;
+	}
+
+	// FPS counter
+	static uint32_t fps = 0;
+	static Stopwatch* sw = nullptr;
+	bool update = false;
+	
+	static LARGE_INTEGER frequency = []() {
+		LARGE_INTEGER frequency;
+		QueryPerformanceFrequency(&frequency);
+		return frequency;
+	}();
+
+	LARGE_INTEGER counter;
+	QueryPerformanceCounter(&counter);
+	static LARGE_INTEGER old_counter = counter;
+
+	static uint32_t frame_count = 0;
+	if (counter.QuadPart - old_counter.QuadPart >= frequency.QuadPart)
+	{
+		old_counter = counter;
+		fps = frame_count;
+		frame_count = 0;
+
+		if (sw)
+		{
+			sw->Add(fps);
+		}
+		
+		update = true;
+	}
+	else
+	{
+		frame_count++;
 	}
 
 	if (gui::menu_open)
@@ -909,21 +943,21 @@ void gui::Render()
 				static char results[64];
 
 				// Start/Stop Stopwatch
-				if (ImGui::Button(g::fps::sw ? "Stop Stopwatch" : "Start Stopwatch"))
+				if (ImGui::Button(sw ? "Stop Stopwatch" : "Start Stopwatch"))
 				{
-					if (g::fps::sw)
+					if (sw)
 					{
-						uint32_t count = g::fps::sw->i;
-						sprintf_s(results, 64, "%.2f FPS average across %u samples", (1.f * g::fps::sw->s) / count, count);
+						uint32_t count = sw->i;
+						sprintf_s(results, 64, "%.2f FPS average across %u samples", (1.f * sw->s) / count, count);
 
-						delete g::fps::sw;
-						g::fps::sw = nullptr;
+						delete sw;
+						sw = nullptr;
 					}
 					else
 					{
 						results[0] = '\0';
 
-						g::fps::sw = new Stopwatch();
+						sw = new Stopwatch();
 					}
 				}
 
@@ -952,6 +986,21 @@ void gui::Render()
 
 				// Cop health
 				ImGui::Checkbox("Cop health", &g::health_icon::show);
+
+				// Logging
+				ImGui::Checkbox("Logging", &overlays::logging);
+
+				// Custom PIP
+				static int pip = 0;
+				if (ImGui::InputInt("Custom PIP:", &pip) && *nfsc::GameFlowManager_State == nfsc::gameflow_state::racing)
+				{
+					if (pip < 1) pip = 1;
+					else if (pip > 47) pip = 47;
+
+					WriteMemory<int>(0x65568E, pip);
+					reinterpret_cast<void(*)(const char*)>(0x655670)("TUTORIAL_START");
+					WriteMemory<int>(0x65568E, 47);
+				}
 			}
 
 			/* ===== FRONTEND ===== */
@@ -1670,14 +1719,14 @@ void gui::Render()
 		ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoBackground))
 	{
 		/* ===== MAIN ===== */
-		ImGui::Text("%u FPS | Powered by BulbToys %d - " __DATE__ " " __TIME__, g::fps::value, REV_COUNT + 1);
+		ImGui::Text("%u FPS | Powered by BulbToys %d - " __DATE__ " " __TIME__, fps, REV_COUNT + 1);
 		auto draw_list = ImGui::GetWindowDrawList();
 
 		/* ===== STOPWATCH ====== */
-		if (g::fps::sw)
+		if (sw)
 		{
-			uint32_t count = g::fps::sw->i;
-			ImGui::Text("Stopwatch: %.2f FPS average across %u samples", (1.f * g::fps::sw->s) / count, count);
+			uint32_t count = sw->i;
+			ImGui::Text("Stopwatch: %.2f FPS average across %u samples", (1.f * sw->s) / count, count);
 		}
 
 		/* ===== COORDS ===== */
@@ -1793,6 +1842,12 @@ void gui::Render()
 			{
 				ImGui::TextColored(ImVec4(1, 0, 0, 1), "N/A"); // red
 			}
+		}
+
+		if (overlays::logging)
+		{
+			ImGui::Text("Logs:");
+			gui::logger.Print(update);
 		}
 
 		ImGui::End();

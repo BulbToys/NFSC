@@ -22,6 +22,7 @@ namespace gui
 		inline bool my_vehicle = false;
 		inline bool other_vehicles = false;
 		inline bool incl_deactivated = false;
+		inline bool logging = false;
 	}
 
 	namespace spectate
@@ -84,6 +85,91 @@ namespace gui
 	};
 	inline uint32_t MemoryWindow::id = 0;
 	inline std::vector<MemoryWindow*> mem_windows;
+
+	struct Log
+	{
+		char* msg;
+		int ttl;
+
+		Log(int ttl, const char* message, ...) : ttl(ttl)
+		{
+			char buffer[1024];
+			va_list va;
+			va_start(va, message);
+			vsprintf_s(buffer, 1024, message, va);
+
+			size_t len = strlen(buffer) + 1;
+			msg = new char[len];
+			memcpy(msg, buffer, len);
+		}
+
+		~Log()
+		{
+			delete msg;
+		}
+	};
+
+	class Logger
+	{
+		std::vector<Log*> logs;
+
+	public:
+		void Add(Log* log)
+		{
+			logs.push_back(log);
+		}
+
+		void Print(bool update)
+		{
+			char last_msg[1024] {0};
+			int i = 1;
+
+			auto iter = logs.begin();
+			while (iter != logs.end())
+			{
+				Log* log = *iter;
+				char* msg = log->msg;
+
+				// Message matches last message
+				if (!strncmp(msg, last_msg, strlen(msg) + 1))
+				{
+					i++;
+
+					// Last element, print the repeats
+					if (iter + 1 == logs.end())
+					{
+						ImGui::SameLine();
+						ImGui::Text("{x%d}", i);
+					}
+				}
+				else // Message is unique
+				{
+					// Group repeat logs together
+					if (i > 1)
+					{
+						ImGui::SameLine();
+						ImGui::Text("{x%d}", i);
+					}
+
+					ImGui::Text("- %s", msg);
+
+					memcpy(last_msg, msg, strlen(msg) + 1);
+					i = 1;
+				}
+
+				if (update && --log->ttl <= 0)
+				{
+					logs.erase(iter);
+					delete log;
+				}
+				else
+				{
+					++iter;
+				}
+			}
+		}
+	};
+	inline Logger logger;
 
 	struct RoadblockInfo
 	{

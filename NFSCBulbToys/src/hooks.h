@@ -98,6 +98,9 @@ namespace hooks
 	void __fastcall AddPlayerCarHook(uintptr_t world_map);
 	static inline decltype (&AddPlayerCarHook) AddPlayerCar;
 
+	uintptr_t __fastcall MLaunchPIPHook(uintptr_t m_launch_pip, uintptr_t edx, int id, uintptr_t simable_handle);
+	static inline decltype (&MLaunchPIPHook) MLaunchPIP;
+
 	//void CreateRoadBlockHook();
 	void UpdateCopElementsHook1();
 	void UpdateCopElementsHook2();

@@ -164,16 +164,6 @@ namespace g
 		inline bool overridden = false;
 	}
 
-	namespace fps
-	{
-		inline LARGE_INTEGER frequency;
-
-		inline uint32_t count = 0;
-		inline uint32_t value = 0;
-
-		inline Stopwatch* sw = nullptr;
-	}
-
 	// GPS only
 	namespace world_map
 	{
