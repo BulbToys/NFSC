@@ -1031,15 +1031,6 @@ void gui::Render()
 						Unpatch(0x5D59F4);
 					}
 				}
-
-				ImGui::Separator();
-
-				// Move vinyl step size
-				static int step_size = 1;
-				if (ImGui::MyInputInt("Move vinyl step size:", "##MVSSize", &step_size))
-				{
-					g::move_vinyl::step_size = step_size;
-				}
 			}
 
 			/* ===== CAMERAS ===== */
@@ -1907,6 +1898,8 @@ LRESULT CALLBACK WindowProcess(HWND window, UINT message, WPARAM wideParam, LPAR
 		{
 			g::world_map::shift_held = true;
 			//nfsc::BulbToys_UpdateWorldMapCursor();
+
+			g::move_vinyl::step_size = 10;
 		}
 	}
 
@@ -1916,6 +1909,8 @@ LRESULT CALLBACK WindowProcess(HWND window, UINT message, WPARAM wideParam, LPAR
 		{
 			g::world_map::shift_held = false;
 			//nfsc::BulbToys_UpdateWorldMapCursor();
+
+			g::move_vinyl::step_size = 1;
 		}
 	}
 
