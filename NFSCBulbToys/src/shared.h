@@ -145,6 +145,18 @@ inline void PurecallHandler()
 
 inline void SaveStruct(const char* filename, IValidatable& object, size_t size)
 {
+	if (!object.Validate())
+	{
+		char msg[512];
+		sprintf_s(msg, 512, "Error saving file %s.\n\n"
+			"The object you are trying to save has failed to validate, indicating it contains invalid (corrupt or otherwise unsafe) values.\n\nProceed?", filename);
+
+		if (MessageBoxA(NULL, msg, PROJECT_NAME, MB_ICONWARNING | MB_YESNO) != IDYES)
+		{
+			return;
+		}
+	}
+
 	// Avoid saving the vtable pointer
 	size -= 4;
 
@@ -199,8 +211,11 @@ inline bool LoadStruct(const char* filename, IValidatable& object, size_t size)
 
 			if (!object.Validate())
 			{
-				Error("Error opening file %s.\n\nInvalid file contents.", filename);
-				return false;
+				char msg[512];
+				sprintf_s(msg, 512, "Error opening file %s.\n\n"
+					"The object you are trying to load has failed to validate, indicating it contains invalid (corrupt or otherwise unsafe) values.\n\nProceed?", filename);
+
+				return MessageBoxA(NULL, msg, PROJECT_NAME, MB_ICONWARNING | MB_YESNO) == IDYES;
 			}
 		}
 
