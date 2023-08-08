@@ -598,19 +598,9 @@ void gui::Render()
 
 				if (GetSaveFileNameA(&ofn))
 				{
-					FILE* file = nullptr;
-					fopen_s(&file, ofn.lpstrFile, "wb");
-					if (!file)
-					{
-						char error[64];
-						strerror_s(error, errno);
-						Error("Error saving file %s.\n\nError code %d: %s", ofn.lpstrFile, errno, error);
-					}
-					else
-					{
-						fwrite(&rb[i], 1, sizeof(nfsc::RoadblockSetup), file);
-						fclose(file);
-					}
+					nfsc::RoadblockSetupFile buffer;
+					buffer = rb[i];
+					SaveStruct(ofn.lpstrFile, buffer, sizeof(nfsc::RoadblockSetupFile));
 				}
 			}
 			if (!readonly)
@@ -633,57 +623,10 @@ void gui::Render()
 
 					if (GetOpenFileNameA(&ofn))
 					{
-						FILE* file = nullptr;
-						fopen_s(&file, ofn.lpstrFile, "rb");
-						if (!file)
+						nfsc::RoadblockSetupFile buffer;
+						if (LoadStruct(ofn.lpstrFile, buffer, sizeof(nfsc::RoadblockSetupFile)))
 						{
-							char error[64];
-							strerror_s(error, errno);
-							Error("Error opening file %s.\n\nError code %d: %s", ofn.lpstrFile, errno, error);
-						}
-						else
-						{
-						nfsc::RoadblockSetup buffer;
-						size_t len = sizeof(nfsc::RoadblockSetup);
-
-						// Length of the file must match the struct size
-						fseek(file, 0, SEEK_END);
-						int size = ftell(file);
-						fseek(file, 0, SEEK_SET);
-						if (size != len)
-						{
-							Error("Error opening file %s.\n\nNot a valid Roadblock Setup file.", ofn.lpstrFile);
-						}
-						else
-						{
-							fread_s(&buffer, len, 1, len, file);
-
-							int j;
-							for (j = 0; j < 6; j++)
-							{
-								// All data must be within bounds
-								if (j == 0 && (buffer.minimum_width < .0f || buffer.minimum_width > 100.0f || buffer.required_vehicles < 0 || buffer.required_vehicles > 6))
-								{
-									Error("Error opening file %s.\n\nNot a valid Roadblock Setup file.", ofn.lpstrFile);
-								}
-
-								if ((int)buffer.contents[j].type < 0 || (int)buffer.contents[j].type > 3 ||
-									buffer.contents[j].offset_x < -50.0f || buffer.contents[j].offset_x > 50.0f ||
-									buffer.contents[j].offset_z < -50.0f || buffer.contents[j].offset_z > 50.0f ||
-									buffer.contents[j].angle < -1.0f || buffer.contents[j].angle > 1.0f)
-								{
-									Error("Error opening file %s.\n\nNot a valid Roadblock Setup file.", ofn.lpstrFile);
-								}
-
-								// File is valid
-								else if (j == 5)
-								{
-									rb[i] = buffer;
-								}
-							}
-						}
-
-						fclose(file);
+							rb[i] = buffer;
 						}
 					}
 				}

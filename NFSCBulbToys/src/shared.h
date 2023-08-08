@@ -24,12 +24,6 @@ inline bool exitMainLoop = false;
 
 #define ASSERT(cond) if (!(cond)) *((int*)0) = 0
 
-template <size_t size>
-struct VTable
-{
-	uintptr_t f[size] = {0};
-};
-
 struct Patch
 {
 	char* bytes = nullptr;
@@ -46,6 +40,7 @@ struct Patch
 		delete[] bytes;
 	}
 };
+inline std::unordered_map<uintptr_t, Patch*> patch_map;
 
 struct Stopwatch
 {
@@ -56,7 +51,11 @@ struct Stopwatch
 	void Add(uint32_t fps) { s += fps; i++; }
 };
 
-inline std::unordered_map<uintptr_t, Patch*> patch_map;
+template <size_t size>
+struct VTable
+{
+	uintptr_t f[size] = { 0 };
+};
 
 void Error(const char* message, ...);
 
@@ -142,6 +141,73 @@ inline void PurecallHandler()
 {
 	Error("Pure virtual function call.");
 	ASSERT(0);
+}
+
+inline void SaveStruct(const char* filename, IValidatable& object, size_t size)
+{
+	// Avoid saving the vtable pointer
+	size -= 4;
+
+	FILE* file = nullptr;
+	fopen_s(&file, filename, "wb");
+	if (!file)
+	{
+		char error[64];
+		strerror_s(error, errno);
+		Error("Error saving file %s.\n\nError code %d: %s", filename, errno, error);
+	}
+	else
+	{
+		// Avoid saving the vtable pointer
+		fwrite((char*)&object + 4, 1, size, file);
+		fclose(file);
+	}
+}
+
+inline bool LoadStruct(const char* filename, IValidatable& object, size_t size)
+{
+	// Avoid saving the vtable pointer
+	size -= 4;
+
+	FILE* file = nullptr;
+	fopen_s(&file, filename, "rb");
+	if (!file)
+	{
+		char error[64];
+		strerror_s(error, errno);
+		Error("Error opening file %s.\n\nError code %d: %s", filename, errno, error);
+		return false;
+	}
+	else
+	{
+		char* buffer = new char[size];
+
+		// Length of the file must match the struct size
+		fseek(file, 0, SEEK_END);
+		int len = ftell(file);
+		fseek(file, 0, SEEK_SET);
+		if (size != len)
+		{
+			Error("Error opening file %s.\n\nInvalid file length - expected %d, got %d.", filename, size, len);
+			return false;
+		}
+		else
+		{
+			// Avoid saving the vtable pointer
+			fread_s(buffer, len, 1, len, file);
+			memcpy((char*)&object + 4, buffer, size);
+
+			if (!object.Validate())
+			{
+				Error("Error opening file %s.\n\nInvalid file contents.", filename);
+				return false;
+			}
+		}
+
+		fclose(file);
+	}
+
+	return true;
 }
 
 /* === Shared hook/gui data (Globals) === */

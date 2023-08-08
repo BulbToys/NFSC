@@ -8,6 +8,13 @@
 struct ImDrawList;
 struct ImVec4;
 
+// TODO fucking NUKE me
+class IValidatable
+{
+public:
+	virtual bool Validate() = 0;
+};
+
 template <typename T>
 inline T ReadMemory(uintptr_t address);
 
@@ -218,11 +225,25 @@ namespace nfsc
 		float angle = 0;
 	};
 
+	// TODO FUCK
+	struct RoadblockSetupFile;
+
 	struct RoadblockSetup
 	{
 		float minimum_width = 0;
 		int required_vehicles = 0;
 		RoadblockElement contents[6] = { {rbelem_t::none, 0, 0, 0} };
+
+		void operator=(const RoadblockSetupFile& rbsf);
+	};
+
+	struct RoadblockSetupFile : public IValidatable
+	{
+		RoadblockSetup rbs;
+
+		void operator=(const RoadblockSetup& rbsf);
+
+		bool Validate() override;
 	};
 
 	struct Vector2

@@ -5,6 +5,43 @@ uint32_t nfsc::ListableSet_GetGrowSizeVirtually(void* ls, uint32_t amount)
 	return reinterpret_cast<uint32_t(__thiscall*)(void*, uint32_t)>(VirtualFunction(reinterpret_cast<uintptr_t>(ls), 3))(ls, amount);
 }
 
+void nfsc::RoadblockSetup::operator=(const RoadblockSetupFile& rbsf)
+{
+	memcpy(this, (char*)&rbsf + 4, sizeof(nfsc::RoadblockSetup));
+}
+
+void nfsc::RoadblockSetupFile::operator=(const RoadblockSetup& rbs)
+{
+	memcpy((char*)this + 4, &rbs, sizeof(nfsc::RoadblockSetup));
+}
+
+bool nfsc::RoadblockSetupFile::Validate()
+{
+	int i;
+	for (i = 0; i < 6; i++)
+	{
+		if (i == 0 && (this->rbs.minimum_width < .0f || this->rbs.minimum_width > 100.0f || this->rbs.required_vehicles < 0 || this->rbs.required_vehicles > 6))
+		{
+			break;
+		}
+
+		if ((int)this->rbs.contents[i].type < 0 || (int)this->rbs.contents[i].type > 3 ||
+			this->rbs.contents[i].offset_x < -50.0f || this->rbs.contents[i].offset_x > 50.0f ||
+			this->rbs.contents[i].offset_z < -50.0f || this->rbs.contents[i].offset_z > 50.0f ||
+			this->rbs.contents[i].angle < -1.0f || this->rbs.contents[i].angle > 1.0f)
+		{
+			break;
+		}
+
+		else if (i == 5)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
 void nfsc::BulbToys_DrawObject(ImDrawList* draw_list, Vector3& position, Vector3& dimension, Vector3& fwd_vec, ImVec4& color, float thickness)
 {
 	Matrix4 rotation;
