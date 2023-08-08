@@ -329,6 +329,19 @@ namespace nfsc
 	
 	/* ===== GAME FUNCTIONS ===== */
 
+	constexpr uint32_t bStringHash(const char* string)
+	{
+		uint32_t result = -1;
+
+		while (*string)
+		{
+			result = *string + 33 * result;
+			string++;
+		}
+
+		return result;
+	}
+
 	FUNC(0x436820, void, __thiscall, AIGoal_AddAction, uintptr_t ai_goal, char const* name);
 	FUNC(0x42A2D0, void, __thiscall, AIGoal_ChooseAction, uintptr_t ai_goal, float dt);
 	FUNC(0x42A240, void, __thiscall, AIGoal_ClearAllActions, uintptr_t ai_goal);
@@ -338,12 +351,7 @@ namespace nfsc
 
 	FUNC(0x4639D0, uint32_t, , Attrib_StringToKey, const char* string);
 
-	FUNC(0x471050, uint32_t, , bStringHash, const char* string);
-	FUNC(0x4710B0, uint32_t, , bStringHashUpper, const char* string);
-
 	FUNC(0x48D620, void, , CameraAI_SetAction, int eview, const char* name);
-
-	FUNC(0x7D4E40, bool, __thiscall, DebugVehicleSelection_SwitchPlayerVehicle, uintptr_t debug_veh_sel, char* name);
 
 	FUNC(0x5227F0, void, __thiscall, EAXSound_StartNewGamePlay, uintptr_t eax_sound);
 
