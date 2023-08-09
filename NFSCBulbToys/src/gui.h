@@ -93,6 +93,11 @@ namespace gui
 
 		Log(int ttl, const char* message, ...) : ttl(ttl)
 		{
+			if (ttl <= 0)
+			{
+				ttl = 5;
+			}
+
 			char buffer[1024];
 			va_list va;
 			va_start(va, message);

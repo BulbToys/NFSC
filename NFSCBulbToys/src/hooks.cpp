@@ -970,7 +970,7 @@ const char* pip_names[]
 
 uintptr_t __fastcall hooks::MLaunchPIPHook(uintptr_t m_launch_pip, uintptr_t edx, int id, uintptr_t simable_handle)
 {
-	gui::logger.Add(new gui::Log(5, "PIP: %d (%s)", id, pip_names[id - 1]));
+	gui::logger.Add(new gui::Log(0, "PIP: %d (%s)", id, pip_names[id - 1]));
 
 	return MLaunchPIP(m_launch_pip, edx, id, simable_handle);
 }

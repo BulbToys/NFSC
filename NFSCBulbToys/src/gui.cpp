@@ -922,7 +922,7 @@ void gui::Render()
 				ImGui::SameLine();
 				ImGui::Checkbox("##DVehicles", &overlays::incl_deactivated);
 				ImGui::SameLine();
-				ImGui::Text("deactivated)");
+				ImGui::Text("deactivated )");
 
 				// Street width/roadblock
 				ImGui::Checkbox("Street width/roadblock", &roadblock::overlay);
@@ -932,18 +932,6 @@ void gui::Render()
 
 				// Logging
 				ImGui::Checkbox("Logging", &overlays::logging);
-
-				// Custom PIP
-				static int pip = 0;
-				if (ImGui::InputInt("Custom PIP:", &pip) && *nfsc::GameFlowManager_State == nfsc::gameflow_state::racing)
-				{
-					if (pip < 1) pip = 1;
-					else if (pip > 47) pip = 47;
-
-					WriteMemory<int>(0x65568E, pip);
-					reinterpret_cast<void(*)(const char*)>(0x655670)("TUTORIAL_START");
-					WriteMemory<int>(0x65568E, 47);
-				}
 			}
 
 			/* ===== FRONTEND ===== */
@@ -1300,8 +1288,50 @@ void gui::Render()
 				ImGui::Checkbox("Always rain", reinterpret_cast<bool*>(0xB74D20));
 			}
 
-			/* ===== RACE TEST ===== */
-			if (ImGui::MyMenu("Race test", &menu[id++]))
+			/* ===== SPAWNING ===== */
+			if (ImGui::MyMenu("Spawning", &menu[id++]))
+			{
+				// Vehicle name
+				static char vehicle[32];
+				ImGui::Text("Vehicle name:");
+				ImGui::InputText("##vehicle2", vehicle, IM_ARRAYSIZE(vehicle));
+
+				// Spawn location
+				static float location[3] = { .0f, .0f, .0f };
+				ImGui::Location("Spawn location:", "##SLocation", location);
+
+				// Spawn type
+				static int spawn_type = 0;
+				ImGui::MyListBox("Spawn type:", "##SType", &spawn_type, nfsc::driver_classes, IM_ARRAYSIZE(nfsc::driver_classes));
+
+				// Spawn goal & Ignore/use default
+				static int spawn_goal = 0;
+				static bool ignore = true;
+				ImGui::MyListBox("Spawn goal:", "##SGoal", &spawn_goal, nfsc::goals, IM_ARRAYSIZE(nfsc::goals));
+				ImGui::Checkbox("Ignore (use default) goal", &ignore);
+
+				// Spawn vehicle
+				if (ImGui::Button("Spawn vehicle"))
+				{
+					nfsc::Vector3 r = { 1, 0, 0 };
+					nfsc::Vector3 p;
+					p.x = location[0];
+					p.y = location[1];
+					p.z = location[2];
+
+					uintptr_t simable = nfsc::BulbToys_CreateSimable(ReadMemory<uintptr_t>(nfsc::GRaceStatus),(nfsc::driver_class)(spawn_type + 1),
+						nfsc::Attrib_StringToKey(vehicle), &r, &p, 0, 0, 0);
+
+					if (!ignore && simable)
+					{
+						// dont tihnk this does shit
+						nfsc::Game_SetAIGoal(simable, nfsc::goals[spawn_goal]);
+					}
+				}
+			}
+
+			/* ===== TESTING ===== */
+			if (ImGui::MyMenu("TESTING", &menu[id++]))
 			{
 				struct eight_cars {
 					uintptr_t car[8] = { 0 };
@@ -1392,47 +1422,16 @@ void gui::Render()
 				}
 				ImGui::SameLine();
 				ImGui::Checkbox("Busted?", &bust);
-			}
 
-			/* ===== SPAWNING ===== */
-			if (ImGui::MyMenu("Spawning", &menu[id++]))
-			{
-				// Vehicle name
-				static char vehicle[32];
-				ImGui::Text("Vehicle name:");
-				ImGui::InputText("##vehicle2", vehicle, IM_ARRAYSIZE(vehicle));
+				ImGui::Separator();
 
-				// Spawn location
-				static float location[3] = { .0f, .0f, .0f };
-				ImGui::Location("Spawn location:", "##SLocation", location);
-
-				// Spawn type
-				static int spawn_type = 0;
-				ImGui::MyListBox("Spawn type:", "##SType", &spawn_type, nfsc::driver_classes, IM_ARRAYSIZE(nfsc::driver_classes));
-
-				// Spawn goal & Ignore/use default
-				static int spawn_goal = 0;
-				static bool ignore = true;
-				ImGui::MyListBox("Spawn goal:", "##SGoal", &spawn_goal, nfsc::goals, IM_ARRAYSIZE(nfsc::goals));
-				ImGui::Checkbox("Ignore (use default) goal", &ignore);
-
-				// Spawn vehicle
-				if (ImGui::Button("Spawn vehicle"))
+				// Custom PIP
+				static int pip = 0;
+				if (ImGui::MyInputInt("Custom PIP:", "##CPIP", &pip, 1, 47) && *nfsc::GameFlowManager_State == nfsc::gameflow_state::racing)
 				{
-					nfsc::Vector3 r = { 1, 0, 0 };
-					nfsc::Vector3 p;
-					p.x = location[0];
-					p.y = location[1];
-					p.z = location[2];
-
-					uintptr_t simable = nfsc::BulbToys_CreateSimable(ReadMemory<uintptr_t>(nfsc::GRaceStatus),(nfsc::driver_class)(spawn_type + 1),
-						nfsc::Attrib_StringToKey(vehicle), &r, &p, 0, 0, 0);
-
-					if (!ignore && simable)
-					{
-						// dont tihnk this does shit
-						nfsc::Game_SetAIGoal(simable, nfsc::goals[spawn_goal]);
-					}
+					WriteMemory<int>(0x65568E, pip);
+					reinterpret_cast<void(*)(const char*)>(0x655670)("TUTORIAL_START");
+					WriteMemory<int>(0x65568E, 47);
 				}
 			}
 
