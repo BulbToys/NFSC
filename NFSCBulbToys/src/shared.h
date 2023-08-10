@@ -176,7 +176,7 @@ inline void SaveStruct(const char* filename, IValidatable& object, size_t size)
 	}
 }
 
-inline bool LoadStruct(const char* filename, IValidatable& object, size_t size)
+inline bool LoadStruct(const char* filename, IValidatable& object, size_t size, bool allow_undersize = false)
 {
 	// Avoid saving the vtable pointer
 	size -= 4;
@@ -194,32 +194,31 @@ inline bool LoadStruct(const char* filename, IValidatable& object, size_t size)
 	{
 		char* buffer = new char[size];
 
-		// Length of the file must match the struct size
 		fseek(file, 0, SEEK_END);
 		int len = ftell(file);
 		fseek(file, 0, SEEK_SET);
-		if (size != len)
+
+		if (len > size || (!allow_undersize && len < size))
 		{
+			fclose(file);
 			Error("Error opening file %s.\n\nInvalid file length - expected %d, got %d.", filename, size, len);
 			return false;
 		}
-		else
-		{
-			// Avoid saving the vtable pointer
-			fread_s(buffer, len, 1, len, file);
-			memcpy((char*)&object + 4, buffer, size);
 
-			if (!object.Validate())
-			{
-				char msg[512];
-				sprintf_s(msg, 512, "Error opening file %s.\n\n"
-					"The object you are trying to load has failed to validate, indicating it contains invalid (corrupt or otherwise unsafe) values.\n\nProceed?", filename);
-
-				return MessageBoxA(NULL, msg, PROJECT_NAME, MB_ICONWARNING | MB_YESNO) == IDYES;
-			}
-		}
-
+		fread_s(buffer, len, 1, len, file);
 		fclose(file);
+
+		// Avoid saving the vtable pointer
+		memcpy((char*)&object + 4, buffer, len);
+
+		if (!object.Validate())
+		{
+			char msg[512];
+			sprintf_s(msg, 512, "Error opening file %s.\n\n"
+				"The object you are trying to load has failed to validate, indicating it contains invalid (corrupt or otherwise unsafe) values.\n\nProceed?", filename);
+
+			return MessageBoxA(NULL, msg, PROJECT_NAME, MB_ICONWARNING | MB_YESNO) == IDYES;
+		}
 	}
 
 	return true;
