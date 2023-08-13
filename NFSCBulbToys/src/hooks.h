@@ -101,6 +101,9 @@ namespace hooks
 	uintptr_t __fastcall MLaunchPIPHook(uintptr_t m_launch_pip, uintptr_t edx, int id, uintptr_t simable_handle);
 	static inline decltype (&MLaunchPIPHook) MLaunchPIP;
 
+	bool __fastcall SpawnEncounterHook(uintptr_t traffic_manager);
+	static inline decltype (&SpawnEncounterHook) SpawnEncounter;
+
 	//void CreateRoadBlockHook();
 	void UpdateCopElementsHook1();
 	void UpdateCopElementsHook2();

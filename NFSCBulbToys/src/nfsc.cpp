@@ -242,38 +242,8 @@ void nfsc::BulbToys_GetScreenPosition(Vector3& world, Vector3& screen)
 
 float nfsc::BulbToys_GetStreetWidth(Vector3* position, Vector3* direction, float distance, Vector3* left_pos, Vector3* right_pos, Vector3* fwd_vec)
 {
-	struct WRoadNav // 780u
-	{ 
-		uint8_t pad0[0x58];
-
-		bool fValid = false;
-		
-		uint8_t pad1[0x1B]{ 0 };
-
-		int fNavType = 0;
-
-		uint8_t pad2[0x10]{ 0 };
-
-		char fNodeInd = 0;
-
-		uint8_t pad3 = 0;
-
-		short fSegmentInd = 0;
-
-		uint8_t pad4[0x14]{ 0 };
-
-		Vector3 fLeftPosition = { 0, 0, 0 };
-		Vector3 fRightPosition = { 0, 0, 0 };
-		Vector3 fForwardVector = { 0, 0, 0 };
-
-		uint8_t pad5[0x248]{ 0 };
-
-	} nav;
-
-	constexpr int a = sizeof(nav);
-
-	// WRoadNav::WRoadNav(&nav);
-	reinterpret_cast<uintptr_t(__thiscall*)(WRoadNav&)>(0x806820)(nav);
+	WRoadNav nav;
+	WRoadNav_WRoadNav(nav);
 
 	// WRoadNav::SetCookieTrail(&nav, 1);
 	reinterpret_cast<void(__thiscall*)(WRoadNav&, bool)>(0x7F7CA0)(nav, 1);
@@ -284,20 +254,20 @@ float nfsc::BulbToys_GetStreetWidth(Vector3* position, Vector3* direction, float
 	// nav.fNavType = kTypeDirection;
 	nav.fNavType = 2;
 
-	// WRoadNav::InitAtPoint(&nav, &position, &direction, 0, 0.0);
-	reinterpret_cast<void(__thiscall*)(WRoadNav&, Vector3*, Vector3*, bool, float)>(0x80F180)(nav, position, direction, 0, 0.0);
+	WRoadNav_InitAtPoint(nav, position, direction, 0, 0.0);
 	if (!nav.fValid)
 	{
+		WRoadNav_Destructor(nav);
 		return NAN;
 	}
 
-	// WRoadNav::IncNavPosition(&nav, distance, &UMath::Vector3::kZero, 0.0, 0);
-	reinterpret_cast<void(__thiscall*)(WRoadNav&, float, Vector3*, float, bool)>(0x80C600)(nav, distance, ZeroV3, 0.0, 0);
+	WRoadNav_IncNavPosition(nav, distance, ZeroV3, 0.0, 0);
 
 	// segment = &WRoadNetwork::fSegments[nav.fSegmentInd];
 	uintptr_t segment = ReadMemory<uintptr_t>(0xB77ECC) + 0x16 * nav.fSegmentInd;
 	if (!segment)
 	{
+		WRoadNav_Destructor(nav);
 		return NAN;
 	}
 
@@ -306,18 +276,21 @@ float nfsc::BulbToys_GetStreetWidth(Vector3* position, Vector3* direction, float
 	// (segment->fFlags & 2) != 0
 	if ((segment_flags & 2) != 0)
 	{
+		WRoadNav_Destructor(nav);
 		return NAN;
 	}
 
 	// (segment->fFlags & 1) != 0
 	if ((segment_flags & 1) != 0)
 	{
+		WRoadNav_Destructor(nav);
 		return NAN;
 	}
 
 	// segment->nLength * flt_00A83DA8 < flt_009C1D30 )
 	if (ReadMemory<uint16_t>(segment + 0x4) * 0.015259022 < 40.0)
 	{
+		WRoadNav_Destructor(nav);
 		return NAN;
 	}
 
@@ -327,6 +300,7 @@ float nfsc::BulbToys_GetStreetWidth(Vector3* position, Vector3* direction, float
 	// !segment_profile->fNumZones
 	if (!segment_profile || !ReadMemory<char>(segment_profile))
 	{
+		WRoadNav_Destructor(nav);
 		return NAN;
 	}
 
@@ -347,8 +321,7 @@ float nfsc::BulbToys_GetStreetWidth(Vector3* position, Vector3* direction, float
 	// nav.fRightPosition & nav.fLeftPosition
 	float width = UMath_Distance(&nav.fRightPosition, &nav.fLeftPosition);
 
-	// WRoadNav::~WRoadNav(&nav);
-	reinterpret_cast<void(__thiscall*)(WRoadNav&)>(0x7F7BF0)(nav);
+	WRoadNav_Destructor(nav);
 
 	return width;
 }

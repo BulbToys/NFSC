@@ -281,6 +281,35 @@ namespace nfsc
 		unsigned int fPrimitiveMask = 0;
 	};
 
+	struct WRoadNav // 780u
+	{
+		uint8_t pad0[0x58];
+
+		bool fValid = false;
+
+		uint8_t pad1[0x1B]{ 0 };
+
+		int fNavType = 0;
+
+		uint8_t pad2[0x10]{ 0 };
+
+		char fNodeInd = 0;
+
+		uint8_t pad3 = 0;
+
+		short fSegmentInd = 0;
+
+		uint8_t pad4[0x8]{ 0 };
+
+		Vector3 fPosition = { 0, 0, 0 };
+		Vector3 fLeftPosition = { 0, 0, 0 };
+		Vector3 fRightPosition = { 0, 0, 0 };
+		Vector3 fForwardVector = { 0, 0, 0 };
+
+		uint8_t pad5[0x248]{ 0 };
+
+	};
+
 	/* ===== GAME CONSTANTS ===== */
 
 	// Globals
@@ -455,7 +484,11 @@ namespace nfsc
 	FUNC(0x5ACA90, void, __thiscall, WorldMap_GetPanFromMapCoordLocation, uintptr_t world_map, Vector2* output, Vector2* input);
 	FUNC(0x582C30, void, , WorldMap_SetGPSIng, uintptr_t icon);
 
+	FUNC(0x7F7BF0, void, __thiscall, WRoadNav_Destructor, WRoadNav& nav);
 	FUNC(0x7FB090, bool, __thiscall, WRoadNav_FindPath, uintptr_t roadnav, Vector3* goal_position, Vector3* goal_direction, bool shortcuts_allowed);
+	FUNC(0x80C600, void, __thiscall, WRoadNav_IncNavPosition, WRoadNav& nav, float distance, Vector3* to, float max_look_ahead, bool excl_shortcuts);
+	FUNC(0x80F180, void, __thiscall, WRoadNav_InitAtPoint, WRoadNav& nav, Vector3* pos, Vector3* dir, bool force_center_lane, float dir_weight);
+	FUNC(0x806820, uintptr_t, __thiscall, WRoadNav_WRoadNav, WRoadNav& nav);
 
 	/* ===== CUSTOM FUNCTIONS ===== */
 

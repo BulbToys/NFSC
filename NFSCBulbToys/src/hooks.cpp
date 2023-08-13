@@ -132,7 +132,10 @@ bool hooks::SetupPart2(uintptr_t device)
 	// Add racers and GPS icon to the world map
 	CreateHook(0x5ACB50, &AddPlayerCarHook, &AddPlayerCar);
 
+	// PIP tests
 	CreateHook(0x44BCE0, &MLaunchPIPHook, &MLaunchPIP);
+
+	CreateHook(0x444D90, &SpawnEncounterHook, &SpawnEncounter);
 
 	// Override the chosen roadblock with our own when manually spawning roadblocks
 	// TODO: uncomment when i've unfucked roadblock creation (might even be useless)
@@ -973,6 +976,147 @@ uintptr_t __fastcall hooks::MLaunchPIPHook(uintptr_t m_launch_pip, uintptr_t edx
 	gui::logger.Add(new gui::Log(0, "PIP: %d (%s)", id, pip_names[id - 1]));
 
 	return MLaunchPIP(m_launch_pip, edx, id, simable_handle);
+}
+
+bool __fastcall hooks::SpawnEncounterHook(uintptr_t traffic_manager)
+{
+	// Save the time since the last encounter spawn for later calculations
+	uintptr_t time_since_last_encounter_spawn = traffic_manager + 0x130;
+	float time = ReadMemory<float>(time_since_last_encounter_spawn);
+
+	// Tweak_TrafficRandomEncounter
+	if (!ReadMemory<bool>(0xA4BF80))
+	{
+		return false;
+	}
+
+	// GCareer::mObj && (GCareer::mObj->mPendingAcitivity || *&GCareer::mObj->data_00_20[12]) - checks if we're in a race?
+	uintptr_t g_career = ReadMemory<uintptr_t>(0xA982B8);
+	if (g_career && (ReadMemory<uint32_t>(g_career + 0x118) || ReadMemory<int>(g_career + 0x110)))
+	{
+		return false;
+	}
+
+	uintptr_t vehicle, simable;
+	if (!nfsc::BulbToys_GetMyVehicle(&vehicle, &simable))
+	{
+		return false;
+	}
+
+	uintptr_t vehicle_ai = nfsc::PVehicle_GetAIVehiclePtr(vehicle);
+	if (!vehicle_ai)
+	{
+		return false;
+	}
+
+	// AIVehicle::GetPursuit
+	uintptr_t pursuit = reinterpret_cast<uintptr_t(__thiscall*)(uintptr_t)>(0x43BD80)(vehicle_ai);
+	if (pursuit)
+	{
+		return false;
+	}
+
+	// AITrafficManager::NeedsEncounter - returns false if a SPAWNED/ACTIVE racer already exists
+	if (!reinterpret_cast<bool(__thiscall*)(uintptr_t)>(0x422BF0)(traffic_manager))
+	{
+		return false;
+	}
+
+	// AITrafficManager::NextEncounterSpawn - is it time for us to spawn? returns false if next_encounter_key is null (gets generated in this function)
+	// next_encounter_key only gets set to null after a successful spawn - it will remain intact should the vehicle still be loading
+	if (!reinterpret_cast<bool(__thiscall*)(uintptr_t)>(0x444AC0)(traffic_manager))
+	{
+		return false;
+	}
+
+	// Time for us to spawn. If we fail for any reason (other than the vehicle loading), we start over at half our timer
+	// TODO: fucked?
+	WriteMemory<float>(time_since_last_encounter_spawn, time / 2);
+
+	nfsc::WRoadNav nav;
+	nfsc::WRoadNav_WRoadNav(nav);
+
+	uintptr_t rigid_body = nfsc::PhysicsObject_GetRigidBody(simable);
+
+	nfsc::Vector3 position = *nfsc::RigidBody_GetPosition(rigid_body);
+	nfsc::Vector3 fwd_vec;
+	nfsc::RigidBody_GetForwardVector(rigid_body, &fwd_vec);
+
+	float distance = 300.f;
+
+	// 50% chance to spawn an encounter behind us
+	if (std::rand() % 2)
+	{
+		distance = 80.f;
+
+		fwd_vec.x = -fwd_vec.x;
+		fwd_vec.y = -fwd_vec.y;
+		fwd_vec.z = -fwd_vec.z;
+	}
+
+	nav.fNavType = 2; // kTypeDirection
+
+	nfsc::WRoadNav_InitAtPoint(nav, &position, &fwd_vec, false, 1.0);
+	if (!nav.fValid)
+	{
+		nfsc::WRoadNav_Destructor(nav);
+		return false;
+	}
+
+	nfsc::WRoadNav_IncNavPosition(nav, distance, &fwd_vec, 0.0, 0);
+
+	nfsc::WCollisionMgr mgr;
+	mgr.fPrimitiveMask = 3;
+	mgr.fSurfaceExclusionMask = 0;
+
+	float _;
+	if (!nfsc::WCollisionMgr_GetWorldHeightAtPointRigorous(mgr, &nav.fPosition, &_, nullptr))
+	{
+		nfsc::WRoadNav_Destructor(nav);
+		return 0;
+	}
+
+	fwd_vec.x = -nav.fForwardVector.x;
+	fwd_vec.y = -nav.fForwardVector.y;
+	fwd_vec.z = -nav.fForwardVector.z;
+
+	uintptr_t encounter_vehicle = reinterpret_cast<uintptr_t(__thiscall*)(uintptr_t, uint32_t, uint32_t)>(0x42CB70)
+		(traffic_manager, ReadMemory<uint32_t>(traffic_manager + 0x120), ReadMemory<uint32_t>(traffic_manager + 0x128));
+	if (!encounter_vehicle)
+	{
+		return false;
+	}
+
+	// PVehicle::IsLoading
+	if (reinterpret_cast<bool(__thiscall*)(uintptr_t)>(0x6C0A00)(encounter_vehicle))
+	{
+		// Give it some time to load - try again after 1 second
+		WriteMemory<float>(time_since_last_encounter_spawn, time - 1.0f);
+		return false;
+	}
+
+	// Encounter has successfully spawned - reset timer and skin/vehicle keys to 0
+	WriteMemory<float>(time_since_last_encounter_spawn, 0.0);
+	WriteMemory<uint32_t>(traffic_manager + 0x120, 0);
+	WriteMemory<uint32_t>(traffic_manager + 0x128, 0);
+
+	nfsc::PVehicle_SetVehicleOnGround(encounter_vehicle, &nav.fPosition, &fwd_vec);
+
+	uintptr_t encounter_ai = nfsc::PVehicle_GetAIVehiclePtr(encounter_vehicle);
+	
+	// AIVehicle::SetSpawned
+	reinterpret_cast<void(__thiscall*)(uintptr_t)>(0x418600)(encounter_ai);
+
+	// AIVehicle::SetGoal
+	constexpr uint32_t AIGoalEncounterPursuit = 0xD4272692;
+	reinterpret_cast<void(__thiscall*)(uintptr_t, const uint32_t&)>(0x427A60)(encounter_ai, AIGoalEncounterPursuit);
+
+	nfsc::PVehicle_Activate(encounter_vehicle);
+	nfsc::PVehicle_SetSpeed(encounter_vehicle, 15.64605); // 35 mph
+
+	nfsc::WRoadNav_Destructor(nav);
+
+	return true;
 }
 
 /*
