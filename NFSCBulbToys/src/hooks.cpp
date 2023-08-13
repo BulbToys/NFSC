@@ -973,16 +973,20 @@ const char* pip_names[]
 
 uintptr_t __fastcall hooks::MLaunchPIPHook(uintptr_t m_launch_pip, uintptr_t edx, int id, uintptr_t simable_handle)
 {
-	gui::logger.Add(new gui::Log(0, "PIP: %d (%s)", id, pip_names[id - 1]));
+	LOG(0, "PIP: %d (%s)", id, pip_names[id - 1]);
 
 	return MLaunchPIP(m_launch_pip, edx, id, simable_handle);
 }
 
 bool __fastcall hooks::SpawnEncounterHook(uintptr_t traffic_manager)
 {
+	static uintptr_t encounter_vehicle = 0;
+
 	// Save the time since the last encounter spawn for later calculations
 	uintptr_t time_since_last_encounter_spawn = traffic_manager + 0x130;
 	float time = ReadMemory<float>(time_since_last_encounter_spawn);
+
+	//LOG(1, "SpawnEncounter: TSLE = %.2f", time);
 
 	// Tweak_TrafficRandomEncounter
 	if (!ReadMemory<bool>(0xA4BF80))
@@ -1029,9 +1033,19 @@ bool __fastcall hooks::SpawnEncounterHook(uintptr_t traffic_manager)
 		return false;
 	}
 
-	// Time for us to spawn. If we fail for any reason (other than the vehicle loading), we start over at half our timer
-	// TODO: fucked?
+	/*
+	// don't think any of these are necessary lol (function gets called maybe 5 times per second), leaving them here just in case
+
+	// Custom check - again, is it *really* time for us to spawn?
+	// This time we don't care if next_encounter_key is set or not, we return false if it's not our time yet
+	if (ReadMemory<float>(time_since_last_encounter_spawn) > ...)
+	{
+		return false;
+	}
+
+	// Time for us to spawn. If we fail for any reason (other than the vehicle loading), we start over at half our timer (pointless without custom check)
 	WriteMemory<float>(time_since_last_encounter_spawn, time / 2);
+	*/
 
 	nfsc::WRoadNav nav;
 	nfsc::WRoadNav_WRoadNav(nav);
@@ -1042,6 +1056,8 @@ bool __fastcall hooks::SpawnEncounterHook(uintptr_t traffic_manager)
 	nfsc::Vector3 fwd_vec;
 	nfsc::RigidBody_GetForwardVector(rigid_body, &fwd_vec);
 
+	// Distance when spawning in front of us
+	// TODO: is it worth keeping this feature? it kinda sucks lol
 	float distance = 300.f;
 
 	// 50% chance to spawn an encounter behind us
@@ -1080,18 +1096,17 @@ bool __fastcall hooks::SpawnEncounterHook(uintptr_t traffic_manager)
 	fwd_vec.y = -nav.fForwardVector.y;
 	fwd_vec.z = -nav.fForwardVector.z;
 
-	uintptr_t encounter_vehicle = reinterpret_cast<uintptr_t(__thiscall*)(uintptr_t, uint32_t, uint32_t)>(0x42CB70)
+	encounter_vehicle = reinterpret_cast<uintptr_t(__thiscall*)(uintptr_t, uint32_t, uint32_t)>(0x42CB70)
 		(traffic_manager, ReadMemory<uint32_t>(traffic_manager + 0x120), ReadMemory<uint32_t>(traffic_manager + 0x128));
 	if (!encounter_vehicle)
 	{
 		return false;
 	}
 
-	// PVehicle::IsLoading
-	if (reinterpret_cast<bool(__thiscall*)(uintptr_t)>(0x6C0A00)(encounter_vehicle))
+	if (nfsc::PVehicle_IsLoading(encounter_vehicle))
 	{
-		// Give it some time to load - try again after 1 second
-		WriteMemory<float>(time_since_last_encounter_spawn, time - 1.0f);
+		// Give it some time to load - try again after 1 second (pointless without custom check)
+		//WriteMemory<float>(time_since_last_encounter_spawn, time - 1.0f);
 		return false;
 	}
 

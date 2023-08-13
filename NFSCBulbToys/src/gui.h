@@ -200,6 +200,8 @@ namespace gui
 	};
 }
 
+#define LOG(ttl, msg, ...) gui::logger.Add(new gui::Log(ttl, msg, __VA_ARGS__))
+
 namespace ImGui
 {
 	inline bool MyListBox(const char* text, const char* id, int* current_item, const char* const* items, int items_count, int height_in_items);
