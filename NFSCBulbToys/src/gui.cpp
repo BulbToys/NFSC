@@ -962,6 +962,17 @@ void gui::Render()
 						Unpatch(0x5D59F4);
 					}
 				}
+
+				// Jump to Safe House
+				if (ImGui::Button("Jump to Safe House") && *nfsc::GameFlowManager_State == nfsc::gameflow_state::racing)
+				{
+					ImGui::PopItemWidth();
+					ImGui::End();
+
+					reinterpret_cast<void(*)()>(0x64B800)();
+
+					return;
+				}
 			}
 
 			/* ===== CAMERAS ===== */
@@ -1269,6 +1280,16 @@ void gui::Render()
 					{
 						Unpatch(0x449836);
 					}
+				}
+
+				// Heat level
+				static int heat_level = 1;
+				ImGui::MyInputInt("Heat level:", "##HLevel", &heat_level, 1, 10);
+
+				// Start pursuit
+				if (ImGui::Button("Start pursuit"))
+				{
+					reinterpret_cast<void(*)(int)>(0x651430)(heat_level);
 				}
 
 				ImGui::Separator();
