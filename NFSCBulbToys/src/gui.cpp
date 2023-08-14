@@ -973,6 +973,16 @@ void gui::Render()
 
 					return;
 				}
+
+				// SMS Number
+				static int sms = 0;
+				ImGui::MyInputInt("SMS Number:", "##SMSNumber", &sms, -1, 100);
+
+				// Add SMS
+				if (ImGui::Button("Add SMS"))
+				{
+					reinterpret_cast<void(__thiscall*)(uintptr_t, int)>(0x62B570)(ReadMemory<uintptr_t>(nfsc::GManagerBase), sms);
+				}
 			}
 
 			/* ===== CAMERAS ===== */

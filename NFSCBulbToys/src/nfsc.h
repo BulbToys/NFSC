@@ -315,6 +315,7 @@ namespace nfsc
 	// Globals
 	constexpr uintptr_t Direct3DDevice9 = 0xAB0ABC;
 	inline gameflow_state* GameFlowManager_State = reinterpret_cast<gameflow_state*>(0xA99BBC);
+	constexpr uintptr_t GManagerBase = 0xA98294;
 	constexpr uintptr_t GRaceStatus = 0xA98284;
 	constexpr uintptr_t ThePursuitSimables = 0xA98140;
 	constexpr uintptr_t WorldMap = 0xA977F0;

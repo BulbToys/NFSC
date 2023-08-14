@@ -1275,7 +1275,7 @@ void __fastcall hooks::WorldMapStateChangeHook(uintptr_t fe_state_manager)
 		if (nfsc::GPS_Engage(&g::world_map::location, 0.0, false))
 		{
 			nfsc::Vector3 position = { g::world_map::location.z, -g::world_map::location.x, g::world_map::location.y };
-			auto icon = nfsc::GManager_AllocIcon(ReadMemory<uintptr_t>(0xA98294), 0x15, &position, 0, false);
+			auto icon = nfsc::GManager_AllocIcon(ReadMemory<uintptr_t>(nfsc::GManagerBase), 0x15, &position, 0, false);
 
 			// Set flag to ShowOnSpawn
 			//WriteMemory<uint8_t>(icon_addr + 1, 0x40);
