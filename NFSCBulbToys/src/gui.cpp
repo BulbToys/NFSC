@@ -1007,6 +1007,28 @@ void gui::Render()
 				{
 					ScuffedStringToWide(message, g::custom_sms::message, 1024);
 				}
+
+				ImGui::Separator();
+
+				// Current error
+				uintptr_t error_ptr = ReadMemory<uintptr_t>(0xA97B70) + 0x18;
+				static int error = 0;
+				if (error_ptr != 0x18)
+				{
+					error = ReadMemory<int>(error_ptr);
+				}
+				ImGui::Text("Current error: %d", error);
+
+				// Error1 & Error2
+				if (ImGui::Button("Error1"))
+				{
+					WriteMemory<int>(error_ptr, 1);
+				}
+				ImGui::SameLine();
+				if (ImGui::Button("Error2"))
+				{
+					WriteMemory<int>(error_ptr, 2);
+				}
 			}
 
 			/* ===== CAMERAS ===== */

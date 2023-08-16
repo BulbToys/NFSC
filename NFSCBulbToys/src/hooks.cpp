@@ -1282,12 +1282,12 @@ bool __fastcall hooks::SetSMSHandleHook(uintptr_t ecx, uintptr_t edx, int a1, in
 	// No need to check "a1" as it is always 255 in game code (called in FESMSStateManager::HandleButtonPressed)
 	if (a2 == g::custom_sms::handle)
 	{
-		// Delete the SMS. Normally, this is permanent and irreversible for alias SMSs, but for our custom SMS you can will it back to life using GManager::AddSMS
+		// Delete the SMS. Normally, this is permanent and irreversible for alias SMSs, but for our custom SMS we can will it back to life using GManager::AddSMS
 		g::custom_sms::exists = false;
 		return true;
 	}
 
-	return SetSMSHandle(ecx, edx, a1, a2);;
+	return SetSMSHandle(ecx, edx, a1, a2);
 }
 
 void __fastcall hooks::FESMSRefreshHeaderHook(uintptr_t fe_sms_message)
