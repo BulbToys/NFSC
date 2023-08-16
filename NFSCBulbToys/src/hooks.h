@@ -104,6 +104,45 @@ namespace hooks
 	bool __fastcall SpawnEncounterHook(uintptr_t traffic_manager);
 	static inline decltype (&SpawnEncounterHook) SpawnEncounter;
 
+	bool __fastcall GetSMSHandleHook(uintptr_t ecx, uintptr_t edx, int* a1, int a2);
+	static inline decltype (&GetSMSHandleHook) GetSMSHandle;
+
+	bool __fastcall GetSMSIsAvailableHook(uintptr_t ecx, uintptr_t edx, int* a1, int a2);
+	static inline decltype (&GetSMSIsAvailableHook) GetSMSIsAvailable;
+
+	bool __fastcall GetSMSWasReadHook(uintptr_t ecx, uintptr_t edx, int* a1, int a2);
+	static inline decltype (&GetSMSWasReadHook) GetSMSWasRead;
+
+	bool __fastcall GetSMSIsTipHook(uintptr_t ecx, uintptr_t edx, int* a1, int a2);
+	static inline decltype (&GetSMSIsTipHook) GetSMSIsTip;
+
+	bool __fastcall GetSMSSortOrderHook(uintptr_t ecx, uintptr_t edx, int* a1, int a2);
+	static inline decltype (&GetSMSSortOrderHook) GetSMSSortOrder;
+
+	bool __fastcall GetSMSHashHook(uintptr_t ecx, uintptr_t edx, int* a1, int a2);
+	static inline decltype (&GetSMSHashHook) GetSMSHash;
+
+	bool __fastcall GetSMSIsVoiceHook(uintptr_t ecx, uintptr_t edx, int* a1, int a2);
+	static inline decltype (&GetSMSIsVoiceHook) GetSMSIsVoice;
+
+	bool __fastcall SetSMSWasReadHook(uintptr_t ecx, uintptr_t edx, int a1, int a2);
+	static inline decltype (&SetSMSWasReadHook) SetSMSWasRead;
+
+	bool __fastcall SetSMSIsAvailableHook(uintptr_t ecx, uintptr_t edx, int a1, int a2);
+	static inline decltype (&SetSMSIsAvailableHook) SetSMSIsAvailable;
+
+	bool __fastcall SetSMSHandleHook(uintptr_t ecx, uintptr_t edx, int a1, int a2);
+	static inline decltype (&SetSMSHandleHook) SetSMSHandle;
+
+	void __fastcall FESMSRefreshHeaderHook(uintptr_t fe_sms_message);
+	static inline decltype (&FESMSRefreshHeaderHook) FESMSRefreshHeader;
+
+	void __fastcall CTextScrollerSetTextHashHook(uintptr_t c_text_scroller, uintptr_t edx, uint32_t language_hash);
+	static inline decltype (&CTextScrollerSetTextHashHook) CTextScrollerSetTextHash;
+
+	void __fastcall SMSSlotUpdateHook(uintptr_t sms_slot, uintptr_t edx, uintptr_t sms_datum, bool a3, uintptr_t fe_object);
+	static inline decltype (&SMSSlotUpdateHook) SMSSlotUpdate;
+
 	//void CreateRoadBlockHook();
 	void UpdateCopElementsHook1();
 	void UpdateCopElementsHook2();

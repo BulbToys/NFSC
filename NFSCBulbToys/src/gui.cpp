@@ -974,14 +974,38 @@ void gui::Render()
 					return;
 				}
 
+				ImGui::Separator();
+
 				// SMS Number
 				static int sms = 0;
-				ImGui::MyInputInt("SMS Number:", "##SMSNumber", &sms, -1, 100);
+				ImGui::MyInputInt("SMS Number:", "##SMSNumber", &sms, -1, 149);
 
 				// Add SMS
 				if (ImGui::Button("Add SMS"))
 				{
 					reinterpret_cast<void(__thiscall*)(uintptr_t, int)>(0x62B570)(ReadMemory<uintptr_t>(nfsc::GManagerBase), sms);
+				}
+
+				// Add SMS [SAFE]
+				if (ImGui::Button("Add SMS [SAFE]"))
+				{
+					reinterpret_cast<void(__thiscall*)(uintptr_t, int)>(0x62DD40)(ReadMemory<uintptr_t>(nfsc::GManagerBase), sms);
+				}
+
+				// Custom SMS
+				static char from[64] = {}, subject[64] = {}, message[1024] = {};
+				ImGui::Text("Custom SMS %d:", g::custom_sms::handle);
+				if (ImGui::InputText("##CSMSFrom", from, IM_ARRAYSIZE(from)))
+				{
+					ScuffedStringToWide(from, g::custom_sms::from, 64);
+				}
+				if (ImGui::InputText("##CSMSSubject", subject, IM_ARRAYSIZE(subject)))
+				{
+					ScuffedStringToWide(subject, g::custom_sms::subject, 64);
+				}
+				if (ImGui::InputText("##CSMSMessage", message, IM_ARRAYSIZE(message)))
+				{
+					ScuffedStringToWide(message, g::custom_sms::message, 1024);
 				}
 			}
 

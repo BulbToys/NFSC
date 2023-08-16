@@ -224,6 +224,24 @@ inline bool LoadStruct(const char* filename, IValidatable& object, size_t size, 
 	return true;
 }
 
+// !!! Length MUST match for both strings !!!
+inline void ScuffedStringToWide(const char* string, wchar_t* wide, size_t len)
+{
+	char* wide_multi = reinterpret_cast<char*>(wide);
+
+	for (int i = 0; i < len; i++)
+	{
+		wide_multi[i * 2] = string[i];
+		wide_multi[i * 2 + 1] = '\0';
+
+		// Null character - assume we're done
+		if (string[i] == '\0')
+		{
+			return;
+		}
+	}
+}
+
 /* === Shared hook/gui data (Globals) === */
 
 namespace g
@@ -304,6 +322,18 @@ namespace g
 	namespace smart_ai
 	{
 		inline nfsc::Vector3 target = { 0, 0, 0 };
+	}
+
+	namespace custom_sms
+	{
+		inline constexpr uint8_t handle = 149;
+
+		inline wchar_t subject[64] = {0};
+		inline wchar_t from[64] = {0};
+		inline wchar_t message[1024] = {0};
+
+		inline bool exists = false;
+		inline bool read = false;
 	}
 
 	// FOV overrides

@@ -390,8 +390,10 @@ namespace nfsc
 	FUNC(0x5A0250, uintptr_t, , FE_Object_FindObject, const char* package_name, uint32_t key);
 	FUNC(0x597900, void, , FE_Object_GetCenter, uintptr_t object, float* x, float* y);
 	FUNC(0x570CC0, void, , FE_Object_SetColor, uintptr_t object, FEColor* color);
+	FUNC(0x570460, void, , FE_Object_SetVisibility, uintptr_t object, bool visible);
 
 	FUNC(0x5711C0, uint32_t, , FE_String_HashString, const char* fmt, ...);
+	FUNC(0x583B10, void, , FE_String_SetString, uintptr_t object, const wchar_t* wide_string);
 
 	FUNC(0x5CDEA0, void, , FEDialogScreen_ShowDialog, const char* message, const char* button1, const char* button2, const char* button3);
 

@@ -135,7 +135,27 @@ bool hooks::SetupPart2(uintptr_t device)
 	// PIP tests
 	CreateHook(0x44BCE0, &MLaunchPIPHook, &MLaunchPIP);
 
+	// Prevent "encounter bleeding" - spawning encounters into the void endlessly
 	CreateHook(0x444D90, &SpawnEncounterHook, &SpawnEncounter);
+
+	// Custom SMS test 1 - DAL getters
+	CreateHook(0x4A1250, &GetSMSHandleHook, &GetSMSHandle);
+	CreateHook(0x4A1290, &GetSMSIsAvailableHook, &GetSMSIsAvailable);
+	CreateHook(0x4A12E0, &GetSMSWasReadHook, &GetSMSWasRead);
+	CreateHook(0x4A1330, &GetSMSIsTipHook, &GetSMSIsTip);
+	CreateHook(0x4A1390, &GetSMSSortOrderHook, &GetSMSSortOrder);
+	CreateHook(0x4A14A0, &GetSMSHashHook, &GetSMSHash);
+	CreateHook(0x4B2B80, &GetSMSIsVoiceHook, &GetSMSIsVoice);
+
+	// Custom SMS part 2 - DAL setters
+	CreateHook(0x4A1530, &SetSMSWasReadHook, &SetSMSWasRead);
+	CreateHook(0x4A15B0, &SetSMSIsAvailableHook, &SetSMSIsAvailable);
+	CreateHook(0x4A1600, &SetSMSHandleHook, &SetSMSHandle);
+
+	// Custom SMS test 2 - FE rendering
+	CreateHook(0x5D7550, &FESMSRefreshHeaderHook, &FESMSRefreshHeader);
+	CreateHook(0x5C6370, &CTextScrollerSetTextHashHook, &CTextScrollerSetTextHash);
+	CreateHook(0x5D7250, &SMSSlotUpdateHook, &SMSSlotUpdate);
 
 	// Override the chosen roadblock with our own when manually spawning roadblocks
 	// TODO: uncomment when i've unfucked roadblock creation (might even be useless)
@@ -1132,6 +1152,194 @@ bool __fastcall hooks::SpawnEncounterHook(uintptr_t traffic_manager)
 	nfsc::WRoadNav_Destructor(nav);
 
 	return true;
+}
+
+bool __fastcall hooks::GetSMSHandleHook(uintptr_t ecx, uintptr_t edx, int* a1, int a2)
+{
+	if (a2 == g::custom_sms::handle)
+	{
+		// SMS has been deleted and thus no longer exists.
+		if (!g::custom_sms::exists)
+		{
+			return false;
+		}
+
+		*a1 = g::custom_sms::handle;
+		return true;
+	}
+
+	return GetSMSHandle(ecx, edx, a1, a2);
+}
+
+bool __fastcall hooks::GetSMSIsAvailableHook(uintptr_t ecx, uintptr_t edx, int* a1, int a2)
+{
+	if (a2 == g::custom_sms::handle)
+	{
+		// Should the SMS show up in the mailbox? Can safely always return 1 here, since the SMS will not show if it's been deleted
+		*a1 = 1;
+		return true;
+	}
+
+	return GetSMSIsAvailable(ecx, edx, a1, a2);
+}
+
+bool __fastcall hooks::GetSMSWasReadHook(uintptr_t ecx, uintptr_t edx, int* a1, int a2)
+{
+	if (a2 == g::custom_sms::handle)
+	{
+		// Dictates whether it should have a (!) in front or not. Already read messages don't pop-up if GManager::AddSMS gets called
+		*a1 = g::custom_sms::read;
+		return true;
+	}
+
+	return GetSMSWasRead(ecx, edx, a1, a2);
+}
+
+bool __fastcall hooks::GetSMSIsTipHook(uintptr_t ecx, uintptr_t edx, int* a1, int a2)
+{
+	if (a2 == g::custom_sms::handle)
+	{
+		// Not a tip message
+		*a1 = 0;
+		return true;
+	}
+
+	return GetSMSIsTip(ecx, edx, a1, a2);
+}
+
+bool __fastcall hooks::GetSMSSortOrderHook(uintptr_t ecx, uintptr_t edx, int* a1, int a2)
+{
+	if (a2 == g::custom_sms::handle)
+	{
+		// Sort order is an unsigned short. Higher numbers on top, lower numbers on bottom - make sure our SMS is always at the top
+		*a1 = 0xFFFF;
+		return true;
+	}
+
+	return GetSMSSortOrder(ecx, edx, a1, a2);
+}
+
+bool __fastcall hooks::GetSMSHashHook(uintptr_t ecx, uintptr_t edx, int* a1, int a2)
+{
+	if (a2 == g::custom_sms::handle)
+	{
+		// SMS message hash is unused due to our hooks, but still need to return true here to pass check in FESMSMessage::Setup
+		return true;
+	}
+
+	return GetSMSHash(ecx, edx, a1, a2);
+}
+
+bool __fastcall hooks::GetSMSIsVoiceHook(uintptr_t ecx, uintptr_t edx, int* a1, int a2)
+{
+	if (a2 == g::custom_sms::handle)
+	{
+		// Not a voice message
+		*a1 = 0;
+		return true;
+	}
+
+	return GetSMSIsVoice(ecx, edx, a1, a2);
+}
+
+bool __fastcall hooks::SetSMSWasReadHook(uintptr_t ecx, uintptr_t edx, int a1, int a2)
+{
+	if (a2 == g::custom_sms::handle)
+	{
+		// Setting read flag for non-existent SMSs is invalid
+		if (!g::custom_sms::exists)
+		{
+			return false;
+		}
+
+		g::custom_sms::read = (bool)a1;
+		return true;
+	}
+
+	return SetSMSWasRead(ecx, edx, a1, a2);
+}
+
+bool __fastcall hooks::SetSMSIsAvailableHook(uintptr_t ecx, uintptr_t edx, int a1, int a2)
+{
+	// No need to check "a1" as it is always 1 in game code (called in GManager::AddSMS)
+	if (a2 == g::custom_sms::handle)
+	{
+		// Reset read flag if we're about to start existing
+		if (!g::custom_sms::exists)
+		{
+			g::custom_sms::read = false;
+		}
+
+		g::custom_sms::exists = true;
+		return true;
+	}
+
+	return SetSMSIsAvailable(ecx, edx, a1, a2);
+}
+
+bool __fastcall hooks::SetSMSHandleHook(uintptr_t ecx, uintptr_t edx, int a1, int a2)
+{
+	// No need to check "a1" as it is always 255 in game code (called in FESMSStateManager::HandleButtonPressed)
+	if (a2 == g::custom_sms::handle)
+	{
+		// Delete the SMS. Normally, this is permanent and irreversible for alias SMSs, but for our custom SMS you can will it back to life using GManager::AddSMS
+		g::custom_sms::exists = false;
+		return true;
+	}
+
+	return SetSMSHandle(ecx, edx, a1, a2);;
+}
+
+void __fastcall hooks::FESMSRefreshHeaderHook(uintptr_t fe_sms_message)
+{
+	// Set SMS headers (From & Subject) for our custom SMS
+	if (ReadMemory<uint32_t>(fe_sms_message + 0xD8) == g::custom_sms::handle)
+	{	
+		char* package_name = ReadMemory<char*>(fe_sms_message + 0xC);
+
+		uintptr_t object = nfsc::FE_Object_FindObject(package_name, 0xFECED617);
+		nfsc::FE_String_SetString(object, g::custom_sms::from);
+
+		object = nfsc::FE_Object_FindObject(package_name, 0x2C167533);
+		nfsc::FE_String_SetString(object, g::custom_sms::subject);
+
+		return;
+	}
+
+	FESMSRefreshHeader(fe_sms_message);
+}
+
+void __fastcall hooks::CTextScrollerSetTextHashHook(uintptr_t c_text_scroller, uintptr_t edx, uint32_t language_hash)
+{
+	// Set SMS message for our custom SMS
+	if (ReadMemory<uint32_t>(c_text_scroller - 0x28 /* FESMSMessage */ + 0xD8) == g::custom_sms::handle)
+	{
+		// CTextScroller::SetText
+		reinterpret_cast<void(__thiscall*)(uintptr_t, const wchar_t*)>(0x5BCDF0)(c_text_scroller, g::custom_sms::message);
+		return;
+	}
+
+	CTextScrollerSetTextHash(c_text_scroller, edx, language_hash);
+}
+
+void __fastcall hooks::SMSSlotUpdateHook(uintptr_t sms_slot, uintptr_t edx, uintptr_t sms_datum, bool a3, uintptr_t fe_object)
+{
+	// Set SMS subject (in the mailbox list) for our custom SMS
+	if (sms_datum && ReadMemory<uint32_t>(sms_datum + 0x18) == g::custom_sms::handle)
+	{
+		// ArraySlot::Update
+		reinterpret_cast<void(__thiscall*)(uintptr_t, uintptr_t, bool, uintptr_t)>(0x59A360)(sms_slot, sms_datum, a3, fe_object);
+
+		// this->text_object
+		nfsc::FE_String_SetString(ReadMemory<uintptr_t>(sms_slot + 0x18), g::custom_sms::subject);
+
+		// this->image_object, sms_datum->checked
+		nfsc::FE_Object_SetVisibility(ReadMemory<uintptr_t>(sms_slot + 0x14), ReadMemory<bool>(sms_datum + 0x17));
+
+		return;
+	}
+
+	SMSSlotUpdate(sms_slot, edx, sms_datum, a3, fe_object);
 }
 
 /*
