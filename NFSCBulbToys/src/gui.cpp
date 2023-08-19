@@ -385,6 +385,30 @@ void gui::Render()
 		frame_count++;
 	}
 
+	// GameFlowState Test
+	static int old_gfs = 0;
+	int new_gfs = (int)*nfsc::GameFlowManager_State;
+	if (old_gfs != new_gfs)
+	{
+		const char* gameflow_names[]
+		{
+			"NONE",
+			"LOADING_FRONTEND",
+			"UNLOADING_FRONTEND",
+			"IN_FRONTEND",
+			"LOADING_REGION",
+			"LOADING_TRACK",
+			"RACING",
+			"UNLOADING_TRACK",
+			"UNLOADING_REGION",
+			"EXIT_DEMO_DISC"
+		};
+
+		LOG(5, "Gameflow state: %s -> %s", gameflow_names[old_gfs], gameflow_names[new_gfs]);
+
+		old_gfs = new_gfs;
+	}
+
 	if (gui::menu_open)
 	{
 		/* ========== M E M O R Y    E D I T O R S ========== */
