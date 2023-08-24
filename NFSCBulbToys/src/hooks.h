@@ -143,6 +143,21 @@ namespace hooks
 	void __fastcall SMSSlotUpdateHook(uintptr_t sms_slot, uintptr_t edx, uintptr_t sms_datum, bool a3, uintptr_t fe_object);
 	static inline decltype (&SMSSlotUpdateHook) SMSSlotUpdate;
 
+	uintptr_t __stdcall DALGetIVehicleHook(int settings_index);
+	static inline decltype (&DALGetIVehicleHook) DALGetIVehicle;
+
+	typedef void __fastcall HUDElementUpdateFunc(uintptr_t hud_element, uintptr_t edx, uintptr_t player);
+	void HUDElementUpdateHook(uintptr_t hud_element, uintptr_t edx, uintptr_t player, HUDElementUpdateFunc* Update);
+
+	HUDElementUpdateFunc TachometerUpdateHook;
+	static inline HUDElementUpdateFunc* TachometerUpdate;
+
+	HUDElementUpdateFunc NitrousGaugeUpdateHook;
+	static inline HUDElementUpdateFunc* NitrousGaugeUpdate;
+
+	HUDElementUpdateFunc SpeedbreakerMeterUpdateHook;
+	static inline HUDElementUpdateFunc* SpeedbreakerMeterUpdate;
+
 	//void CreateRoadBlockHook();
 	void UpdateCopElementsHook1();
 	void UpdateCopElementsHook2();

@@ -84,7 +84,30 @@ inline void ImGui::AddyLabel(uintptr_t addy, const char* fmt, ...)
 	if (ImGui::Button(button))
 	{
 		// Copy to MemEdit input field
-		sprintf_s(gui::input_addr, 9, "%08X", addy);
+		//sprintf_s(gui::input_addr, 9, "%08X", addy);
+
+		HGLOBAL mem = GlobalAlloc(GMEM_MOVEABLE, 9);
+		if (!mem)
+		{
+			return;
+		}
+
+		LPVOID ptr = GlobalLock(mem);
+		if (!ptr)
+		{
+			GlobalFree(mem);
+			return;
+		}
+
+		char addy_str[9];
+		sprintf_s(addy_str, 9, "%08X", addy);
+		memcpy(ptr, addy_str, 9);
+		GlobalUnlock(mem);
+
+		OpenClipboard(gui::window);
+		EmptyClipboard();
+		SetClipboardData(CF_TEXT, mem);
+		CloseClipboard();
 	}
 }
 
@@ -121,7 +144,7 @@ inline void ImGui::Location(const char* label, const char* id, float* location)
 	ImGui::SameLine();
 	*/
 	sprintf_s(buffer, 32, "Mine##%s_M", id);
-	if (ImGui::Button(buffer) && *nfsc::GameFlowManager_State == nfsc::gameflow_state::racing)
+	if (ImGui::Button(buffer) && nfsc::BulbToys_GetGameFlowState() == nfsc::gameflow_state::racing)
 	{
 		nfsc::Vector3 pos = {0, 0, 0};
 
@@ -136,7 +159,7 @@ inline void ImGui::Location(const char* label, const char* id, float* location)
 
 		// Else just use our own coordinates
 		uintptr_t simable = 0;
-		nfsc::BulbToys_GetMyVehicle(0, &simable);
+		nfsc::BulbToys_GetMyVehicle(nullptr, &simable);
 		if (simable)
 		{
 			uintptr_t rigid_body = nfsc::PhysicsObject_GetRigidBody(simable);
@@ -331,6 +354,7 @@ void gui::Destroy()
 void gui::Render()
 {
 	/* ========== I N F O ========== */
+	nfsc::gameflow_state gfs = nfsc::BulbToys_GetGameFlowState();
 	uintptr_t my_vehicle = 0;
 	uintptr_t my_simable = 0;
 	nfsc::BulbToys_GetMyVehicle(&my_vehicle, &my_simable);
@@ -346,9 +370,10 @@ void gui::Render()
 	}
 
 	// Set CameraDebugWatchCar to false if we're no longer spectating
-	if (strncmp(nfsc::BulbToys_GetCameraName(), "CDActionDebugWatchCar", 22))
+	if (*nfsc::spectate::enabled && strncmp(nfsc::BulbToys_GetCameraName(), "CDActionDebugWatchCar", 22))
 	{
 		*nfsc::spectate::enabled = false;
+		nfsc::BulbToys_ResetMyHUD(my_simable);
 	}
 
 	// FPS counter
@@ -387,8 +412,7 @@ void gui::Render()
 
 	// GameFlowState Test
 	static int old_gfs = 0;
-	int new_gfs = (int)*nfsc::GameFlowManager_State;
-	if (old_gfs != new_gfs)
+	if (old_gfs != (int)gfs)
 	{
 		const char* gameflow_names[]
 		{
@@ -404,9 +428,9 @@ void gui::Render()
 			"EXIT_DEMO_DISC"
 		};
 
-		LOG(5, "Gameflow state: %s -> %s", gameflow_names[old_gfs], gameflow_names[new_gfs]);
+		LOG(3, "Gameflow state: %s -> %s", gameflow_names[old_gfs], gameflow_names[(int)gfs]);
 
-		old_gfs = new_gfs;
+		old_gfs = (int)gfs;
 	}
 
 	if (gui::menu_open)
@@ -489,6 +513,8 @@ void gui::Render()
 				{
 					*i = size - 1;
 				}
+
+				nfsc::BulbToys_ResetMyHUD(my_simable);
 			}
 			ImGui::SameLine();
 			ImGui::Text("%2d/%2d", *i, size - 1);
@@ -500,11 +526,14 @@ void gui::Render()
 				{
 					*i = 0;
 				}
+
+				nfsc::BulbToys_ResetMyHUD(my_simable);
 			}
 
 			ImGui::Separator();
 
 			uintptr_t vehicle = nfsc::VehicleList[*list]->begin[*i];
+			nfsc::spectate::vehicle = vehicle;
 
 			// Vehicle
 			ImGui::AddyLabel(vehicle, "Vehicle");
@@ -967,6 +996,22 @@ void gui::Render()
 				// DebugCarCustomize
 				ImGui::Checkbox("DebugCarCustomize", reinterpret_cast<bool*>(0xA9E680));
 
+				// Replace Statistics with Template
+				static bool replace = false;
+				if (ImGui::Checkbox("Replace Statistics with Template", &replace))
+				{
+					if (replace)
+					{
+						PatchMemory<uintptr_t>(0x867524, 0x8674B7);
+						PatchMemory<uint32_t>(0x83C689, 0x7EF40CB4);
+					}
+					else
+					{
+						Unpatch(0x867524);
+						Unpatch(0x83C689);
+					}
+				}
+
 				// ShowAllPresetsInFE
 				ImGui::Checkbox("ShowAllPresetsInFE", reinterpret_cast<bool*>(0xA9E6C3));
 
@@ -988,7 +1033,7 @@ void gui::Render()
 				}
 
 				// Jump to Safe House
-				if (ImGui::Button("Jump to Safe House") && *nfsc::GameFlowManager_State == nfsc::gameflow_state::racing)
+				if (ImGui::Button("Jump to Safe House") && gfs == nfsc::gameflow_state::racing)
 				{
 					ImGui::PopItemWidth();
 					ImGui::End();
@@ -1053,6 +1098,12 @@ void gui::Render()
 				{
 					WriteMemory<int>(error_ptr, 2);
 				}
+
+				// AdvancedError
+				if (ImGui::Button("AdvancedError"))
+				{
+					WriteMemory<int>(error_ptr, 2);
+				}
 			}
 
 			/* ===== CAMERAS ===== */
@@ -1064,6 +1115,7 @@ void gui::Render()
 					if (*nfsc::spectate::enabled)
 					{
 						nfsc::CameraAI_SetAction(1, "CDActionDebugWatchCar");
+						nfsc::BulbToys_ResetMyHUD();
 					}
 					else
 					{
@@ -1363,13 +1415,21 @@ void gui::Render()
 				}
 
 				// Heat level
-				static int heat_level = 1;
-				ImGui::MyInputInt("Heat level:", "##HLevel", &heat_level, 1, 10);
+				static float heat_level = 1;
+				if (my_simable)
+				{
+					uintptr_t my_perp = nfsc::BulbToys_FindInterface<0x4061D0>(my_simable);
+					heat_level = reinterpret_cast<float(__thiscall*)(uintptr_t)>(0x40AF00)(my_perp);
+				}
+				if (ImGui::MySliderFloat("Heat level:", "##HLevel", &heat_level, 1.f, 10.f))
+				{
+					reinterpret_cast<void(*)(float)>(0x65C550)(heat_level);
+				}
 
 				// Start pursuit
 				if (ImGui::Button("Start pursuit"))
 				{
-					reinterpret_cast<void(*)(int)>(0x651430)(heat_level);
+					reinterpret_cast<void(*)(int)>(0x651430)(1);
 				}
 
 				ImGui::Separator();
@@ -1528,11 +1588,18 @@ void gui::Render()
 
 				// Custom PIP
 				static int pip = 0;
-				if (ImGui::MyInputInt("Custom PIP:", "##CPIP", &pip, 1, 47) && *nfsc::GameFlowManager_State == nfsc::gameflow_state::racing)
+				if (ImGui::MyInputInt("Custom PIP:", "##CPIP", &pip, 1, 47) && gfs == nfsc::gameflow_state::racing)
 				{
 					WriteMemory<int>(0x65568E, pip);
 					reinterpret_cast<void(*)(const char*)>(0x655670)("TUTORIAL_START");
 					WriteMemory<int>(0x65568E, 47);
+				}
+
+				ImGui::Separator();
+
+				if (ImGui::Button("Sabotage"))
+				{
+					reinterpret_cast<void(*)(uintptr_t, float)>(0x6515D0)(my_simable, 5.0f);
 				}
 			}
 
@@ -1878,11 +1945,8 @@ void gui::Render()
 			}
 		}
 
-		if (overlays::logging)
-		{
-			ImGui::Text("Logs:");
-			gui::logger.Print(update);
-		}
+		/* ===== LOGGING ===== */
+		gui::logger.Print(update, overlays::logging);
 
 		ImGui::End();
 	}

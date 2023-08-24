@@ -38,7 +38,9 @@ namespace nfsc
 
 	/* ===== GAME ENUMS ===== */
 
+	// TODO: apparently, PD2 is the T1 and PD1 is the T2 car, but that's not what game code dictates?
 	inline const char* player_cop_cars[] = { "player_cop", "player_cop_suv", "player_cop_gto" };
+	inline int player_cop_tier = 0;
 
 	inline const char* goals[] = { "AIGoalEncounterPursuit", "AIGoalNone", "AIGoalRacer", "AIGoalTraffic", "AIGoalPatrol"};
 	enum class ai_goal : int
@@ -68,8 +70,16 @@ namespace nfsc
 
 	enum class gameflow_state : int
 	{
-		in_frontend = 3,
-		racing      = 6,
+		none               = 0x0,
+		loading_frontend   = 0x1,
+		unloading_frontend = 0x2,
+		in_frontend        = 0x3,
+		loading_region     = 0x4,
+		loading_track      = 0x5,
+		racing             = 0x6,
+		unloading_track    = 0x7,
+		unloading_region   = 0x8,
+		exit_demo_disc     = 0x9,
 	};
 
 	enum class race_type : int
@@ -314,13 +324,13 @@ namespace nfsc
 
 	// Globals
 	constexpr uintptr_t Direct3DDevice9 = 0xAB0ABC;
-	inline gameflow_state* GameFlowManager_State = reinterpret_cast<gameflow_state*>(0xA99BBC);
+	constexpr uintptr_t FEManager = 0xA97A7C;
 	constexpr uintptr_t GManagerBase = 0xA98294;
 	constexpr uintptr_t GRaceStatus = 0xA98284;
 	constexpr uintptr_t ThePursuitSimables = 0xA98140;
 	constexpr uintptr_t WorldMap = 0xA977F0;
 
-	// FastMem is an OBJECT
+	// Global OBJECTS!!
 	constexpr uintptr_t FastMem = 0xA99720;
 
 	// Interfaces
@@ -349,12 +359,13 @@ namespace nfsc
 	};
 
 	// Misc
-	inline Vector3* ZeroV3 = reinterpret_cast<Vector3*>(0x9D780C);
 	inline bool* SkipNIS = reinterpret_cast<bool*>(0xA9E64E);
+	inline Vector3* ZeroV3 = reinterpret_cast<Vector3*>(0x9D780C);
 
 	namespace spectate
 	{
 		inline bool* enabled = reinterpret_cast<bool*>(0xA888F1);
+		inline uintptr_t vehicle = 0;
 	}
 	
 	/* ===== GAME FUNCTIONS ===== */
@@ -372,12 +383,12 @@ namespace nfsc
 		return result;
 	}
 
-	FUNC(0x436820, void, __thiscall, AIGoal_AddAction, uintptr_t ai_goal, char const* name);
-	FUNC(0x42A2D0, void, __thiscall, AIGoal_ChooseAction, uintptr_t ai_goal, float dt);
-	FUNC(0x42A240, void, __thiscall, AIGoal_ClearAllActions, uintptr_t ai_goal);
+	FUNC(0x436820, void, __thiscall, AIGoal_AddAction, uintptr_t goal, char const* name);
+	FUNC(0x42A2D0, void, __thiscall, AIGoal_ChooseAction, uintptr_t goal, float dt);
+	FUNC(0x42A240, void, __thiscall, AIGoal_ClearAllActions, uintptr_t goal);
 
-	FUNC(0x40EBC0, bool, __thiscall, AITarget_GetVehicleInterface, uintptr_t ai_target, uintptr_t* ivehicle);
-	FUNC(0x429C80, void, __thiscall, AITarget_Acquire, uintptr_t ai_target, uintptr_t simable);
+	FUNC(0x40EBC0, bool, __thiscall, AITarget_GetVehicleInterface, uintptr_t target, uintptr_t* ivehicle);
+	FUNC(0x429C80, void, __thiscall, AITarget_Acquire, uintptr_t target, uintptr_t simable);
 
 	FUNC(0x4639D0, uint32_t, , Attrib_StringToKey, const char* string);
 
@@ -496,10 +507,13 @@ namespace nfsc
 
 	/* ===== CUSTOM FUNCTIONS ===== */
 
+	inline gameflow_state BulbToys_GetGameFlowState();
+
 	inline uintptr_t BulbToys_CreateSimable(uintptr_t vehicle_cache, driver_class dc, uint32_t key, Vector3* rotation, Vector3* position, uint32_t vpf,
-		uintptr_t customization_record, uintptr_t performance_matching, bool safe = true)
+		uintptr_t customization_record, uintptr_t performance_matching)
 	{
-		if (safe && *GameFlowManager_State != gameflow_state::racing)
+		gameflow_state gfs = BulbToys_GetGameFlowState();
+		if (gfs != gameflow_state::racing && gfs != gameflow_state::loading_region && gfs != gameflow_state::loading_track)
 		{
 			return 0;
 		}
@@ -524,7 +538,8 @@ namespace nfsc
 		Vector3 p = { 0, 0, 0 };
 		Vector3 r = { 1, 0, 0 };
 
-		return BulbToys_CreateSimable(ReadMemory<uintptr_t>(GRaceStatus), driver_class::none, GKnockoutRacer_GetPursuitVehicleKey(1), &r, &p, vehicle_param_flags::critical, 0, 0, false);
+		return BulbToys_CreateSimable
+			(ReadMemory<uintptr_t>(GRaceStatus), driver_class::none, GKnockoutRacer_GetPursuitVehicleKey(1), &r, &p, vehicle_param_flags::critical, 0, 0);
 	}
 
 	void BulbToys_DrawObject(ImDrawList* draw_list, Vector3& position, Vector3& dimension, Vector3& rotation, ImVec4& color, float thickness);
@@ -564,15 +579,37 @@ namespace nfsc
 
 	bool BulbToys_GetMyVehicle(uintptr_t* my_vehicle, uintptr_t* my_simable);
 
-	int BulbToys_GetPVehicleTier(uintptr_t pvehicle);
+	int BulbToys_GetRacerIndex(uintptr_t racer_info);
+
+	race_type BulbToys_GetRaceType();
 
 	void BulbToys_GetScreenPosition(Vector3& world_position, Vector3& screen_position);
 
 	float BulbToys_GetStreetWidth(Vector3* position, Vector3* direction, float distance, Vector3* left_pos, Vector3* right_pos, Vector3* fwd_vec);
 
-	race_type BulbToys_GetRaceType();
+	int BulbToys_GetVehicleTier(uintptr_t pvehicle);
 
 	void BulbToys_PathToTarget(uintptr_t ai_vehicle, Vector3* target);
+
+	inline void BulbToys_ResetMyHUD(uintptr_t simable = 0)
+	{
+		if (!simable)
+		{
+			BulbToys_GetMyVehicle(nullptr, &simable);
+		}
+		if (!simable)
+		{
+			return;
+		}
+
+		uintptr_t player = PhysicsObject_GetPlayer(simable);
+		if (!player)
+		{
+			return;
+		}
+
+		LocalPlayer_ResetHUDType(player, 1);
+	}
 
 	void* BulbToys_RoadblockCalculations(RoadblockSetup* setup, uintptr_t rigid_body);
 

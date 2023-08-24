@@ -124,7 +124,7 @@ namespace gui
 			logs.push_back(log);
 		}
 
-		void Print(bool update)
+		void Print(bool update, bool show)
 		{
 			char last_msg[1024] {0};
 			int i = 1;
@@ -133,35 +133,41 @@ namespace gui
 			while (iter != logs.end())
 			{
 				Log* log = *iter;
-				char* msg = log->msg;
 
-				// Message matches last message
-				if (!strncmp(msg, last_msg, strlen(msg) + 1))
+				// Should we show the log?
+				if (show)
 				{
-					i++;
+					char* msg = log->msg;
 
-					// Last element, print the repeats
-					if (iter + 1 == logs.end())
+					// Message matches last message
+					if (!strncmp(msg, last_msg, strlen(msg) + 1))
 					{
-						ImGui::SameLine();
-						ImGui::Text("{x%d}", i);
+						i++;
+
+						// Last element, print the repeats
+						if (iter + 1 == logs.end())
+						{
+							ImGui::SameLine();
+							ImGui::Text("{x%d}", i);
+						}
+					}
+					else // Message is unique
+					{
+						// Group repeat logs together
+						if (i > 1)
+						{
+							ImGui::SameLine();
+							ImGui::Text("{x%d}", i);
+						}
+
+						ImGui::Text("- %s", msg);
+
+						memcpy(last_msg, msg, strlen(msg) + 1);
+						i = 1;
 					}
 				}
-				else // Message is unique
-				{
-					// Group repeat logs together
-					if (i > 1)
-					{
-						ImGui::SameLine();
-						ImGui::Text("{x%d}", i);
-					}
 
-					ImGui::Text("- %s", msg);
-
-					memcpy(last_msg, msg, strlen(msg) + 1);
-					i = 1;
-				}
-
+				// A new second has passed, decrease TTL
 				if (update && --log->ttl <= 0)
 				{
 					logs.erase(iter);

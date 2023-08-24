@@ -42,6 +42,11 @@ bool nfsc::RoadblockSetupFile::Validate()
 	return false;
 }
 
+inline nfsc::gameflow_state nfsc::BulbToys_GetGameFlowState()
+{
+	return ReadMemory<gameflow_state>(0xA99BBC);
+}
+
 void nfsc::BulbToys_DrawObject(ImDrawList* draw_list, Vector3& position, Vector3& dimension, Vector3& fwd_vec, ImVec4& color, float thickness)
 {
 	Matrix4 rotation;
@@ -195,7 +200,7 @@ uintptr_t nfsc::BulbToys_GetAIVehicleGoal(uintptr_t ai_vehicle_ivehicleai)
 
 const char* nfsc::BulbToys_GetCameraName()
 {
-	if (*GameFlowManager_State != gameflow_state::racing)
+	if (nfsc::BulbToys_GetGameFlowState() != gameflow_state::racing)
 	{
 		return "";
 	}
@@ -209,9 +214,9 @@ const char* nfsc::BulbToys_GetCameraName()
 }
 
 // NOTE: Returns tier 0 correctly (ie. Dump Truck). Returns -1 if it can't find its attributes.
-int nfsc::BulbToys_GetPVehicleTier(uintptr_t pvehicle)
+int nfsc::BulbToys_GetVehicleTier(uintptr_t vehicle)
 {
-	uintptr_t attributes = pvehicle + 0xF0;
+	uintptr_t attributes = vehicle - 0xD0 /* PVehicle */ + 0xF0;
 
 	uintptr_t layout_ptr = ReadMemory<uintptr_t>(attributes + 4);
 	if (!layout_ptr)
@@ -343,10 +348,32 @@ nfsc::race_type nfsc::BulbToys_GetRaceType()
 	return reinterpret_cast<race_type(__thiscall*)(uintptr_t)>(0x6136A0)(race_parameters);
 }
 
+int nfsc::BulbToys_GetRacerIndex(uintptr_t racer_info)
+{
+	uintptr_t g_race_status = ReadMemory<uintptr_t>(GRaceStatus);
+	if (!g_race_status)
+	{
+		return -1;
+	}
+
+	// just iterate GRacerInfo[30] in GRaceStatus until the addresses match lol
+	g_race_status += 0x18;
+	for (int i = 0; i < 30; i++)
+	{
+		if (racer_info == g_race_status)
+		{
+			return i;
+		}
+		g_race_status += 0x384;
+	}
+
+	return -1;
+}
+
 // Returns false if we're not in Debug Cam
 bool nfsc::BulbToys_GetDebugCamCoords(Vector3* position , Vector3* fwd_vec)
 {
-	if (*GameFlowManager_State != gameflow_state::racing)
+	if (nfsc::BulbToys_GetGameFlowState() != gameflow_state::racing)
 	{
 		return false;
 	}
@@ -385,7 +412,8 @@ bool nfsc::BulbToys_GetDebugCamCoords(Vector3* position , Vector3* fwd_vec)
 
 bool nfsc::BulbToys_GetMyVehicle(uintptr_t* my_vehicle, uintptr_t* my_simable)
 {
-	if (*GameFlowManager_State == gameflow_state::racing)
+	nfsc::gameflow_state gfs = nfsc::BulbToys_GetGameFlowState();
+	if (gfs == gameflow_state::racing || gfs == gameflow_state::loading_region || gfs == gameflow_state::loading_track)
 	{
 		for (int i = 0; i < (int)VehicleList[vehicle_list::players]->size; i++)
 		{
@@ -694,44 +722,84 @@ bool nfsc::BulbToys_SwitchVehicle(uintptr_t simable, uintptr_t simable2, sv_mode
 
 void __fastcall nfsc::BulbToys_SwitchPTagTarget(uintptr_t race_status, bool busted)
 {
-	// Store information about our current runner here
+	// Store information about our current runner here. Simable needs to be static in order for the sort function to work.
 	int runner_index = -1;
-	uintptr_t runner_simable = GRaceStatus_GetRacePursuitTarget(race_status, &runner_index);
+	static uintptr_t runner_simable = 0;
+	runner_simable = GRaceStatus_GetRacePursuitTarget(race_status, &runner_index);
 
-	// Store information about our soon-to-be runner here
-	int min_index = -1;
-	float min = FLT_MAX;
+	size_t len = GRaceStatus_GetRacerCount(race_status) - 1;
+	uintptr_t* chasers = new uintptr_t[len];
 
-	// Find the cop car closest to the current runner's car (minimum distance between the racer and each of the cop cars)
-	// TODO: use pursuit contribution instead?
-	for (int i = 0; i < GRaceStatus_GetRacerCount(race_status); i++)
+	int c = 0;
+	for (int i = 0; i < len; i++, c++)
 	{
-		if (i == runner_index)
+		if (c == runner_index)
 		{
+			i--;
 			continue;
 		}
-
-		uintptr_t racer_info = GRaceStatus_GetRacerInfo(race_status, i);
-		uintptr_t simable = GRacerInfo_GetSimable(racer_info);
-
-		float distance = BulbToys_GetDistanceBetween(runner_simable, simable);
-		if (distance < min)
-		{
-			min_index = i;
-			min = distance;
-		}
+		chasers[i] = GRaceStatus_GetRacerInfo(race_status, c);
 	}
+
+	// First sort by pursuit contribution
+	qsort(chasers, len, sizeof(uintptr_t), +[](const void* a, const void* b)
+	{
+		float d = ReadMemory<float>(*(uintptr_t*)a + 0x1A4) - ReadMemory<float>(*(uintptr_t*)b + 0x1A4);
+
+		if (d < .0f)
+		{
+			return 1;
+		}
+		else if (d > .0f)
+		{
+			return -1;
+		}
+		return 0;
+	});
+
+	// BONUS: If our highest contributor didn't do anything, assume none of the other chasers did anything either, and we sort by distance to runner instead
+	if (ReadMemory<float>(chasers[0] + 0x1A4) == .0f)
+	{
+		qsort(chasers, len, sizeof(uintptr_t), +[](const void* a, const void* b)
+		{
+			// BONUS: If they're equal, sort by distance instead
+			uintptr_t simable_a = GRacerInfo_GetSimable(*(uintptr_t*)a);
+			uintptr_t simable_b = GRacerInfo_GetSimable(*(uintptr_t*)b);
+
+			float d = BulbToys_GetDistanceBetween(runner_simable, simable_a) - BulbToys_GetDistanceBetween(runner_simable, simable_b);
+			if (d < .0f)
+			{
+				return -1;
+			}
+			else if (d > .0f)
+			{
+				return 1;
+			}
+			return 0;
+		});
+	}
+
+	/*
+	for (int i = 0; i < len; i++)
+	{
+		uintptr_t sim = GRacerInfo_GetSimable(chasers[i]);
+		LOG(3, "%d. %s (%.2f, %.2f)", i + 1, reinterpret_cast<char*>(chasers[i] + 0x8), ReadMemory<float>(chasers[i] + 0x1A4), BulbToys_GetDistanceBetween(runner_simable, sim));
+	}
+	*/
+
+	// New runner is the one with the best score
+	int new_runner = nfsc::BulbToys_GetRacerIndex(chasers[0]);
 
 	// FIXME: Tagging is fucked. The first time the vehicle switch is performed, the game "softlocks"
 	// Likely because a vehicle is deactivated when it shouldn't be, or (more likely) a player/entity does not have a simable
 	// As a workaround, we're calling Game_TagPursuit two extra times here
 	// We specifically set busted to true because it doesn't increment the runner's time incorrectly here (false indicates an evasion, which gives the racer a time bonus)
 	// However, we do fuck up the "number of busts/number of times busted" stats for these racers, which will need to be unfucked (TODO?)
-	Game_TagPursuit(runner_index, min_index, true);
-	Game_TagPursuit(runner_index, min_index, true);
+	Game_TagPursuit(runner_index, new_runner, true);
+	Game_TagPursuit(runner_index, new_runner, true);
 
 	// Call Game_TagPursuit as intended
-	Game_TagPursuit(runner_index, min_index, busted);
+	Game_TagPursuit(runner_index, new_runner, busted);
 
 	// FIXME: AI TARGETING LOGIC GOES HERE
 }

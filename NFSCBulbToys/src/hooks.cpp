@@ -157,6 +157,12 @@ bool hooks::SetupPart2(uintptr_t device)
 	CreateHook(0x5C6370, &CTextScrollerSetTextHashHook, &CTextScrollerSetTextHash);
 	CreateHook(0x5D7250, &SMSSlotUpdateHook, &SMSSlotUpdate);
 
+	// Spectator HUD
+	CreateHook(0x4B62B0, &DALGetIVehicleHook, &DALGetIVehicle);
+	CreateHook(0x5DA340, &TachometerUpdateHook, &TachometerUpdate);
+	CreateHook(0x5DA1E0, &NitrousGaugeUpdateHook, &NitrousGaugeUpdate);
+	CreateHook(0x5D3650, &SpeedbreakerMeterUpdateHook, &SpeedbreakerMeterUpdate);
+
 	// Override the chosen roadblock with our own when manually spawning roadblocks
 	// TODO: uncomment when i've unfucked roadblock creation (might even be useless)
 	//CreateHook(0x407040, &PickRoadblockSetupHook, &PickRoadblockSetup);
@@ -402,11 +408,22 @@ uintptr_t __fastcall hooks::RacerInfoCreateVehicleHook(uintptr_t racer_info, uin
 	// Since AI does not implement any player/entity related interfaces, we must make our own instead
 	if (type == nfsc::race_type::pursuit_ko || type == nfsc::race_type::pursuit_tag)
 	{
+		// Which tier do we use?
+		uintptr_t my_vehicle = 0;
+		nfsc::BulbToys_GetMyVehicle(&my_vehicle, nullptr);
+
+		int tier = nfsc::BulbToys_GetVehicleTier(my_vehicle);
+		if (tier < 1 || tier > 3)
+		{
+			tier = 1;
+		}
+		nfsc::player_cop_tier = tier - 1;
+
 		// For PTAG, AI racers start as cops, so create our pursuit simables first (so the vehicle start grid warping works properly)
 		if (type == nfsc::race_type::pursuit_tag)
 		{
 			// Online gamemodes skip the intro NIS, but the main reason is because there is no suitable NIS ever made for PTAG's custom start grid positions
-			*nfsc::SkipNIS = true;
+			//*nfsc::SkipNIS = true;
 
 			// Create our pursuit simables first (so the vehicle start grid warping works properly)
 			if (racer_index == 1)
@@ -450,7 +467,7 @@ uintptr_t __fastcall hooks::RacerInfoCreateVehicleHook(uintptr_t racer_info, uin
 		else if (type == nfsc::race_type::pursuit_ko)
 		{
 			// Online gamemodes skip the intro NIS, but it's fine here since it starts off as a normal circuit race and thus the normal intro NIS fits
-			*nfsc::SkipNIS = false;
+			//*nfsc::SkipNIS = false;
 
 			// Create and use our own racer vehicle and player
 			vehicle = RacerInfoCreateVehicle(racer_info, edx, key, racer_index, seed);
@@ -480,7 +497,7 @@ uintptr_t __fastcall hooks::RacerInfoCreateVehicleHook(uintptr_t racer_info, uin
 	}
 	else // Not a PKO/PTAG race
 	{
-		*nfsc::SkipNIS = false;
+		//*nfsc::SkipNIS = false;
 		vehicle = RacerInfoCreateVehicle(racer_info, edx, key, racer_index, seed);
 	}
 
@@ -489,25 +506,7 @@ uintptr_t __fastcall hooks::RacerInfoCreateVehicleHook(uintptr_t racer_info, uin
 
 const char* __cdecl hooks::GetPursuitVehicleNameHook(bool is_player)
 {
-	uintptr_t my_vehicle = 0;
-	nfsc::BulbToys_GetMyVehicle(&my_vehicle, nullptr);
-	if (!my_vehicle)
-	{
-		// Use fallback
-		return "player_cop";
-	}
-
-	uintptr_t my_pvehicle = my_vehicle - 0xD0;
-
-	int tier = nfsc::BulbToys_GetPVehicleTier(my_pvehicle);
-	if (tier < 1 || tier > 3)
-	{
-		// Use fallback
-		return "player_cop";
-	}
-
-	// TODO: apparently, PD2 is the T1 and PD1 is the T2 car, but that's not what game code dictates?
-	return nfsc::player_cop_cars[tier - 1];
+	return nfsc::player_cop_cars[nfsc::player_cop_tier];
 }
 
 void __fastcall hooks::RaceStatusUpdateHook(uintptr_t race_status, uintptr_t edx, float dt)
@@ -575,7 +574,7 @@ float __fastcall hooks::GetTimeLimitHook(uintptr_t race_parameters)
 	if (nfsc::BulbToys_GetRaceType() == nfsc::race_type::pursuit_tag)
 	{
 		// FEManager::GetUserProfile(FEManager::mInstance, 0);
-		uintptr_t user_profile = reinterpret_cast<uintptr_t(__thiscall*)(uintptr_t, int)>(0x572B90)(ReadMemory<uintptr_t>(0xA97A7C), 0);
+		uintptr_t user_profile = reinterpret_cast<uintptr_t(__thiscall*)(uintptr_t, int)>(0x572B90)(ReadMemory<uintptr_t>(nfsc::FEManager), 0);
 
 		// user_profile->mRaceSettings[11 (== PTag)].lap_count;
 		int num_laps = ReadMemory<uint8_t>(user_profile + 0x2B258);
@@ -819,7 +818,7 @@ void __fastcall hooks::AddPlayerCarHook(uintptr_t world_map)
 	constexpr uint32_t MMICON_ROADBLOCK_4 = 0xCBD81AE5;
 
 	// FEStateManager::IsGameMode
-	if (!reinterpret_cast<bool(__thiscall*)(uintptr_t, int)>(0x5792A0)(ReadMemory<uintptr_t>(0xA97A7C), 0))
+	if (!reinterpret_cast<bool(__thiscall*)(uintptr_t, int)>(0x5792A0)(ReadMemory<uintptr_t>(nfsc::FEManager), 0))
 	{
 		// this->PackageFilename
 		char* package_name = ReadMemory<char*>(world_map + 0xC);
@@ -993,7 +992,7 @@ const char* pip_names[]
 
 uintptr_t __fastcall hooks::MLaunchPIPHook(uintptr_t m_launch_pip, uintptr_t edx, int id, uintptr_t simable_handle)
 {
-	LOG(0, "PIP: %d (%s)", id, pip_names[id - 1]);
+	LOG(3, "PIP: %d (%s)", id, pip_names[id - 1]);
 
 	return MLaunchPIP(m_launch_pip, edx, id, simable_handle);
 }
@@ -1342,6 +1341,45 @@ void __fastcall hooks::SMSSlotUpdateHook(uintptr_t sms_slot, uintptr_t edx, uint
 	SMSSlotUpdate(sms_slot, edx, sms_datum, a3, fe_object);
 }
 
+bool dal_spectate = false;
+
+uintptr_t __stdcall hooks::DALGetIVehicleHook(int settings_index)
+{
+	if (dal_spectate)
+	{
+		return nfsc::spectate::vehicle;
+	}
+
+	return DALGetIVehicle(settings_index);
+}
+
+void hooks::HUDElementUpdateHook(uintptr_t hud_element, uintptr_t edx, uintptr_t player, HUDElementUpdateFunc* Update)
+{
+	if (*nfsc::spectate::enabled)
+	{
+		dal_spectate = true;
+	}
+
+	Update(hud_element, edx, player);
+
+	dal_spectate = false;
+}
+
+void __fastcall hooks::TachometerUpdateHook(uintptr_t hud_element, uintptr_t edx, uintptr_t player)
+{
+	HUDElementUpdateHook(hud_element, edx, player, TachometerUpdate);
+}
+
+void __fastcall hooks::NitrousGaugeUpdateHook(uintptr_t hud_element, uintptr_t edx, uintptr_t player)
+{
+	HUDElementUpdateHook(hud_element, edx, player, NitrousGaugeUpdate);
+}
+
+void __fastcall hooks::SpeedbreakerMeterUpdateHook(uintptr_t hud_element, uintptr_t edx, uintptr_t player)
+{
+	HUDElementUpdateHook(hud_element, edx, player, SpeedbreakerMeterUpdate);
+}
+
 /*
 void* __cdecl hooks::PickRoadblockSetupHook(float width, int num_vehicles, bool use_spikes)
 {
@@ -1377,9 +1415,11 @@ void __fastcall hooks::WorldMapButtonPressedHook(uintptr_t fe_state_manager, uin
 
 	uint32_t* button_hashes = ReadMemory<uint32_t*>(dialog_screen + 0x2C);
 
+	nfsc::gameflow_state gfs = nfsc::BulbToys_GetGameFlowState();
+
 	if (state == nfsc::world_map_state::click_tp)
 	{
-		if (*nfsc::GameFlowManager_State == nfsc::gameflow_state::racing && !isnan(g::world_map::location.y))
+		if (gfs == nfsc::gameflow_state::racing && !isnan(g::world_map::location.y))
 		{
 			// First button - Jump to Location
 			if (unk == button_hashes[0])
@@ -1410,7 +1450,7 @@ void __fastcall hooks::WorldMapButtonPressedHook(uintptr_t fe_state_manager, uin
 	}
 
 	// Only offer GPS if the option is enabled and we're not in FE
-	if (g::world_map::gps_only && *nfsc::GameFlowManager_State == nfsc::gameflow_state::racing)
+	if (g::world_map::gps_only && gfs == nfsc::gameflow_state::racing)
 	{
 		if (state == nfsc::world_map_state::race_event || state == nfsc::world_map_state::car_lot || state == nfsc::world_map_state::safehouse)
 		{
@@ -1447,8 +1487,7 @@ void __fastcall hooks::WorldMapStateChangeHook(uintptr_t fe_state_manager)
 	{
 		uintptr_t vehicle = 0;
 		uintptr_t simable = 0;
-		nfsc::BulbToys_GetMyVehicle(&vehicle, &simable);
-		if (!vehicle || !simable)
+		if (!nfsc::BulbToys_GetMyVehicle(&vehicle, &simable))
 		{
 			return;
 		}
@@ -1536,7 +1575,7 @@ void __fastcall hooks::WorldMapButton4Hook(uintptr_t fe_state_manager)
 	if (g::wrong_warp_fix::enabled && ReadMemory<nfsc::world_map_state>(fe_state_manager + 4) == nfsc::world_map_state::engage_event)
 	{
 		// FEManager::mInstance->mEventKey = WorldMap::GetEventHash(WorldMap::mInstance);
-		WriteMemory<uint32_t>(ReadMemory<uintptr_t>(0xA97A7C) + 0xEC,
+		WriteMemory<uint32_t>(ReadMemory<uintptr_t>(nfsc::FEManager) + 0xEC,
 			reinterpret_cast<uint32_t(__thiscall*)(uintptr_t)>(0x58FDC0)(ReadMemory<uintptr_t>(nfsc::WorldMap)));
 	}
 
@@ -1574,7 +1613,7 @@ void __fastcall hooks::WorldMapShowDialogHook(uintptr_t fe_state_manager)
 	}
 
 	// Only offer GPS if the option is enabled and we're not in FE
-	if (g::world_map::gps_only && *nfsc::GameFlowManager_State == nfsc::gameflow_state::racing)
+	if (g::world_map::gps_only && nfsc::BulbToys_GetGameFlowState() == nfsc::gameflow_state::racing)
 	{
 		if (type == nfsc::world_map_state::race_event)
 		{
