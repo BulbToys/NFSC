@@ -1,6 +1,6 @@
 #include "shared.h"
 
-void patches::Do()
+void Patches::Do()
 {
 	// Doing these separately here and not in Undo() because of comment clutter
 	AlwaysShowCursor();
@@ -10,36 +10,47 @@ void patches::Do()
 	AIPlayer();
 
 	// PurecallHandler
-	PatchMemory<void*>(0x9C1218, &PurecallHandler);
+	Patch<void*>(0x9C1218, &PurecallHandler);
 
 	// EnableSoloPursuitQR
-	PatchNop(0x4B9545, 6);
-	PatchNop(0x4B9557, 6);
+	PatchNOP(0x4B9545, 6);
+	PatchNOP(0x4B9557, 6);
 
 	// PTagBusted
-	PatchNop(0x44A588, 6);
+	PatchNOP(0x44A588, 6);
 
 	// SixtyMinutePTag
-	PatchMemory<uint8_t>(0x4AC819, 60);
-	PatchMemory<uint8_t>(0x4AC82D, 60);
+	Patch<uint8_t>(0x4AC819, 60);
+	Patch<uint8_t>(0x4AC82D, 60);
 
 	// AllowEndgameCreditsSkip
-	PatchMemory<uint8_t>(0x8484AC, 0);
+	Patch<uint8_t>(0x8484AC, 0);
 
 	// RoadblockSetups
-	memcpy(g::roadblock_setups::normal, reinterpret_cast<void*>(0xA4C420), sizeof(nfsc::RoadblockSetup) * 16);
-	memcpy(g::roadblock_setups::spiked, reinterpret_cast<void*>(0xA4CAA0), sizeof(nfsc::RoadblockSetup) * 10);
-	g::roadblock_setups::mine = new nfsc::RoadblockSetup[g::roadblock_setups::size];
+	memcpy(g::roadblock_setups::normal, reinterpret_cast<void*>(0xA4C420), sizeof(NFSC::RoadblockSetup) * 16);
+	memcpy(g::roadblock_setups::spiked, reinterpret_cast<void*>(0xA4CAA0), sizeof(NFSC::RoadblockSetup) * 10);
+	g::roadblock_setups::mine = new NFSC::RoadblockSetup[g::roadblock_setups::size];
 
 	// DebugCamSlowMo
-	PatchMemory<float>(0xA4F74C, 0.1f);
+	Patch<float>(0xA4F74C, 0.1f);
 
 	// ForcePAL
-	PatchMemory<uint16_t>(0x583BEF, 0x9090);
+	Patch<uint16_t>(0x583BEF, 0x9090);
+
+	/*
+	Patch<void*>(0xB69BC0, +[](uintptr_t scenery_section_header, int index, uintptr_t e_model)
+	{
+		scenery.Add(Read<char*>(scenery_section_header + 0x18));
+	});
+	*/
+
+	// ?????
+	Patch<uint32_t>(0x673F9F, 0x90909090);
 }
 
-void patches::Undo()
+void Patches::Undo()
 {
+	/*
 	// AlwaysShowCursor
 	Unpatch(0x730A8D);
 	Unpatch(0x711EF2);
@@ -94,17 +105,27 @@ void patches::Undo()
 
 	// ForcePAL
 	Unpatch(0x583BEF);
+	*/
+
+	auto iter = patch_map.begin();
+	while (iter != patch_map.end())
+	{
+		PatchInfo* patch = iter->second;
+
+		patch_map.erase(iter);
+		delete patch;
+	}
 }
 
 // NOTE: Doesn't actually always show the cursor, as it depends on whether the ImGui menu is open or not, which is handled in the WindowProcess callback
 // This patch just makes said callback work. Although, without the WindowProcess callback, it will actually always show the cursor
-void patches::AlwaysShowCursor()
+void Patches::AlwaysShowCursor()
 {
 	// Patch out IsWindowed check for Set/ShowCursor(0)
-	PatchNop(0x730A8D, 8);
+	PatchNOP(0x730A8D, 8);
 
 	// Patch out looping ShowCursor(0)
-	PatchNop(0x711EF2, 7);
+	PatchNOP(0x711EF2, 7);
 }
 
 /*
@@ -137,34 +158,34 @@ void patches::AlwaysShowCursor()
 	5. 0x0C - STATE_DO_AUTOLOAD
 	6.  -1  - STATE_TERMINAL_STATE (completes boot flow)
 */
-void patches::FastBootFlow()
+void Patches::FastBootFlow()
 {
 	// Prevent pushing splash screen: "DEMO_SPLASH.fng" -> ""
-	PatchMemory<uint8_t>(0x9CB4E4, 0);
+	Patch<uint8_t>(0x9CB4E4, 0);
 
 	// Patch FEStateManager::Push's next_state: STATE_DO_SPLASH -> STATE_BOOTCHECK
-	PatchMemory<uint8_t>(0x5BD528, 3);
+	Patch<uint8_t>(0x5BD528, 3);
 
 	// Patch out FEBFSM::ShowBackdrop() (STATE_BACKDROP)
-	PatchNop(0x5891C3, 8);
+	PatchNOP(0x5891C3, 8);
 
 	// Patch out everything but STATE_SPLASH and STATE_AUTOLOAD in FEBFSM::ShowEverythingElse() (STATE_EA_LOGO, STATE_PSA and STATE_ATTRACT)
-	PatchNop(0x716583, 34);
-	PatchNop(0x7165B1, 12);
+	PatchNOP(0x716583, 34);
+	PatchNOP(0x7165B1, 12);
 }
 
-void patches::DebugCarCustomizeHelp()
+void Patches::DebugCarCustomizeHelp()
 {
 	// Patch FEDebugCarCustomizeScreen::sInstance->mHelpGroupShowing check to always show help
-	PatchNop(0x841ED3, 6);
+	PatchNOP(0x841ED3, 6);
 
-	//PatchMemory<const char*>(0x841F67, "[?] Help");
-	PatchMemory<const char*>(0x841EDA, ""); // [?] Hide
-	PatchMemory<const char*>(0x841EED, "[Enter] Inst.");
-	PatchMemory<const char*>(0x841F00, "[2] Uninst. Part");
-	PatchMemory<const char*>(0x841F13, "[1] Free Roam");
-	PatchMemory<const char*>(0x841F26, "[3] Save Alias");
-	PatchMemory<const char*>(0x841F39, "[4] Add to MyCars");
+	//Patch<const char*>(0x841F67, "[?] Help");
+	Patch<const char*>(0x841EDA, ""); // [?] Hide
+	Patch<const char*>(0x841EED, "[Enter] Inst.");
+	Patch<const char*>(0x841F00, "[2] Uninst. Part");
+	Patch<const char*>(0x841F13, "[1] Free Roam");
+	Patch<const char*>(0x841F26, "[3] Save Alias");
+	Patch<const char*>(0x841F39, "[4] Add to MyCars");
 
 	// >w<
 	// const auto object = FE::Object::FindObject("package_name.fng", 0x12345678);
@@ -194,50 +215,50 @@ void patches::DebugCarCustomizeHelp()
 
 	TLDR: The always_show_snc patch ultimately makes it so that the New Career button always shows (allows memcard creation at any point)
 */
-void patches::MemcardManagement()
+void Patches::MemcardManagement()
 {
 	// Set global bool (which dictates whether memcard deletion is allowed) to true
 	// Press 1 while in the selection menu to delete the selected memcard
-	PatchMemory<uint8_t>(0xA97BD4, 1);
+	Patch<uint8_t>(0xA97BD4, 1);
 
 	// Prevent automatically resuming Career if we create a new memcard
 	// This sets the current state to the same one Load uses (which gets hooked and reloads the Career menu afterwards)
-	PatchMemory<uint8_t>(0x5BD6E6, 0x0F);
+	Patch<uint8_t>(0x5BD6E6, 0x0F);
 
 	// 68 98 00 (00 00) -> E9 34 01 (00 00)
-	PatchMemory<patches::always_show_snc>(0x83D503, patches::always_show_snc());
+	Patch<Patches::always_show_snc>(0x83D503, Patches::always_show_snc());
 }
 
-void patches::AIPlayer()
+void Patches::AIPlayer()
 {
 	/* ===== ISERVICEABLE ===== */
 
 	// OnlineLocalAI::`vftable'{for `Sim::IServiceable'}
-	g::ai_player::iserviceable_vtbl = new VTable<3>(ReadMemory<VTable<3>>(0x9EC9D8));
+	g::ai_player::iserviceable_vtbl = new VTable<3>(Read<VTable<3>>(0x9EC9D8));
 
-	g::ai_player::iserviceable_vtbl->f[1] = reinterpret_cast<uintptr_t>(nfsc::AIPlayer::VecDelDtor);
+	g::ai_player::iserviceable_vtbl->f[1] = reinterpret_cast<uintptr_t>(NFSC::AIPlayer::VecDelDtor);
 
 	/* ===== IENTITY ===== */
 
 	// OnlineLocalAI::`vftable'{for `Sim::IEntity'}
-	g::ai_player::ientity_vtbl = new VTable<10>(ReadMemory<VTable<10>>(0x9EC9AC));
+	g::ai_player::ientity_vtbl = new VTable<10>(Read<VTable<10>>(0x9EC9AC));
 
-	g::ai_player::ientity_vtbl->f[0] = reinterpret_cast<uintptr_t>(nfsc::AIPlayer::VecDelDtorAdj<36>);
+	g::ai_player::ientity_vtbl->f[0] = reinterpret_cast<uintptr_t>(NFSC::AIPlayer::VecDelDtorAdj<36>);
 
 	/* ===== IATTACHABLE =====*/
 	
 	// OnlineLocalAI::`vftable'{for `IAttachable'}
-	g::ai_player::iattachable_vtbl = new VTable<7>(ReadMemory<VTable<7>>(0x9EC990));
+	g::ai_player::iattachable_vtbl = new VTable<7>(Read<VTable<7>>(0x9EC990));
 
-	g::ai_player::iattachable_vtbl->f[0] = reinterpret_cast<uintptr_t>(nfsc::AIPlayer::VecDelDtorAdj<48>);
+	g::ai_player::iattachable_vtbl->f[0] = reinterpret_cast<uintptr_t>(NFSC::AIPlayer::VecDelDtorAdj<48>);
 
 	/* ===== IPLAYER ===== */
 
 	// OnlineRemotePlayer::`vftable'{for `IPlayer'}
-	g::ai_player::iplayer_vtbl = new VTable<27>(ReadMemory<VTable<27>>(0x9ECB20));
+	g::ai_player::iplayer_vtbl = new VTable<27>(Read<VTable<27>>(0x9ECB20));
 
-	g::ai_player::iplayer_vtbl->f[0] = reinterpret_cast<uintptr_t>(nfsc::AIPlayer::VecDelDtorAdj<68>);
-	g::ai_player::iplayer_vtbl->f[1] = reinterpret_cast<uintptr_t>(nfsc::AIPlayer::GetSimable_IPlayer);
-	g::ai_player::iplayer_vtbl->f[3] = reinterpret_cast<uintptr_t>(nfsc::AIPlayer::GetPosition_IPlayer);
-	g::ai_player::iplayer_vtbl->f[4] = reinterpret_cast<uintptr_t>(nfsc::AIPlayer::SetPosition_IPlayer);
+	g::ai_player::iplayer_vtbl->f[0] = reinterpret_cast<uintptr_t>(NFSC::AIPlayer::VecDelDtorAdj<68>);
+	g::ai_player::iplayer_vtbl->f[1] = reinterpret_cast<uintptr_t>(NFSC::AIPlayer::GetSimable_IPlayer);
+	g::ai_player::iplayer_vtbl->f[3] = reinterpret_cast<uintptr_t>(NFSC::AIPlayer::GetPosition_IPlayer);
+	g::ai_player::iplayer_vtbl->f[4] = reinterpret_cast<uintptr_t>(NFSC::AIPlayer::SetPosition_IPlayer);
 }

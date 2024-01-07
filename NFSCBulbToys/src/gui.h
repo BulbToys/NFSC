@@ -6,7 +6,7 @@
 #include "../ext/imgui/imgui_impl_dx9.h"
 #include "../ext/imgui/imgui_memory_editor.h"
 
-namespace gui
+namespace GUI
 {
 	namespace roadblock
 	{
@@ -180,7 +180,7 @@ namespace gui
 			}
 		}
 	};
-	inline Logger logger;
+	inline Logger the_logger;
 
 	struct RoadblockInfo
 	{
@@ -188,36 +188,36 @@ namespace gui
 		bool line_valid = false;
 		ImVec2 line_min, line_max;
 		ImVec4 line_color;
-		nfsc::Vector3 line_center;
+		NFSC::Vector3 line_center;
 
 		// For displaying street width (and checking if the line is drawable or not)
 		float width = .0f;
 
 		// For drawing roadblock objects
-		struct Object
+		struct GameObject
 		{
 			bool valid = false;
-			nfsc::Vector3 position;
-			nfsc::Vector3 dimension;
-			nfsc::Vector3 fwd_vec;
+			NFSC::Vector3 position;
+			NFSC::Vector3 dimension;
+			NFSC::Vector3 fwd_vec;
 			ImVec4 color;
 		} 
 		object[6];
 	};
 }
 
-#define LOG(ttl, msg, ...) gui::logger.Add(new gui::Log(ttl, msg, __VA_ARGS__))
+#define LOG(ttl, msg, ...) GUI::the_logger.Add(new GUI::Log(ttl, msg, __VA_ARGS__))
 
 namespace ImGui
 {
-	inline bool MyListBox(const char* text, const char* id, int* current_item, const char* const* items, int items_count, int height_in_items);
-	inline bool MySliderFloat(const char* text, const char* id, float* v, float v_min, float v_max, const char* format);
-	inline bool MySliderInt(const char* text, const char* id, int* v, int v_min, int v_max, const char* format);
-	inline bool MyMenu(const char* text, bool* show);
-	inline bool MyInputInt(const char* text, const char* id, int* i, int min, int max);
-	inline void AddyLabel(uintptr_t addy, const char* fmt, ...);
-	inline void DistanceBar(float distance);
-	inline void Location(const char* label, const char* id, float* location);
-	inline void GetDriverClassColor(int dc, ImVec4& color);
-	inline float DynamicDistance(nfsc::Vector3& other_position);
+	inline bool BulbToys_ListBox(const char* text, const char* id, int* current_item, const char* const* items, int items_count, int height_in_items);
+	inline bool BulbToys_SliderFloat(const char* text, const char* id, float* v, float v_min, float v_max, const char* format);
+	inline bool BulbToys_SliderInt(const char* text, const char* id, int* v, int v_min, int v_max, const char* format);
+	inline bool BulbToys_Menu(const char* text, bool* show);
+	inline bool BulbToys_InputInt(const char* text, const char* id, int* i, int min, int max);
+	inline void BulbToys_AddyLabel(uintptr_t addy, const char* fmt, ...);
+	inline void BulbToys_GameDistanceBar(float distance);
+	inline void BulbToys_GameLocation(const char* label, const char* id, float* location);
+	inline void BulbToys_GameDriverColor(int dc, ImVec4& color);
+	inline float BulbToys_GameDistanceWidth(NFSC::Vector3& other_position);
 }

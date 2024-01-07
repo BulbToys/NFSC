@@ -3,21 +3,17 @@
 
 #include "shared.h"
 
-void Error(const char* message, ...)
-{
-	char buffer[1024];
-	va_list va;
-	va_start(va, message);
-	vsprintf_s(buffer, 1024, message, va);
-
-	MessageBoxA(NULL, buffer, PROJECT_NAME, MB_ICONERROR);
-}
-
+// TODO: Everything here is thread unsafe as fuck. Rewrite rewrite rewrite!!!
 void Setup(const HMODULE instance)
 {
-	patches::Do();
+	Patches::Do();
 
-	if (hooks::Setup())
+	if (!NFSC::BulbToys_IsGameNFSCO())
+	{
+		GUI::debug_shortcut = true;
+	}
+
+	if (Hooks::Setup())
 	{
 		while (!exitMainLoop)
 		{
@@ -25,16 +21,18 @@ void Setup(const HMODULE instance)
 		}
 	}
 
-	hooks::Destroy();
-	gui::Destroy();
-	patches::Undo();
+	Hooks::Destroy();
+	GUI::Destroy();
+	Patches::Undo();
 
+	/*
 	size_t size = patch_map.size();
 	if (size > 0)
 	{
 		Error("Patch map has %u leftover patch(es).", size);
 		ASSERT(0);
 	}
+	*/
 
 	FreeLibraryAndExitThread(instance, 0);
 }

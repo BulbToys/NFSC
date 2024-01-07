@@ -1,21 +1,21 @@
 #include "shared.h"
 
-uint32_t nfsc::ListableSet_GetGrowSizeVirtually(void* ls, uint32_t amount)
+uint32_t NFSC::ListableSet_GetGrowSizeVirtually(void* ls, uint32_t amount)
 {
-	return reinterpret_cast<uint32_t(__thiscall*)(void*, uint32_t)>(VirtualFunction(reinterpret_cast<uintptr_t>(ls), 3))(ls, amount);
+	return reinterpret_cast<uint32_t(__thiscall*)(void*, uint32_t)>(Virtual<3>(reinterpret_cast<uintptr_t>(ls)))(ls, amount);
 }
 
-void nfsc::RoadblockSetup::operator=(const RoadblockSetupFile& rbsf)
+void NFSC::RoadblockSetup::operator=(const RoadblockSetupFile& rbsf)
 {
-	memcpy(this, (char*)&rbsf + 4, sizeof(nfsc::RoadblockSetup));
+	memcpy(this, (char*)&rbsf + 4, sizeof(NFSC::RoadblockSetup));
 }
 
-void nfsc::RoadblockSetupFile::operator=(const RoadblockSetup& rbs)
+void NFSC::RoadblockSetupFile::operator=(const RoadblockSetup& rbs)
 {
-	memcpy((char*)this + 4, &rbs, sizeof(nfsc::RoadblockSetup));
+	memcpy((char*)this + 4, &rbs, sizeof(NFSC::RoadblockSetup));
 }
 
-bool nfsc::RoadblockSetupFile::Validate()
+bool NFSC::RoadblockSetupFile::Validate()
 {
 	int i;
 	for (i = 0; i < 6; i++)
@@ -42,12 +42,12 @@ bool nfsc::RoadblockSetupFile::Validate()
 	return false;
 }
 
-inline nfsc::gameflow_state nfsc::BulbToys_GetGameFlowState()
+inline int NFSC::BulbToys_GetGameFlowState()
 {
-	return ReadMemory<gameflow_state>(0xA99BBC);
+	return Read<int>(0xA99BBC);
 }
 
-void nfsc::BulbToys_DrawObject(ImDrawList* draw_list, Vector3& position, Vector3& dimension, Vector3& fwd_vec, ImVec4& color, float thickness)
+void NFSC::BulbToys_DrawObject(ImDrawList* draw_list, Vector3& position, Vector3& dimension, Vector3& fwd_vec, ImVec4& color, float thickness)
 {
 	Matrix4 rotation;
 	Util_GenerateMatrix(&rotation, &fwd_vec, 0);
@@ -123,7 +123,7 @@ void nfsc::BulbToys_DrawObject(ImDrawList* draw_list, Vector3& position, Vector3
 	}
 }
 
-void nfsc::BulbToys_DrawVehicleInfo(ImDrawList* draw_list, uintptr_t vehicle, vehicle_list type, ImVec4& color)
+void NFSC::BulbToys_DrawVehicleInfo(ImDrawList* draw_list, uintptr_t vehicle, int vltype, ImVec4& color)
 {
 	// Distance at which the text stops rendering
 	constexpr float max_distance = 100.f;
@@ -131,22 +131,22 @@ void nfsc::BulbToys_DrawVehicleInfo(ImDrawList* draw_list, uintptr_t vehicle, ve
 	// Vehicle can be either a pointer or the IVehicleList array index. If vehicle is a really small number, assume it's an array index
 	// For array indexes, just grab the vehicle at that index. Otherwise, iterate the list until the iterator pointer matches our pointer
 	uint32_t id = 0;
-	if (vehicle < VehicleList[type]->size)
+	if (vehicle < VehicleList[vltype]->size)
 	{
 		id = vehicle;
-		vehicle = VehicleList[type]->begin[id];
+		vehicle = VehicleList[vltype]->begin[id];
 	}
 	else
 	{
-		for (id = 0; id < VehicleList[type]->size; id++)
+		for (id = 0; id < VehicleList[vltype]->size; id++)
 		{
-			if (VehicleList[type]->begin[id] == vehicle)
+			if (VehicleList[vltype]->begin[id] == vehicle)
 			{
 				break;
 			}
 		}
 
-		if (id == VehicleList[type]->size)
+		if (id == VehicleList[vltype]->size)
 		{
 			return;
 		}
@@ -193,45 +193,52 @@ void nfsc::BulbToys_DrawVehicleInfo(ImDrawList* draw_list, uintptr_t vehicle, ve
 	}
 }
 
-uintptr_t nfsc::BulbToys_GetAIVehicleGoal(uintptr_t ai_vehicle_ivehicleai)
+uintptr_t NFSC::BulbToys_GetAIVehicleGoal(uintptr_t ai_vehicle)
 {
-	return ReadMemory<uintptr_t>(ai_vehicle_ivehicleai + 0x94);
+	return Read<uintptr_t>(ai_vehicle + 0x94);
 }
 
-const char* nfsc::BulbToys_GetCameraName()
+const char* NFSC::BulbToys_GetCameraName()
 {
-	if (nfsc::BulbToys_GetGameFlowState() != gameflow_state::racing)
+	if (NFSC::BulbToys_GetGameFlowState() != GFS::RACING)
 	{
 		return "";
 	}
 
-	uintptr_t first_camera_director = ReadMemory<uintptr_t>(0xA8ACC4 + 4);
-	uintptr_t camera_director = ReadMemory<uintptr_t>(first_camera_director);
-	uintptr_t cd_action = ReadMemory<uintptr_t>(camera_director + 0x18);
+	uintptr_t first_camera_director = Read<uintptr_t>(0xA8ACC4 + 4);
+	uintptr_t camera_director = Read<uintptr_t>(first_camera_director);
+	uintptr_t cd_action = Read<uintptr_t>(camera_director + 0x18);
 
 	// CameraAI::Action::GetName(this)->mString;
-	return ReadMemory<char*>(reinterpret_cast<uintptr_t(__thiscall*)(uintptr_t)>(VirtualFunction(cd_action, 3))(cd_action) + 4);
+	return Read<char*>(reinterpret_cast<uintptr_t(__thiscall*)(uintptr_t)>(Virtual<3>(cd_action))(cd_action) + 4);
 }
 
 // NOTE: Returns tier 0 correctly (ie. Dump Truck). Returns -1 if it can't find its attributes.
-int nfsc::BulbToys_GetVehicleTier(uintptr_t vehicle)
+int NFSC::BulbToys_GetVehicleTier(uintptr_t vehicle)
 {
-	uintptr_t attributes = vehicle - 0xD0 /* PVehicle */ + 0xF0;
+	constexpr ptrdiff_t offset = -0xD0 /* PVehicle */ + 0xF0;
+	uintptr_t attributes = vehicle + offset;
 
-	uintptr_t layout_ptr = ReadMemory<uintptr_t>(attributes + 4);
+	uintptr_t layout_ptr = Read<uintptr_t>(attributes + 4);
 	if (!layout_ptr)
 	{
 		return -1;
 	}
 
-	return ReadMemory<int>(layout_ptr + 0x2C);
+	return Read<int>(layout_ptr + 0x2C);
 }
 
-void nfsc::BulbToys_GetScreenPosition(Vector3& world, Vector3& screen)
+bool NFSC::BulbToys_IsPlayerLocal(uintptr_t player)
+{
+	// RecordablePlayer::`vftable'{for `IPlayer'}
+	return Read<uintptr_t>(player) == 0x9EC8C0;
+}
+
+void NFSC::BulbToys_GetScreenPosition(Vector3& world, Vector3& screen)
 {
 	Vector4 out, input = { world.z, -world.x, world.y, 1.0 };
 
-	Matrix4 proj = ReadMemory<Matrix4>((0xB1A780 + 1 * 0x1A0) + 0x80);
+	Matrix4 proj = Read<Matrix4>((0xB1A780 + 1 * 0x1A0) + 0x80);
 
 	// D3DXVec4Transform
 	reinterpret_cast<Vector4*(__stdcall*)(Vector4*, Vector4*, Matrix4*)>(0x86B29C)(&out, &input, &proj);
@@ -240,12 +247,12 @@ void nfsc::BulbToys_GetScreenPosition(Vector3& world, Vector3& screen)
 	out.x *= i_w;
 	out.y *= i_w;
 
-	screen.x = (out.x + 1.0f) * ReadMemory<int>(0xAB0AC8) * 0.5f;
-	screen.y = (out.y - 1.0f) * ReadMemory<int>(0xAB0ACC) * -0.5f;
+	screen.x = (out.x + 1.0f) * Read<int>(0xAB0AC8) * 0.5f;
+	screen.y = (out.y - 1.0f) * Read<int>(0xAB0ACC) * -0.5f;
 	screen.z = i_w * out.z;
 }
 
-float nfsc::BulbToys_GetStreetWidth(Vector3* position, Vector3* direction, float distance, Vector3* left_pos, Vector3* right_pos, Vector3* fwd_vec)
+float NFSC::BulbToys_GetStreetWidth(Vector3* position, Vector3* direction, float distance, Vector3* left_pos, Vector3* right_pos, Vector3* fwd_vec)
 {
 	WRoadNav nav;
 	WRoadNav_WRoadNav(nav);
@@ -269,14 +276,14 @@ float nfsc::BulbToys_GetStreetWidth(Vector3* position, Vector3* direction, float
 	WRoadNav_IncNavPosition(nav, distance, ZeroV3, 0.0, 0);
 
 	// segment = &WRoadNetwork::fSegments[nav.fSegmentInd];
-	uintptr_t segment = ReadMemory<uintptr_t>(0xB77ECC) + 0x16 * nav.fSegmentInd;
+	uintptr_t segment = Read<uintptr_t>(0xB77ECC) + 0x16 * nav.fSegmentInd;
 	if (!segment)
 	{
 		WRoadNav_Destructor(nav);
 		return NAN;
 	}
 
-	uint16_t segment_flags = ReadMemory<uint16_t>(segment + 0xA);
+	uint16_t segment_flags = Read<uint16_t>(segment + 0xA);
 
 	// (segment->fFlags & 2) != 0
 	if ((segment_flags & 2) != 0)
@@ -293,17 +300,17 @@ float nfsc::BulbToys_GetStreetWidth(Vector3* position, Vector3* direction, float
 	}
 
 	// segment->nLength * flt_00A83DA8 < flt_009C1D30 )
-	if (ReadMemory<uint16_t>(segment + 0x4) * 0.015259022 < 40.0)
+	if (Read<uint16_t>(segment + 0x4) * 0.015259022 < 40.0)
 	{
 		WRoadNav_Destructor(nav);
 		return NAN;
 	}
 
 	// segment_profile = WRoadNetwork::GetSegmentProfile(WRoadNetwork::fgRoadNetwork, segment, nav.fNodeInd);
-	uintptr_t segment_profile = reinterpret_cast<uintptr_t(__thiscall*)(uintptr_t, uintptr_t, int)>(0x7EB290)(ReadMemory<uintptr_t>(0xB77EC0), segment, nav.fNodeInd);
+	uintptr_t segment_profile = reinterpret_cast<uintptr_t(__thiscall*)(uintptr_t, uintptr_t, int)>(0x7EB290)(Read<uintptr_t>(0xB77EC0), segment, nav.fNodeInd);
 
 	// !segment_profile->fNumZones
-	if (!segment_profile || !ReadMemory<char>(segment_profile))
+	if (!segment_profile || !Read<char>(segment_profile))
 	{
 		WRoadNav_Destructor(nav);
 		return NAN;
@@ -331,26 +338,26 @@ float nfsc::BulbToys_GetStreetWidth(Vector3* position, Vector3* direction, float
 	return width;
 }
 
-nfsc::race_type nfsc::BulbToys_GetRaceType()
+int NFSC::BulbToys_GetRaceType()
 {
-	uintptr_t g_race_status = ReadMemory<uintptr_t>(GRaceStatus);
+	uintptr_t g_race_status = Read<uintptr_t>(GRaceStatus);
 	if (!g_race_status)
 	{
-		return race_type::none;
+		return GRaceType::NONE;
 	}
 
-	uintptr_t race_parameters = ReadMemory<uintptr_t>(g_race_status + 0x6A1C);
+	uintptr_t race_parameters = Read<uintptr_t>(g_race_status + 0x6A1C);
 	if (!race_parameters)
 	{
-		return race_type::none;
+		return GRaceType::NONE;
 	}
 
-	return reinterpret_cast<race_type(__thiscall*)(uintptr_t)>(0x6136A0)(race_parameters);
+	return reinterpret_cast<int(__thiscall*)(uintptr_t)>(0x6136A0)(race_parameters);
 }
 
-int nfsc::BulbToys_GetRacerIndex(uintptr_t racer_info)
+int NFSC::BulbToys_GetRacerIndex(uintptr_t racer_info)
 {
-	uintptr_t g_race_status = ReadMemory<uintptr_t>(GRaceStatus);
+	uintptr_t g_race_status = Read<uintptr_t>(GRaceStatus);
 	if (!g_race_status)
 	{
 		return -1;
@@ -371,53 +378,53 @@ int nfsc::BulbToys_GetRacerIndex(uintptr_t racer_info)
 }
 
 // Returns false if we're not in Debug Cam
-bool nfsc::BulbToys_GetDebugCamCoords(Vector3* position , Vector3* fwd_vec)
+bool NFSC::BulbToys_GetDebugCamCoords(Vector3* position , Vector3* fwd_vec)
 {
-	if (nfsc::BulbToys_GetGameFlowState() != gameflow_state::racing)
+	if (NFSC::BulbToys_GetGameFlowState() != GFS::RACING)
 	{
 		return false;
 	}
 
-	uintptr_t first_camera_director = ReadMemory<uintptr_t>(0xA8ACC4 + 4);
-	uintptr_t camera_director = ReadMemory<uintptr_t>(first_camera_director);
-	uintptr_t cd_action = ReadMemory<uintptr_t>(camera_director + 0x18);
+	uintptr_t first_camera_director = Read<uintptr_t>(0xA8ACC4 + 4);
+	uintptr_t camera_director = Read<uintptr_t>(first_camera_director);
+	uintptr_t cd_action = Read<uintptr_t>(camera_director + 0x18);
 
 	// Check if we're in CDActionDebug (CDActionDebug::`vftable'{for `CameraAI::Action'})
-	if (ReadMemory<uintptr_t>(cd_action) != 0x9C7EE0)
+	if (Read<uintptr_t>(cd_action) != 0x9C7EE0)
 	{
 		return false;
 	}
 
-	uintptr_t camera_mover = ReadMemory<uintptr_t>(cd_action + 0x2BC);
-	uintptr_t camera = ReadMemory<uintptr_t>(camera_mover + 0x1C);
+	uintptr_t camera_mover = Read<uintptr_t>(cd_action + 0x2BC);
+	uintptr_t camera = Read<uintptr_t>(camera_mover + 0x1C);
 
 	if (position)
 	{
 		// z, -x, y -> x, y, z
-		position->x = -ReadMemory<float>(camera + 0x44);
-		position->y = ReadMemory<float>(camera + 0x48);
-		position->z = ReadMemory<float>(camera + 0x40);
+		position->x = -Read<float>(camera + 0x44);
+		position->y = Read<float>(camera + 0x48);
+		position->z = Read<float>(camera + 0x40);
 	}
 
 	if (fwd_vec)
 	{
 		// z, -x, y -> x, y, z
-		fwd_vec->x = -ReadMemory<float>(camera + 0x54);
-		fwd_vec->y = ReadMemory<float>(camera + 0x58);
-		fwd_vec->z = ReadMemory<float>(camera + 0x50);
+		fwd_vec->x = -Read<float>(camera + 0x54);
+		fwd_vec->y = Read<float>(camera + 0x58);
+		fwd_vec->z = Read<float>(camera + 0x50);
 	}
 
 	return true;
 }
 
-bool nfsc::BulbToys_GetMyVehicle(uintptr_t* my_vehicle, uintptr_t* my_simable)
+bool NFSC::BulbToys_GetMyVehicle(uintptr_t* my_vehicle, uintptr_t* my_simable)
 {
-	nfsc::gameflow_state gfs = nfsc::BulbToys_GetGameFlowState();
-	if (gfs == gameflow_state::racing || gfs == gameflow_state::loading_region || gfs == gameflow_state::loading_track)
+	auto gfs = NFSC::BulbToys_GetGameFlowState();
+	if (gfs == GFS::RACING || gfs == GFS::LOADING_REGION || gfs == GFS::LOADING_TRACK)
 	{
-		for (int i = 0; i < (int)VehicleList[vehicle_list::players]->size; i++)
+		for (int i = 0; i < (int)VehicleList[VLType::PLAYERS]->size; i++)
 		{
-			uintptr_t vehicle = VehicleList[vehicle_list::players]->begin[i];
+			uintptr_t vehicle = VehicleList[VLType::PLAYERS]->begin[i];
 
 			if (vehicle)
 			{
@@ -427,8 +434,7 @@ bool nfsc::BulbToys_GetMyVehicle(uintptr_t* my_vehicle, uintptr_t* my_simable)
 				{
 					uintptr_t player = PhysicsObject_GetPlayer(simable);
 
-					// RecordablePlayer::`vftable'{for `IPlayer'}
-					if (player && ReadMemory<uintptr_t>(player) == 0x9EC8C0)
+					if (player && BulbToys_IsPlayerLocal(player))
 					{
 						if (my_vehicle)
 						{
@@ -448,9 +454,9 @@ bool nfsc::BulbToys_GetMyVehicle(uintptr_t* my_vehicle, uintptr_t* my_simable)
 	return false;
 }
 
-void nfsc::BulbToys_PathToTarget(uintptr_t ai_vehicle, Vector3* target)
+void NFSC::BulbToys_PathToTarget(uintptr_t ai_vehicle, Vector3* target)
 {
-	auto road_nav = ReadMemory<uintptr_t>(ai_vehicle + 0x38);
+	auto road_nav = Read<uintptr_t>(ai_vehicle + 0x38);
 	if (!road_nav)
 	{
 		return;
@@ -460,7 +466,7 @@ void nfsc::BulbToys_PathToTarget(uintptr_t ai_vehicle, Vector3* target)
 }
 
 // Does not return RoadblockInfo if street width calculation is unsuccessful (ie. width = NAN)
-void* nfsc::BulbToys_RoadblockCalculations(RoadblockSetup* setup, uintptr_t rigid_body)
+void* NFSC::BulbToys_RoadblockCalculations(RoadblockSetup* setup, uintptr_t rigid_body)
 {
 	// Reference point for calculating street width
 	Vector3 sw_position;
@@ -480,7 +486,7 @@ void* nfsc::BulbToys_RoadblockCalculations(RoadblockSetup* setup, uintptr_t rigi
 
 	// Distance from reference point to where the roadblock should be calculated
 	// This uses the same value as gameplay logic and is adjustable in the GUI
-	float distance = ReadMemory<float>(0x44529C);
+	float distance = Read<float>(0x44529C);
 
 	Vector3 nav_left_pos, nav_right_pos, nav_fwd_vec;
 	float width = BulbToys_GetStreetWidth(&sw_position, &sw_fwd_vec, distance, &nav_left_pos, &nav_right_pos, &nav_fwd_vec) + 1.0f;
@@ -489,7 +495,7 @@ void* nfsc::BulbToys_RoadblockCalculations(RoadblockSetup* setup, uintptr_t rigi
 	if (!isnan(width))
 	{
 		// Create rendering/spawning roadblock info adapter
-		gui::RoadblockInfo* ri = new gui::RoadblockInfo();
+		GUI::RoadblockInfo* ri = new GUI::RoadblockInfo();
 
 		ri->width = width;
 		ri->line_color = ImVec4(1, 0, 0, 1); // red
@@ -562,9 +568,9 @@ void* nfsc::BulbToys_RoadblockCalculations(RoadblockSetup* setup, uintptr_t rigi
 
 				for (int i = 0; i < 6; i++)
 				{
-					rbelem_t type = setup->contents[i].type;
+					RoadblockElement::Type type = setup->contents[i].type;
 
-					if (type == rbelem_t::none)
+					if (type == RoadblockElement::Type::NONE)
 					{
 						// Note we have a break here and not a continue - the roadblock ends as soon as it finds the first "rbelem_t::none" element!!
 						break;
@@ -587,18 +593,18 @@ void* nfsc::BulbToys_RoadblockCalculations(RoadblockSetup* setup, uintptr_t rigi
 
 					Vector3 dimension;
 
-					if (type == rbelem_t::car)
+					if (type == RoadblockElement::Type::CAR)
 					{
 						// Using copmidsize dimensions here as it is the largest by width and length
 						dimension = { 1.09f, 0.72f, 2.80f };
 						ri->object[i].color = ImVec4(.25f, .25f, 1, 1); // light blue
 					}
-					else if (type == rbelem_t::barrier)
+					else if (type == RoadblockElement::Type::BARRIER)
 					{
 						dimension = { 1.58f, 0.70f, 0.63f };
 						ri->object[i].color = ImVec4(1, 0, 0, 1); // red
 					}
-					else if (type == rbelem_t::spikestrip)
+					else if (type == RoadblockElement::Type::SPIKESTRIP)
 					{
 						dimension = { 3.27f, 0.25f, 0.38f };
 						ri->object[i].color = ImVec4(1, 1, 0, 1); // yellow
@@ -621,15 +627,9 @@ void* nfsc::BulbToys_RoadblockCalculations(RoadblockSetup* setup, uintptr_t rigi
 	return nullptr;
 }
 
-bool nfsc::BulbToys_SwitchVehicle(uintptr_t simable, uintptr_t simable2, sv_mode mode)
+bool NFSC::BulbToys_SwitchVehicle(uintptr_t simable, uintptr_t simable2, bool kill_old)
 {
 	if (!simable || !simable2)
-	{
-		return false;
-	}
-
-	uintptr_t player = PhysicsObject_GetPlayer(simable);
-	if (!player)
 	{
 		return false;
 	}
@@ -648,130 +648,147 @@ bool nfsc::BulbToys_SwitchVehicle(uintptr_t simable, uintptr_t simable2, sv_mode
 		return false;
 	}
 
-	if (mode == sv_mode::one_way)
+	// Copy driver class. Deactivate
+	int dc = PVehicle_GetDriverClass(vehicle);
+	PVehicle_SetDriverClass(vehicle, DriverClass::NONE);
+	PVehicle_ReleaseBehaviorAudio(vehicle);
+	PVehicle_Deactivate(vehicle);
+
+	// Paste driver class
+	PVehicle_SetDriverClass(vehicle2, dc);
+
+	// Copy and paste position/rotation
+	Vector3 fwd_vec = { 1, 0, 0 };
+	Vector3* pos = RigidBody_GetPosition(rbody);
+	RigidBody_GetForwardVector(rbody, &fwd_vec);
+	PVehicle_SetVehicleOnGround(vehicle2, pos, &fwd_vec);
+
+	// Copy and paste speed
+	float speed = PVehicle_GetSpeed(vehicle);
+	PVehicle_SetSpeed(vehicle2, speed);
+
+	// Copy and paste IPlayer. Activate
+	uintptr_t player = PhysicsObject_GetPlayer(simable);
+	if (player)
 	{
-		driver_class dc = PVehicle_GetDriverClass(vehicle);
-		PVehicle_SetDriverClass(vehicle, driver_class::none);
-		PVehicle_ReleaseBehaviorAudio(vehicle);
-		PVehicle_Deactivate(vehicle);
-
-		Vector3 fwd_vec = { 1, 0, 0 };
-		Vector3* pos = RigidBody_GetPosition(rbody);
-		RigidBody_GetForwardVector(rbody, &fwd_vec);
-		PVehicle_SetVehicleOnGround(vehicle2, pos, &fwd_vec);
-
-		float speed = PVehicle_GetSpeed(vehicle);
-		PVehicle_SetSpeed(vehicle2, speed);
-
 		PhysicsObject_Attach(simable2, player);
-		PVehicle_GlareOn(vehicle2, 0x7); // headlights
-		PVehicle_Activate(vehicle2);
+	}
+	PVehicle_GlareOn(vehicle2, 0x7); // headlights
+	PVehicle_Activate(vehicle2);
 
-		uint8_t force_stop = PVehicle_GetForceStop(vehicle);
+	// todo: useless? (supposed to prevent race start unfreeze? but doesn't)
+	uint8_t force_stop = PVehicle_GetForceStop(vehicle);
+	if ((force_stop & 0x10) != 0)
+	{
+		PVehicle_ForceStopOn(vehicle, 0x10);
+	}
+	else
+	{
+		PVehicle_ForceStopOff(vehicle, 0x10);
+	}
 
-		// todo: useless? (supposed to prevent race start unfreeze? but doesn't)
-		if ((force_stop & 0x10) != 0)
+	// Copy and paste RacerInfo simable
+	if (BulbToys_GetRaceType() != GRaceType::NONE)
+	{
+		uintptr_t racer_info = GRaceStatus_GetRacerInfo2(Read<uintptr_t>(GRaceStatus), simable);
+		GRacerInfo_SetSimable(racer_info, simable2);
+	}
+
+	/*
+	int c = 0;
+
+	// Retarget all necessary AITargets to our new vehicle
+	for (int i = 0; i < AITargetsList->size; i++)
+	{
+		uintptr_t ai_target = AITargetsList->begin[i];
+
+		uintptr_t ai_target_vehicle = nullptr;
+		AITarget_GetVehicleInterface(ai_target, &ai_target_vehicle);
+		if (vehicle == ai_target_vehicle)
 		{
-			PVehicle_ForceStopOn(vehicle, 0x10);
+			AITarget_Acquire(ai_target, simable2);
+			c++;
 		}
-		else
-		{
-			PVehicle_ForceStopOff(vehicle, 0x10);
-		}
+	}
 
-		if (BulbToys_GetRaceType() != race_type::none)
-		{
-			uintptr_t racer_info = GRaceStatus_GetRacerInfo2(ReadMemory<uintptr_t>(GRaceStatus), simable);
-			GRacerInfo_SetSimable(racer_info, simable2);
-		}
+	Error("Retargeted %d/%d", c, AITargetsList->size);
+	*/
 
-		/*
-		int c = 0;
+	// todo: fix pursuits here
+	// todo: eloadingscreenoff/on?
 
-		// Retarget all necessary AITargets to our new vehicle
-		for (int i = 0; i < AITargetsList->size; i++)
-		{
-			uintptr_t ai_target = AITargetsList->begin[i];
-
-			uintptr_t ai_target_vehicle = nullptr;
-			AITarget_GetVehicleInterface(ai_target, &ai_target_vehicle);
-			if (vehicle == ai_target_vehicle)
-			{
-				AITarget_Acquire(ai_target, simable2);
-				c++;
-			}
-		}
-
-		Error("Retargeted %d/%d", c, AITargetsList->size);
-		*/
-
-		// todo: fix pursuits here
-		// todo: fix camera
-		// todo: eloadingscreenoff/on
-
+	if (kill_old)
+	{
 		PhysicsObject_Kill(simable);
 	}
 
-	EAXSound_StartNewGamePlay(ReadMemory<uintptr_t>(0xA8BA38));
+	// Restart the sound, regardless if we were involved with the switch or not
+	BulbToys_RestartSound();
 
-	// Call ResetHUDType virtually (ie. our AIPlayer class uses OnlineRemotePlayer::ResetHUDType)
-	reinterpret_cast<decltype(LocalPlayer_ResetHUDType)>(VirtualFunction(player, 9))(player, 1);
+	// Fix car camera and reset HUD
+	if (player && BulbToys_IsPlayerLocal(player))
+	{
+		ChangeLocalPlayerCameraInfo();
+		LocalPlayer_ResetHUDType(player, 1);
+	}
 
 	return true;
 }
 
-void __fastcall nfsc::BulbToys_SwitchPTagTarget(uintptr_t race_status, bool busted)
+void __fastcall NFSC::BulbToys_SwitchPTagTarget(uintptr_t race_status, bool busted)
 {
 	// Store information about our current runner here. Simable needs to be static in order for the sort function to work.
 	int runner_index = -1;
 	static uintptr_t runner_simable = 0;
 	runner_simable = GRaceStatus_GetRacePursuitTarget(race_status, &runner_index);
 
+	// Create array of RacerInfos for chasers (racer count minus the one runner)
 	size_t len = GRaceStatus_GetRacerCount(race_status) - 1;
 	uintptr_t* chasers = new uintptr_t[len];
 
-	int c = 0;
-	for (int i = 0; i < len; i++, c++)
+	// Fill the chaser array, skipping the runner of course
+	int racer_index = 0;
+	for (int i = 0; i < len; i++, racer_index++)
 	{
-		if (c == runner_index)
+		if (racer_index == runner_index)
 		{
 			i--;
 			continue;
 		}
-		chasers[i] = GRaceStatus_GetRacerInfo(race_status, c);
+		chasers[i] = GRaceStatus_GetRacerInfo(race_status, racer_index);
 	}
 
 	// First sort by pursuit contribution
 	qsort(chasers, len, sizeof(uintptr_t), +[](const void* a, const void* b)
 	{
-		float d = ReadMemory<float>(*(uintptr_t*)a + 0x1A4) - ReadMemory<float>(*(uintptr_t*)b + 0x1A4);
+		float diff = Read<float>(*(uintptr_t*)a + 0x1A4) - Read<float>(*(uintptr_t*)b + 0x1A4);
 
-		if (d < .0f)
+		if (diff < .0f)
 		{
 			return 1;
 		}
-		else if (d > .0f)
+		else if (diff > .0f)
 		{
 			return -1;
 		}
 		return 0;
 	});
 
-	// BONUS: If our highest contributor didn't do anything, assume none of the other chasers did anything either, and we sort by distance to runner instead
-	if (ReadMemory<float>(chasers[0] + 0x1A4) == .0f)
+	// If our highest contributor didn't do anything, assume none of the other chasers did anything either, and we sort by distance to runner instead
+	// This check is NOT done in vanilla, but target switching will be biased towards the lowest index racer if the array remains unsorted
+	if (Read<float>(chasers[0] + 0x1A4) == .0f)
 	{
 		qsort(chasers, len, sizeof(uintptr_t), +[](const void* a, const void* b)
 		{
-			// BONUS: If they're equal, sort by distance instead
 			uintptr_t simable_a = GRacerInfo_GetSimable(*(uintptr_t*)a);
 			uintptr_t simable_b = GRacerInfo_GetSimable(*(uintptr_t*)b);
 
-			float d = BulbToys_GetDistanceBetween(runner_simable, simable_a) - BulbToys_GetDistanceBetween(runner_simable, simable_b);
-			if (d < .0f)
+			float diff = BulbToys_GetDistanceBetween(runner_simable, simable_a) - BulbToys_GetDistanceBetween(runner_simable, simable_b);
+			if (diff < .0f)
 			{
 				return -1;
 			}
-			else if (d > .0f)
+			else if (diff > .0f)
 			{
 				return 1;
 			}
@@ -783,12 +800,14 @@ void __fastcall nfsc::BulbToys_SwitchPTagTarget(uintptr_t race_status, bool bust
 	for (int i = 0; i < len; i++)
 	{
 		uintptr_t sim = GRacerInfo_GetSimable(chasers[i]);
-		LOG(3, "%d. %s (%.2f, %.2f)", i + 1, reinterpret_cast<char*>(chasers[i] + 0x8), ReadMemory<float>(chasers[i] + 0x1A4), BulbToys_GetDistanceBetween(runner_simable, sim));
+		LOG(3, "%d. %s (%.2f, %.2f)", i + 1, reinterpret_cast<char*>(chasers[i] + 0x8), Read<float>(chasers[i] + 0x1A4), BulbToys_GetDistanceBetween(runner_simable, sim));
 	}
 	*/
 
 	// New runner is the one with the best score
-	int new_runner = nfsc::BulbToys_GetRacerIndex(chasers[0]);
+	int new_runner = NFSC::BulbToys_GetRacerIndex(chasers[0]);
+
+	// TODO: just fucking replace Game_SwitchPursuit entirely lmfao
 
 	// FIXME: Tagging is fucked. The first time the vehicle switch is performed, the game "softlocks"
 	// Likely because a vehicle is deactivated when it shouldn't be, or (more likely) a player/entity does not have a simable
@@ -801,33 +820,36 @@ void __fastcall nfsc::BulbToys_SwitchPTagTarget(uintptr_t race_status, bool bust
 	// Call Game_TagPursuit as intended
 	Game_TagPursuit(runner_index, new_runner, busted);
 
-	// FIXME: AI TARGETING LOGIC GOES HERE
+	// FIXME: AI RETARGETING LOGIC GOES HERE(?)
 }
 
-void nfsc::BulbToys_UpdateWorldMapCursor(uintptr_t fe_state_manager)
+void NFSC::BulbToys_UpdateWorldMapCursor(uintptr_t fe_state_manager)
 {
 	// Revert snap radius
-	WriteMemory<uintptr_t>(0x5C344D, 0x9D10A4);
+	Write<uintptr_t>(0x5C344D, 0x9D10A4);
 
 	FEColor color = { 255, 255, 255, 255 }; // white/none
-	auto world_map = ReadMemory<uintptr_t>(WorldMap);
+	auto world_map = Read<uintptr_t>(WorldMap);
 
 	if (world_map)
 	{
+		// WorldMap->mEventIconGlow
+		uintptr_t cursor = Read<uintptr_t>(world_map + 0x28);
+
 		if (g::world_map::shift_held)
 		{
 			// Only change the color for the "normal" mode of the world map (not quick list, etc...)
-			if (ReadMemory<world_map_state>(fe_state_manager + 4) == world_map_state::normal)
+			if (Read<int>(fe_state_manager + 4) == FESM::WorldMap::NORMAL)
 			{
 				// (Un)Patch non-conforming !!!
 				constexpr float zero = .0f;
-				WriteMemory<const float*>(0x5C344D, &zero);
+				Write<const float*>(0x5C344D, &zero);
 
 				color = { 0, 0, 255, 255 }; // red
 
 				// Get the current position of the cursor relative to the screen
 				float x, y;
-				FE_Object_GetCenter(ReadMemory<uintptr_t>(world_map + 0x28), &x, &y);
+				FE_Object_GetCenter(cursor, &x, &y);
 
 				// Account for WorldMap pan
 				Vector2 temp;
@@ -840,19 +862,19 @@ void nfsc::BulbToys_UpdateWorldMapCursor(uintptr_t fe_state_manager)
 				y = temp.y;
 
 				// Account for WorldMap zoom
-				Vector2 top_left = ReadMemory<Vector2>(world_map + 0x44);
-				Vector2 size = ReadMemory<Vector2>(world_map + 0x4C);
+				Vector2 top_left = Read<Vector2>(world_map + 0x44);
+				Vector2 size = Read<Vector2>(world_map + 0x4C);
 
 				x = x * size.x + top_left.x;
 				y = y * size.y + top_left.y;
 
-				// it just works tm
+				// TrackInfo::GetTrackInfo(5000) - it just works tm
 				auto track_info = reinterpret_cast<uintptr_t(*)(int)>(0x7990C0)(5000);
 
 				// Inverse WorldMap::ConvertPos to get world coordinates
-				float calibration_width = ReadMemory<float>(track_info + 0xB4);
-				float calibration_offset_x = ReadMemory<float>(track_info + 0xAC);
-				float calibration_offset_y = ReadMemory<float>(track_info + 0xB0);
+				float calibration_width = Read<float>(track_info + 0xB4);
+				float calibration_offset_x = Read<float>(track_info + 0xAC);
+				float calibration_offset_y = Read<float>(track_info + 0xB0);
 
 				x = x - top_left.x;
 				y = y - top_left.y;
@@ -885,15 +907,14 @@ void nfsc::BulbToys_UpdateWorldMapCursor(uintptr_t fe_state_manager)
 			}
 		}
 
-		// WorldMap->mEventIconGlow
-		FE_Object_SetColor(ReadMemory<uintptr_t>(world_map + 0x28), &color);
+		FE_Object_SetColor(cursor, &color);
 	}
 }
 
 /* ===== AIPLAYER ===== */
 
 // Most of this shit is probably useless garbage the compiler spit out due to inheritance but i'm replicating it for consistency
-nfsc::AIPlayer* nfsc::AIPlayer::New()
+NFSC::AIPlayer* NFSC::AIPlayer::New()
 {
 	// uintptr_t FastMem::Alloc(&FastMem, size, 0);
 	auto malloc = reinterpret_cast<uintptr_t(__thiscall*)(uintptr_t, uint32_t, const char*)>(0x60BA70)(FastMem, sizeof(AIPlayer), 0);
@@ -937,7 +958,7 @@ nfsc::AIPlayer* nfsc::AIPlayer::New()
 	return ai_player;
 }
 
-nfsc::AIPlayer* nfsc::AIPlayer::VecDelDtor(AIPlayer* ai_player, int edx, uint8_t flags)
+NFSC::AIPlayer* NFSC::AIPlayer::VecDelDtor(AIPlayer* ai_player, int edx, uint8_t flags)
 {
 	Destructor(ai_player);
 	if (ai_player && (flags & 1) != 0)
@@ -948,7 +969,7 @@ nfsc::AIPlayer* nfsc::AIPlayer::VecDelDtor(AIPlayer* ai_player, int edx, uint8_t
 	return ai_player;
 }
 
-uintptr_t nfsc::AIPlayer::GetSimable_IPlayer(AIPlayer* ai_player)
+uintptr_t NFSC::AIPlayer::GetSimable_IPlayer(AIPlayer* ai_player)
 {
 	VTable<10>* vtable = reinterpret_cast<VTable<10>*>(ai_player->Sim_Entity.Sim_IEntity.UCOM_IUnknown.vtbl);
 

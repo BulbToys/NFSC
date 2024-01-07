@@ -30,6 +30,7 @@
     <ClInclude Include="src\shared.h" />
     <ClInclude Include="src\gui.h" />
     <ClInclude Include="src\hooks.h" />
+    <ClInclude Include="src\utils.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ext\imgui\imgui.cpp" />

@@ -2,169 +2,169 @@
 
 #define FUNC(address, return_t, callconv, name, ...) inline return_t (callconv* name)(__VA_ARGS__) = reinterpret_cast<decltype(name)>(address)
 
-#define LS(address, name, type) inline ListableSet<type>* name = reinterpret_cast<decltype(name)>(address)
+#define LIST(address, name, type) inline ListableSet<type>* name = reinterpret_cast<decltype(name)>(address)
+
 
 // TODO fucking nuke me 
 struct ImDrawList;
 struct ImVec4;
 
 // TODO fucking NUKE me
-class IValidatable
-{
-public:
-	virtual bool Validate() = 0;
-};
 
 template <typename T>
-inline T ReadMemory(uintptr_t address);
+inline T Read(uintptr_t address);
 
-namespace nfsc
+
+namespace NFSC
 {
-	/* ===== NAMESPACES ===== */
-
-	namespace events
-	{
-		/*struct EventDef
-		{
-			uint32_t id;
-			const char* name;
-			uint32_t properties;
-			EventSys::Event* (__cdecl* Construct)(EventSys::StaticData*, EventSys::DynamicData*);
-			unsigned int StaticFieldsCount;
-			EventSys::FieldDef* StaticFields;
-			unsigned int StaticDataSize;
-		};*/
-	}
-
-	/* ===== GAME ENUMS ===== */
-
 	// TODO: apparently, PD2 is the T1 and PD1 is the T2 car, but that's not what game code dictates?
 	inline const char* player_cop_cars[] = { "player_cop", "player_cop_suv", "player_cop_gto" };
 	inline int player_cop_tier = 0;
 
-	inline const char* goals[] = { "AIGoalEncounterPursuit", "AIGoalNone", "AIGoalRacer", "AIGoalTraffic", "AIGoalPatrol"};
-	enum class ai_goal : int
-	{
-		encounter_pursuit = 0,
-		none              = 1,
-		racer             = 2,
-		traffic           = 3,
-		patrol            = 4,
-	};
+	/* ===== GAME ENUMS ===== */
 
+	namespace AIGoal
+	{
+		enum {
+			ENCOUNTER_PURSUIT = 0,
+			NONE              = 1,
+			RACER             = 2,
+			TRAFFIC           = 3,
+			PATROL            = 4,
+		};
+	}
+	inline const char* ai_goals[] = { "AIGoalEncounterPursuit", "AIGoalNone", "AIGoalRacer", "AIGoalTraffic", "AIGoalPatrol" };
+
+	namespace DriverClass
+	{
+		enum
+		{
+			HUMAN        = 0x0,
+			TRAFFIC      = 0x1,
+			COP          = 0x2,
+			RACER        = 0x3,
+			NONE         = 0x4,
+			NIS          = 0x5,
+			REMOTE       = 0x6,
+			REMOTE_RACER = 0x7,
+			GHOST        = 0x8,
+			HUB          = 0x9,
+			MAX          = 0xA,
+		};
+	}
 	inline const char* driver_classes[] = { "traffic", "cop", "racer", "none", "nis", "remote", "remote_racer", "ghost", "hub" };
-	enum class driver_class : int
+
+	// GameFlowState
+	namespace GFS
 	{
-		human        = 0x0,
-		traffic      = 0x1,
-		cop          = 0x2,
-		racer        = 0x3,
-		none         = 0x4,
-		nis          = 0x5,
-		remote       = 0x6,
-		remote_racer = 0x7,
-		ghost        = 0x8,
-		hub          = 0x9,
-		max          = 0xA,
-	};
+		enum
+		{
+			NONE               = 0x0,
+			LOADING_FRONTEND   = 0x1,
+			UNLOADING_FRONTEND = 0x2,
+			IN_FRONTEND        = 0x3,
+			LOADING_REGION     = 0x4,
+			LOADING_TRACK      = 0x5,
+			RACING             = 0x6,
+			UNLOADING_TRACK    = 0x7,
+			UNLOADING_REGION   = 0x8,
+			EXIT_DEMO_DISC     = 0x9,
+		};
+	}
 
-	enum class gameflow_state : int
+	namespace GRaceType
 	{
-		none               = 0x0,
-		loading_frontend   = 0x1,
-		unloading_frontend = 0x2,
-		in_frontend        = 0x3,
-		loading_region     = 0x4,
-		loading_track      = 0x5,
-		racing             = 0x6,
-		unloading_track    = 0x7,
-		unloading_region   = 0x8,
-		exit_demo_disc     = 0x9,
-	};
+		enum
+		{
+			NONE              = -1,
+			SPRINT            = 0x0,
+			CIRCUIT           = 0x1,
+			DRAG              = 0x2,
+			KO                = 0x3,
+			TOLLBOOTH         = 0x4,
+			SPEEDTRAP         = 0x5,
+			CHECKPOINT        = 0x6,
+			CASH_GRAB         = 0x7,
+			CHALLENGE_SERIES  = 0x8,
+			JUMP_TO_SPEEDTRAP = 0x9,
+			JUMP_TO_MILESTONE = 0xA,
+			DRIFT             = 0xB,
+			CANYON_DRIFT      = 0xC,
+			CANYON            = 0xD,
+			PURSUIT_TAG       = 0xE,
+			PURSUIT_KO        = 0xF,
+			ENCOUNTER         = 0x10,
+			MAX               = 0x11,
+		};
+	}
 
-	enum class race_type : int
+	// VehicleListType
+	namespace VLType
 	{
-		none              = -1,
-		sprint            = 0x0,
-		circuit           = 0x1,
-		drag              = 0x2,
-		ko                = 0x3,
-		tollbooth         = 0x4,
-		speedtrap         = 0x5,
-		checkpoint        = 0x6,
-		cash_grab         = 0x7,
-		challenge_series  = 0x8,
-		jump_to_speedtrap = 0x9,
-		jump_to_milestone = 0xA,
-		drift             = 0xB,
-		canyon_drift      = 0xC,
-		canyon            = 0xD,
-		pursuit_tag       = 0xE,
-		pursuit_ko        = 0xF,
-		encounter         = 0x10,
-		max               = 0x11,
-	};
+		enum
+		{
+			ALL           = 0x0,
+			PLAYERS       = 0x1,
+			AI            = 0x2,
+			AI_RACERS     = 0x3,
+			AI_COPS       = 0x4,
+			AI_TRAFFIC    = 0x5,
+			RACERS        = 0x6,
+			REMOTE        = 0x7,
+			INACTIVE      = 0x8,
+			TRAILERS      = 0x9,
+			ACTIVE_RACERS = 0xA,
+			GHOST         = 0xB,
+			MAX           = 0xC,
+		};
+	}
+	inline const char* vehicle_lists[] = { "All", "Players", "AI", "AI Racers", "AI Cops", "AI Traffic", "Racers", "Remote", "Inactive", "Trailers", "Active Racers", "Ghosts" };
 
-	enum class rbelem_t : int
+	// VehicleParamFlags
+	namespace VPFlags
 	{
-		none       = 0,
-		car        = 1,
-		barrier    = 2,
-		spikestrip = 3,
-	};
+		enum
+		{
+			SPOOL_RESOURCES     = 0x1,
+			SNAP_TO_GROUND      = 0x2,
+			REMOVE_NOS          = 0x4,
+			COMPUTE_PERFORMANCE = 0x8,
+			FORCE_NOS           = 0x10,
+			LOW_REZ             = 0x20,
+			CRITICAL            = 0x40,
+			PHYSICS_ONLY        = 0x80,
+		};
+	}
 
-	inline const char* veh_lists[] = { "All", "Players", "AI", "AI Racers", "AI Cops", "AI Traffic", "Racers", "Remote", "Inactive", "Trailers", "Active Racers", "Ghosts" };
-	enum vehicle_list : int
+	// FEStateManager (States)
+	namespace FESM
 	{
-		all          = 0x0,
-		players      = 0x1,
-		ai           = 0x2,
-		airacers     = 0x3,
-		aicops       = 0x4,
-		aitraffic    = 0x5,
-		racers       = 0x6,
-		remote       = 0x7,
-		inactive     = 0x8,
-		trailers     = 0x9,
-		activeracers = 0xA,
-		ghost        = 0xB,
-		max          = 0xC,
-	};
+		namespace WorldMap
+		{
+			enum
+			{
+				// Normal states
+				NORMAL       = 3,
+				TERRITORIES  = 4,
+				QUICK_LIST   = 5,
+				ENGAGE_EVENT = 6,
 
-	enum vehicle_param_flags : uint32_t
-	{
-		spool_resources     = 0x1,
-		snap_to_ground      = 0x2,
-		remove_nos          = 0x4,
-		compute_performance = 0x8,
-		force_nos           = 0x10,
-		low_rez             = 0x20,
-		critical            = 0x40,
-		physics_only        = 0x80,
-	};
+				// Dialog states
+				RACE_EVENT = 13,
+				CAR_LOT    = 16,
+				SAFEHOUSE  = 17,
 
-	enum class world_map_state : int
-	{
-		// Normal states
-		normal       = 3,
-		territories  = 4,
-		quick_list   = 5,
-		engage_event = 6,
-
-		// Dialog states
-		race_event = 13,
-		car_lot    = 16,
-		safehouse  = 17,
-
-		// Click TP states
-		click_tp      = 100,
-		click_tp_jump = 101,
-		click_tp_gps  = 102,
-	};
+				// Click TP states
+				CLICK_TP      = 100,
+				CLICK_TP_JUMP = 101,
+				CLICK_TP_GPS  = 102,
+			};
+		}
+	}
 
 	/* ===== GAME OBJECTS ===== */
 
-	// B, G, R, A (ints but they're actually chars)
+	// B, G, R, A (stored as ints, but they're actually chars in practice)
 	struct FEColor
 	{
 		int b = 0, g = 0, r = 0, a = 0;
@@ -229,25 +229,30 @@ namespace nfsc
 
 	struct RoadblockElement
 	{
-		rbelem_t type = rbelem_t::none;
+		enum Type
+		{
+			NONE       = 0,
+			CAR        = 1,
+			BARRIER    = 2,
+			SPIKESTRIP = 3,
+		};
+
+		Type type = NONE;
 		float offset_x = 0;
 		float offset_z = 0;
 		float angle = 0;
 	};
 
-	// TODO FUCK
-	struct RoadblockSetupFile;
-
 	struct RoadblockSetup
 	{
 		float minimum_width = 0;
 		int required_vehicles = 0;
-		RoadblockElement contents[6] = { {rbelem_t::none, 0, 0, 0} };
+		RoadblockElement contents[6] = { {RoadblockElement::NONE, 0, 0, 0} };
 
-		void operator=(const RoadblockSetupFile& rbsf);
+		void operator=(const struct RoadblockSetupFile& rbsf);
 	};
 
-	struct RoadblockSetupFile : public IValidatable
+	struct RoadblockSetupFile : public IFile
 	{
 		RoadblockSetup rbs;
 
@@ -293,15 +298,15 @@ namespace nfsc
 
 	struct WRoadNav // 780u
 	{
-		uint8_t pad0[0x58];
+		uint8_t pad0[0x58] { 0 };
 
 		bool fValid = false;
 
-		uint8_t pad1[0x1B]{ 0 };
+		uint8_t pad1[0x1B] { 0 };
 
 		int fNavType = 0;
 
-		uint8_t pad2[0x10]{ 0 };
+		uint8_t pad2[0x10] { 0 };
 
 		char fNodeInd = 0;
 
@@ -309,12 +314,12 @@ namespace nfsc
 
 		short fSegmentInd = 0;
 
-		uint8_t pad4[0x8]{ 0 };
+		uint8_t pad4[0x8] { 0 };
 
-		Vector3 fPosition = { 0, 0, 0 };
-		Vector3 fLeftPosition = { 0, 0, 0 };
-		Vector3 fRightPosition = { 0, 0, 0 };
-		Vector3 fForwardVector = { 0, 0, 0 };
+		Vector3 fPosition { 0, 0, 0 };
+		Vector3 fLeftPosition { 0, 0, 0 };
+		Vector3 fRightPosition { 0, 0, 0 };
+		Vector3 fForwardVector { 0, 0, 0 };
 
 		uint8_t pad5[0x248]{ 0 };
 
@@ -338,12 +343,12 @@ namespace nfsc
 	constexpr uintptr_t IInput = 0x403AA0;
 
 	// ListableSets
-	LS(0xA83E90, AIPursuitList, uintptr_t);
-	LS(0xA83AE8, AITargetsList, uintptr_t);
-	LS(0xA9FE98, EntityList, uintptr_t);
-	LS(0xA9FF28, IPlayerList, uintptr_t);
+	LIST(0xA83E90, AIPursuitList, uintptr_t);
+	LIST(0xA83AE8, AITargetsList, uintptr_t);
+	LIST(0xA9FE98, EntityList, uintptr_t);
+	LIST(0xA9FF28, IPlayerList, uintptr_t);
 
-	inline ListableSet<uintptr_t>* VehicleList[vehicle_list::max] = {
+	inline ListableSet<uintptr_t>* VehicleList[VLType::MAX] = {
 		reinterpret_cast<ListableSet<uintptr_t>*>(0xA9F158 + 0x88 * 0x0),
 		reinterpret_cast<ListableSet<uintptr_t>*>(0xA9F158 + 0x88 * 0x1),
 		reinterpret_cast<ListableSet<uintptr_t>*>(0xA9F158 + 0x88 * 0x2),
@@ -394,7 +399,7 @@ namespace nfsc
 
 	FUNC(0x48D620, void, , CameraAI_SetAction, int eview, const char* name);
 
-	FUNC(0x5227F0, void, __thiscall, EAXSound_StartNewGamePlay, uintptr_t eax_sound);
+	FUNC(0x65B000, void, , ChangeLocalPlayerCameraInfo);
 
 	FUNC(0x571040, void, , FE_Image_SetTextureHash, uintptr_t image, uint32_t key);
 
@@ -425,7 +430,7 @@ namespace nfsc
 
 	FUNC(0x627840, void, __thiscall, GIcon_Spawn, uintptr_t icon);
 
-	FUNC(0x616FE0, uint32_t, , GKnockoutRacer_GetPursuitVehicleKey, bool is_player);
+	FUNC(0x616FE0, uint32_t, , GKnockoutRacer_GetPursuitVehicleKey, bool unk);
 
 	FUNC(0x626F90, uintptr_t, __thiscall, GManager_AllocIcon, uintptr_t g_manager, char type, Vector3* position, float rotation, bool is_disposable);
 
@@ -445,6 +450,7 @@ namespace nfsc
 	FUNC(0x75DA60, void, __thiscall, LocalPlayer_ResetHUDType, uintptr_t local_player, int hud_type);
 
 	FUNC(0x6A1560, uintptr_t, , malloc, size_t size);
+	FUNC(0x6A1590, void, , free, uintptr_t ptr);
 
 	FUNC(0x59DD90, uintptr_t, __thiscall, MapItem_MapItem, uintptr_t map_item, uint32_t flags, uintptr_t object, Vector2& position, float rotation, int unk,
 		uintptr_t icon);
@@ -461,7 +467,7 @@ namespace nfsc
 	FUNC(0x6C0C40, void, __thiscall, PVehicle_ForceStopOn, uintptr_t pvehicle, uint8_t force_stop);
 	FUNC(0x6C0C70, void, __thiscall, PVehicle_ForceStopOff, uintptr_t pvehicle, uint8_t force_stop);
 	FUNC(0x6D8110, uintptr_t, __thiscall, PVehicle_GetAIVehiclePtr, uintptr_t pvehicle);
-	FUNC(0x6D7F60, driver_class, __thiscall, PVehicle_GetDriverClass, uintptr_t pvehicle);
+	FUNC(0x6D7F60, int, __thiscall, PVehicle_GetDriverClass, uintptr_t pvehicle);
 	FUNC(0x6D7F80, uint8_t, __thiscall, PVehicle_GetForceStop, uintptr_t pvehicle);
 	FUNC(0x6D7EC0, uintptr_t, __thiscall, PVehicle_GetSimable, uintptr_t pvehicle);
 	FUNC(0x6D8070, float, __thiscall, PVehicle_GetSpeed, uintptr_t pvehicle);
@@ -471,7 +477,7 @@ namespace nfsc
 	FUNC(0x6C0A00, bool, __thiscall, PVehicle_IsLoading, uintptr_t pvehicle);
 	FUNC(0x6D43A0, void, __thiscall, PVehicle_Kill, uintptr_t pvehicle);
 	FUNC(0x6D4410, void, __thiscall, PVehicle_ReleaseBehaviorAudio, uintptr_t pvehicle);
-	FUNC(0x6DA500, void, __thiscall, PVehicle_SetDriverClass, uintptr_t pvehicle, driver_class dc);
+	FUNC(0x6DA500, void, __thiscall, PVehicle_SetDriverClass, uintptr_t pvehicle, int driver_class);
 	FUNC(0x6C61E0, void, __thiscall, PVehicle_SetSpeed, uintptr_t pvehicle, float speed);
 	FUNC(0x6D1100, bool, __thiscall, PVehicle_SetVehicleOnGround, uintptr_t pvehicle, Vector3* position, Vector3* forward_vector);
 	
@@ -507,13 +513,13 @@ namespace nfsc
 
 	/* ===== CUSTOM FUNCTIONS ===== */
 
-	inline gameflow_state BulbToys_GetGameFlowState();
+	inline int BulbToys_GetGameFlowState();
 
-	inline uintptr_t BulbToys_CreateSimable(uintptr_t vehicle_cache, driver_class dc, uint32_t key, Vector3* rotation, Vector3* position, uint32_t vpf,
+	inline uintptr_t BulbToys_CreateSimable(uintptr_t vehicle_cache, int driver_class, uint32_t key, Vector3* rotation, Vector3* position, uint32_t vpf,
 		uintptr_t customization_record, uintptr_t performance_matching)
 	{
-		gameflow_state gfs = BulbToys_GetGameFlowState();
-		if (gfs != gameflow_state::racing && gfs != gameflow_state::loading_region && gfs != gameflow_state::loading_track)
+		auto gfs = BulbToys_GetGameFlowState();
+		if (gfs != GFS::RACING && gfs != GFS::LOADING_REGION && gfs != GFS::LOADING_TRACK)
 		{
 			return 0;
 		}
@@ -521,8 +527,8 @@ namespace nfsc
 		struct VehicleParams { uint8_t _[0x3C]; } params;
 
 		// void __thiscall VehicleParams::VehicleParams(...);
-		reinterpret_cast<void(__thiscall*)(VehicleParams&, uintptr_t, driver_class, uint32_t, Vector3*, Vector3*, uint32_t, uintptr_t, uintptr_t)>(0x412590)
-			(params, vehicle_cache, dc, key, rotation, position, vpf, customization_record, performance_matching);
+		reinterpret_cast<void(__thiscall*)(VehicleParams&, uintptr_t, int, uint32_t, Vector3*, Vector3*, uint32_t, uintptr_t, uintptr_t)>(0x412590)
+			(params, vehicle_cache, driver_class, key, rotation, position, vpf, customization_record, performance_matching);
 
 		// ISimable* UCOM::Factory<Sim::Param,ISimable,UCrc32>::CreateInstance(stringhash32("PVehicle"), params);
 		uintptr_t simable = reinterpret_cast<uintptr_t(*)(uint32_t, VehicleParams)>(0x41F920)(0x1396EBE1, params);
@@ -538,24 +544,30 @@ namespace nfsc
 		Vector3 p = { 0, 0, 0 };
 		Vector3 r = { 1, 0, 0 };
 
-		return BulbToys_CreateSimable
-			(ReadMemory<uintptr_t>(GRaceStatus), driver_class::none, GKnockoutRacer_GetPursuitVehicleKey(1), &r, &p, vehicle_param_flags::critical, 0, 0);
+		return BulbToys_CreateSimable(Read<uintptr_t>(GRaceStatus), DriverClass::NONE, GKnockoutRacer_GetPursuitVehicleKey(1), &r, &p, VPFlags::CRITICAL, 0, 0);
 	}
 
 	void BulbToys_DrawObject(ImDrawList* draw_list, Vector3& position, Vector3& dimension, Vector3& rotation, ImVec4& color, float thickness);
 
-	void BulbToys_DrawVehicleInfo(ImDrawList* draw_list, uintptr_t vehicle, vehicle_list type, ImVec4& color);
+	void BulbToys_DrawVehicleInfo(ImDrawList* draw_list, uintptr_t vehicle, int vehicle_list_type, ImVec4& color);
 
 	template <uintptr_t handle>
 	inline uintptr_t BulbToys_FindInterface(uintptr_t iface)
 	{
-		uintptr_t ucom_object = ReadMemory<uintptr_t>(iface + 4);
+		uintptr_t ucom_object = Read<uintptr_t>(iface + 4);
 
 		// IInterface* UTL::COM::Object::_IList::Find(UCOM::Object::_IList*, IInterface::IHandle);
 		return reinterpret_cast<uintptr_t(__thiscall*)(uintptr_t, uintptr_t)>(0x60CB50)(ucom_object, handle);
 	}
 
-	uintptr_t BulbToys_GetAIVehicleGoal(uintptr_t ai_vehicle_ivehicleai);
+	// Forward vector -> Yaw/XZ Angle (in degrees)
+	inline float BulbToys_ToAngle(Vector3& fwd_vec)
+	{
+		constexpr float deg_rad = (180.0f / 3.141592653589793238463f);
+		return atan2(fwd_vec.x, -fwd_vec.z) * deg_rad + 180.0f;
+	}
+
+	uintptr_t BulbToys_GetAIVehicleGoal(uintptr_t ai_vehicle);
 
 	const char* BulbToys_GetCameraName();
 
@@ -581,7 +593,7 @@ namespace nfsc
 
 	int BulbToys_GetRacerIndex(uintptr_t racer_info);
 
-	race_type BulbToys_GetRaceType();
+	int BulbToys_GetRaceType();
 
 	void BulbToys_GetScreenPosition(Vector3& world_position, Vector3& screen_position);
 
@@ -589,7 +601,45 @@ namespace nfsc
 
 	int BulbToys_GetVehicleTier(uintptr_t pvehicle);
 
+	inline bool BulbToys_IsGameNFSCO()
+	{
+		return NFSC::VehicleList[NFSC::VLType::ALL]->capacity == 100;
+	}
+
+	inline bool BulbToys_IsPlayerLocal(uintptr_t player);
+
 	void BulbToys_PathToTarget(uintptr_t ai_vehicle, Vector3* target);
+
+	inline void BulbToys_PlaceProp(uintptr_t prop, Vector3& position, Vector3& fwd_vec)
+	{
+		float _;
+		Vector3 normal = { 0, 0, 0 };
+		Vector3* in_up = nullptr;
+
+		WCollisionMgr mgr;
+		mgr.fSurfaceExclusionMask = 0;
+		mgr.fPrimitiveMask = 3;
+		if (NFSC::WCollisionMgr_GetWorldHeightAtPointRigorous(mgr, &position, &_, &normal))
+		{
+			if (normal.y < 0)
+			{
+				normal.x *= -1.0;
+				normal.y *= -1.0;
+				normal.z *= -1.0;
+			}
+			in_up = &normal;
+		}
+
+		Matrix4 matrix;
+		Util_GenerateMatrix(&matrix, &fwd_vec, in_up);
+
+		matrix.v3.x = position.x;
+		matrix.v3.y = position.y;
+		matrix.v3.z = position.z;
+
+		// Props::Placeable::Place
+		reinterpret_cast<bool(__thiscall*)(uintptr_t, NFSC::Matrix4*, bool)>(0x817350)(prop, &matrix, true);
+	}
 
 	inline void BulbToys_ResetMyHUD(uintptr_t simable = 0)
 	{
@@ -611,21 +661,15 @@ namespace nfsc
 		LocalPlayer_ResetHUDType(player, 1);
 	}
 
+	inline void BulbToys_RestartSound()
+	{
+		// EAXSound::RefreshNewGamePlay(TheEAXSound)
+		reinterpret_cast<void(__thiscall*)(uintptr_t)>(0x51B270)(*reinterpret_cast<uintptr_t*>(0xA8BA38));
+	}
+
 	void* BulbToys_RoadblockCalculations(RoadblockSetup* setup, uintptr_t rigid_body);
 
-	enum class sv_mode
-	{
-		// One-way switch. Use only when creating your own simable, not recommended otherwise, as it kills the old vehicle (TODO: test if this matters)
-		one_way,
-
-		// TODO: Two-way switch, with teleportation
-		two_way,
-
-		// TODO: Two-way switch, without teleportation
-		two_way_no_tp
-	};
-
-	bool BulbToys_SwitchVehicle(uintptr_t simable, uintptr_t simable2, sv_mode mode);
+	bool BulbToys_SwitchVehicle(uintptr_t simable, uintptr_t simable2, bool kill_old = false);
 
 	/*
 	inline void BulbToys_SetCopActions(uintptr_t ai_goal)

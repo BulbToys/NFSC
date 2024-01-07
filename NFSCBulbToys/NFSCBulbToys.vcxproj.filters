@@ -24,6 +24,7 @@
     <ClInclude Include="ext\imgui\imgui_memory_editor.h" />
     <ClInclude Include="src\patches.h" />
     <ClInclude Include="src\rev_count.h" />
+    <ClInclude Include="src\utils.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ext\imgui\imgui.cpp" />

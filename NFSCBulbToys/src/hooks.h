@@ -1,162 +1,129 @@
 #pragma once
 #include "../ext/minhook/minhook.h"
 
-namespace hooks
+#define HOOK(address, return_t, callconv, name, ...) return_t callconv name##_##(__VA_ARGS__); \
+	static inline decltype(&name##_##) name = reinterpret_cast<decltype(&name##_##)>(address) \
+
+#define VIRTUAL 0x0
+
+// todo fuck me
+namespace NFSC
 {
+	struct Vector3;
+}
+
+namespace Hooks
+{
+	inline MH_STATUS CreateHook(void* address, void* hook, void* call);
 	inline MH_STATUS CreateHook(uintptr_t address, void* hook, void* call);
+	inline void CreateVTablePatch(uintptr_t vtbl_func_addr, void* hook, void* call);
+
 	bool Setup();
 	bool SetupPart2(uintptr_t device);
 	void Destroy();
 
-	HRESULT __cdecl DxInitHook();
-	static inline decltype(&DxInitHook) DxInit;
+	HOOK(0x710220, HRESULT, __cdecl, DirectX_Init);
 
-	long __stdcall EndSceneHook(IDirect3DDevice9* device);
-	static inline decltype(&EndSceneHook) EndScene;
+	HOOK(VIRTUAL, HRESULT, __stdcall, ID3DDevice9_EndScene, IDirect3DDevice9* device);
+	HOOK(VIRTUAL, HRESULT, __stdcall, ID3DDevice9_Reset, IDirect3DDevice9* device, D3DPRESENT_PARAMETERS* params);
 
-	HRESULT __stdcall ResetHook(IDirect3DDevice9* device, D3DPRESENT_PARAMETERS* params);
-	static inline decltype(&ResetHook) Reset;
+	HOOK(0x422BF0, bool, __fastcall, AITrafficManager_NeedsEncounter, uintptr_t traffic_manager);
+	HOOK(0x422990, bool, __fastcall, AITrafficManager_NeedsTraffic, uintptr_t traffic_manager);
 
-	bool __fastcall NeedsEncounterHook(uintptr_t traffic_manager);
-	static inline decltype(&NeedsEncounterHook) NeedsEncounter;
+	HOOK(VIRTUAL, bool, __fastcall, AICopManager_CanPursueRacers, uintptr_t cop_manager);
 
-	bool __fastcall NeedsTrafficHook(uintptr_t traffic_manager);
-	static inline decltype(&NeedsTrafficHook) NeedsTraffic;
+	HOOK(0x433930, bool, __fastcall, Gps_Engage, uintptr_t gps, uintptr_t edx, NFSC::Vector3* vec3target, float max_deviation, bool re_engage, bool always_re_establish);
 
-	bool __fastcall PursueRacersHook(uintptr_t ai_cop_manager);
-	static inline decltype(&PursueRacersHook) PursueRacers;
+	HOOK(VIRTUAL, void, __fastcall, FEWorldMapStateManager_HandlePadAccept, uintptr_t state_manager);
+	HOOK(VIRTUAL, void, __fastcall, FEWorldMapStateManager_HandleShowDialog, uintptr_t state_manager);
+	HOOK(VIRTUAL, void, __fastcall, FEWorldMapStateManager_HandleButtonPressed, uintptr_t state_manager, uintptr_t edx, uint32_t unk);
+	HOOK(VIRTUAL, void, __fastcall, FEWorldMapStateManager_HandleStateChange, uintptr_t state_manager);
+	HOOK(VIRTUAL, void, __fastcall, FEWorldMapStateManager_HandleScreenTick, uintptr_t state_manager);
+	HOOK(VIRTUAL, void, __fastcall, FEWorldMapStateManager_HandlePadButton4, uintptr_t state_manager);
 
-	bool __fastcall GpsEngageHook(uintptr_t gps, uintptr_t edx, nfsc::Vector3* vec3target, float max_deviation, bool re_engage, bool always_re_establish);
-	static inline decltype(&GpsEngageHook) GpsEngage;
+	HOOK(VIRTUAL, void, __fastcall, AIVehicleHuman_ResetDriveToNav, uintptr_t ai_vehicle, uintptr_t edx, int lane_selection);
 
-	void __fastcall WorldMapPadAcceptHook(uintptr_t fe_state_manager);
-	static inline decltype(&WorldMapPadAcceptHook) WorldMapPadAccept;
+	HOOK(0x6298C0, uintptr_t, __fastcall, GRacerInfo_CreateVehicle, uintptr_t racer_info, uintptr_t edx, uint32_t key, int racer_index, uint32_t seed);
 
-	void __fastcall WorldMapShowDialogHook(uintptr_t fe_state_manager);
-	static inline decltype(&WorldMapShowDialogHook) WorldMapShowDialog;
+	HOOK(0x616EF0, const char*, __cdecl, GKnockoutRacer_GetPursuitVehicleName, bool is_player);
 
-	void __fastcall WorldMapButtonPressedHook(uintptr_t fe_state_manager, uintptr_t edx, uint32_t unk);
-	static inline decltype(&WorldMapButtonPressedHook) WorldMapButtonPressed;
-
-	void __fastcall WorldMapStateChangeHook(uintptr_t fe_state_manager);
-	static inline decltype(&WorldMapStateChangeHook) WorldMapStateChange;
-
-	void __fastcall WorldMapScreenTickHook(uintptr_t fe_state_manager);
-	static inline decltype(&WorldMapScreenTickHook) WorldMapScreenTick;
-
-	void __fastcall WorldMapButton4Hook(uintptr_t fe_state_manager);
-	static inline decltype(&WorldMapButton4Hook) WorldMapButton4;
-
-	void __fastcall ResetDriveToNavHook(uintptr_t ai_vehicle, uintptr_t edx, int lane_selection);
-	static inline decltype (&ResetDriveToNavHook) ResetDriveToNav;
-
-	uintptr_t __fastcall RacerInfoCreateVehicleHook(uintptr_t racer_info, uintptr_t edx, uint32_t key, int racer_index, uint32_t seed);
-	static inline decltype (&RacerInfoCreateVehicleHook) RacerInfoCreateVehicle;
-
-	const char* __cdecl GetPursuitVehicleNameHook(bool is_player);
-	static inline decltype (&GetPursuitVehicleNameHook) GetPursuitVehicleName;
-
-	void __fastcall RaceStatusUpdateHook(uintptr_t race_status, uintptr_t edx, float dt);
-	static inline decltype (&RaceStatusUpdateHook) RaceStatusUpdate;
+	HOOK(0x646B00, void, __fastcall, GRaceStatus_Update, uintptr_t race_status, uintptr_t edx, float dt);
 
 	//uintptr_t __cdecl PursuitSwitchHook(int racer_index, bool is_busted, int* result);
 	//static inline decltype (&PursuitSwitchHook) PursuitSwitch;
 
-	float __fastcall GetTimeLimitHook(uintptr_t race_parameters);
-	static inline decltype (&GetTimeLimitHook) GetTimeLimit;
+	HOOK(0x63E6C0, float, __fastcall, GRaceParameters_GetTimeLimit, uintptr_t race_parameters);
 
-	void __cdecl ShowLosingScreenHook();
-	static inline decltype (&ShowLosingScreenHook) ShowLosingScreen;
+	HOOK(0x65E240, void, __cdecl, FE_ShowLosingPostRaceScreen);
+	HOOK(0x65E270, void, __cdecl, FE_ShowWinningPostRaceScreen);
 
-	void __cdecl ShowWinningScreenHook();
-	static inline decltype (&ShowWinningScreenHook) ShowWinningScreen;
+	HOOK(VIRTUAL, void, __fastcall, FECareerStateManager_HandleChildFlowDone, uintptr_t fe_career_state_manager, uintptr_t edx, int unk);
 
-	void __fastcall CareerManagerChildFlowDoneHook(uintptr_t fe_career_state_manager, uintptr_t edx, int unk);
-	static inline decltype (&CareerManagerChildFlowDoneHook) CareerManagerChildFlowDone;
+	HOOK(0x42CB70, uintptr_t, __fastcall, AITrafficManager_GetAvailablePresetVehicle, uintptr_t ai_traffic_manager, uintptr_t edx, uint32_t skin_key, uint32_t encounter_key);
 
-	uintptr_t __fastcall GetAvailablePresetVehicleHook(uintptr_t ai_traffic_manager, uintptr_t edx, uint32_t skin_key, uint32_t encounter_key);
-	static inline decltype (&GetAvailablePresetVehicleHook) GetAvailablePresetVehicle;
+	HOOK(VIRTUAL, void, __fastcall, FEDebugCarStateManager_HandlePadButton3, uintptr_t fe_debugcar_state_manager);
 
-	void __fastcall DebugCarPadButton3Hook(uintptr_t fe_debugcar_state_manager);
-	static inline decltype (&DebugCarPadButton3Hook) DebugCarPadButton3;
+	HOOK(0x641310, void, __fastcall, GRaceStatus_SetRoaming, uintptr_t g_race_status);
 
-	void __fastcall SetRoamingHook(uintptr_t g_race_status);
-	static inline decltype (&SetRoamingHook) SetRoaming;
+	HOOK(0x7AEFD0, void, __fastcall, CarRenderConn_UpdateIcon, uintptr_t car_render_conn, uintptr_t edx, uintptr_t pkt);
 
-	void __fastcall UpdateIconHook(uintptr_t car_render_conn, uintptr_t edx, uintptr_t pkt);
-	static inline decltype (&UpdateIconHook) UpdateIcon;
-
-	void __fastcall SetCameraMatrixHook(uintptr_t camera, uintptr_t edx, void* matrix4, float dt);
-	static inline decltype (&SetCameraMatrixHook) SetCameraMatrix;
+	HOOK(0x4822F0, void, __fastcall, Camera_SetCameraMatrix, uintptr_t camera, uintptr_t edx, void* matrix4, float dt);
 
 	//void* __cdecl PickRoadblockSetupHook(float width, int num_vehicles, bool use_spikes);
 	//static inline decltype (&PickRoadblockSetupHook) PickRoadblockSetup;
 
-	uintptr_t __fastcall GetMainBossHook(uintptr_t g_race_status);
-	static inline decltype (&GetMainBossHook) GetMainBoss;
+	HOOK(0x643A50, uintptr_t, __fastcall, GRaceStatus_GetMainBoss, uintptr_t g_race_status);
 
-	void __fastcall AddPlayerCarHook(uintptr_t world_map);
-	static inline decltype (&AddPlayerCarHook) AddPlayerCar;
+	HOOK(0x5ACB50, void, __fastcall, WorldMap_AddPlayerCar, uintptr_t world_map);
 
-	uintptr_t __fastcall MLaunchPIPHook(uintptr_t m_launch_pip, uintptr_t edx, int id, uintptr_t simable_handle);
-	static inline decltype (&MLaunchPIPHook) MLaunchPIP;
+	HOOK(0x44BCE0, uintptr_t, __fastcall, MLaunchPIP_MLaunchPIP, uintptr_t m_launch_pip, uintptr_t edx, int id, uintptr_t simable_handle);
 
-	bool __fastcall SpawnEncounterHook(uintptr_t traffic_manager);
-	static inline decltype (&SpawnEncounterHook) SpawnEncounter;
+	HOOK(0x444D90, bool, __fastcall, AITrafficManager_SpawnEncounter, uintptr_t traffic_manager);
 
-	bool __fastcall GetSMSHandleHook(uintptr_t ecx, uintptr_t edx, int* a1, int a2);
-	static inline decltype (&GetSMSHandleHook) GetSMSHandle;
+	HOOK(0x4A1250, bool, __fastcall, DALCareer_GetSMSHandle, uintptr_t ecx, uintptr_t edx, int* a1, int a2);
+	HOOK(0x4A1290, bool, __fastcall, DALCareer_GetSMSIsAvailable, uintptr_t ecx, uintptr_t edx, int* a1, int a2);
+	HOOK(0x4A12E0, bool, __fastcall, DALCareer_GetSMSWasRead, uintptr_t ecx, uintptr_t edx, int* a1, int a2);
+	HOOK(0x4A1330, bool, __fastcall, DALCareer_GetSMSIsTip, uintptr_t ecx, uintptr_t edx, int* a1, int a2);
+	HOOK(0x4A1390, bool, __fastcall, DALCareer_GetSMSSortOrder, uintptr_t ecx, uintptr_t edx, int* a1, int a2);
+	HOOK(0x4A14A0, bool, __fastcall, DALCareer_GetSMSHashMessage, uintptr_t ecx, uintptr_t edx, int* a1, int a2);
+	HOOK(0x4B2B80, bool, __fastcall, DALCareer_GetSMSIsVoice, uintptr_t ecx, uintptr_t edx, int* a1, int a2);
 
-	bool __fastcall GetSMSIsAvailableHook(uintptr_t ecx, uintptr_t edx, int* a1, int a2);
-	static inline decltype (&GetSMSIsAvailableHook) GetSMSIsAvailable;
+	HOOK(0x4A1530, bool, __fastcall, DALCareer_SetSMSWasRead, uintptr_t ecx, uintptr_t edx, int a1, int a2);
+	HOOK(0x4A15B0, bool, __fastcall, DALCareer_SetSMSIsAvailable, uintptr_t ecx, uintptr_t edx, int a1, int a2);
+	HOOK(0x4A1600, bool, __fastcall, DALCareer_SetSMSHandle, uintptr_t ecx, uintptr_t edx, int a1, int a2);
 
-	bool __fastcall GetSMSWasReadHook(uintptr_t ecx, uintptr_t edx, int* a1, int a2);
-	static inline decltype (&GetSMSWasReadHook) GetSMSWasRead;
+	HOOK(0x5D7550, void, __fastcall, FESMSMessage_RefreshHeader, uintptr_t fe_sms_message);
 
-	bool __fastcall GetSMSIsTipHook(uintptr_t ecx, uintptr_t edx, int* a1, int a2);
-	static inline decltype (&GetSMSIsTipHook) GetSMSIsTip;
+	HOOK(0x5C6370, void, __fastcall, CTextScroller_SetTextHash, uintptr_t c_text_scroller, uintptr_t edx, uint32_t language_hash);
 
-	bool __fastcall GetSMSSortOrderHook(uintptr_t ecx, uintptr_t edx, int* a1, int a2);
-	static inline decltype (&GetSMSSortOrderHook) GetSMSSortOrder;
+	HOOK(0x5D7250, void, __fastcall, SMSSlot_Update, uintptr_t sms_slot, uintptr_t edx, uintptr_t sms_datum, bool a3, uintptr_t fe_object);
 
-	bool __fastcall GetSMSHashHook(uintptr_t ecx, uintptr_t edx, int* a1, int a2);
-	static inline decltype (&GetSMSHashHook) GetSMSHash;
+	HOOK(0x4B62B0, uintptr_t, __stdcall, DALVehicle_GetIVehicle, int settings_index);
 
-	bool __fastcall GetSMSIsVoiceHook(uintptr_t ecx, uintptr_t edx, int* a1, int a2);
-	static inline decltype (&GetSMSIsVoiceHook) GetSMSIsVoice;
+	using HUDElementUpdateFunc = void __fastcall (uintptr_t hud_element, uintptr_t edx, uintptr_t player);
+	void HUDElement_Update_(uintptr_t hud_element, uintptr_t edx, uintptr_t player, HUDElementUpdateFunc* Update);
 
-	bool __fastcall SetSMSWasReadHook(uintptr_t ecx, uintptr_t edx, int a1, int a2);
-	static inline decltype (&SetSMSWasReadHook) SetSMSWasRead;
+	HUDElementUpdateFunc Tachometer_Update_;
+	static inline HUDElementUpdateFunc* Tachometer_Update;
 
-	bool __fastcall SetSMSIsAvailableHook(uintptr_t ecx, uintptr_t edx, int a1, int a2);
-	static inline decltype (&SetSMSIsAvailableHook) SetSMSIsAvailable;
+	HUDElementUpdateFunc NitrousGauge_Update_;
+	static inline HUDElementUpdateFunc* NitrousGauge_Update;
 
-	bool __fastcall SetSMSHandleHook(uintptr_t ecx, uintptr_t edx, int a1, int a2);
-	static inline decltype (&SetSMSHandleHook) SetSMSHandle;
+	HUDElementUpdateFunc SpeedbreakerMeter_Update_;
+	static inline HUDElementUpdateFunc* SpeedbreakerMeter_Update;
 
-	void __fastcall FESMSRefreshHeaderHook(uintptr_t fe_sms_message);
-	static inline decltype (&FESMSRefreshHeaderHook) FESMSRefreshHeader;
+	HOOK(0x4B57E0, bool, __fastcall, DALWorldMap_GetBool, uintptr_t dal_world_map, uintptr_t edx, int id, bool* result);
 
-	void __fastcall CTextScrollerSetTextHashHook(uintptr_t c_text_scroller, uintptr_t edx, uint32_t language_hash);
-	static inline decltype (&CTextScrollerSetTextHashHook) CTextScrollerSetTextHash;
+	HOOK(0x573D30, void, __stdcall, cFEngRender_RenderTerritoryBorder, uintptr_t feobject);
 
-	void __fastcall SMSSlotUpdateHook(uintptr_t sms_slot, uintptr_t edx, uintptr_t sms_datum, bool a3, uintptr_t fe_object);
-	static inline decltype (&SMSSlotUpdateHook) SMSSlotUpdate;
+	//void __fastcall UpdateRaceRouteHook(uintptr_t minimap);
+	//static inline decltype (&UpdateRaceRouteHook) UpdateRaceRoute;
 
-	uintptr_t __stdcall DALGetIVehicleHook(int settings_index);
-	static inline decltype (&DALGetIVehicleHook) DALGetIVehicle;
+	//void __fastcall MinimapDestructorHook(uintptr_t minimap);
+	//static inline decltype (&MinimapDestructorHook) MinimapDestructor;
 
-	typedef void __fastcall HUDElementUpdateFunc(uintptr_t hud_element, uintptr_t edx, uintptr_t player);
-	void HUDElementUpdateHook(uintptr_t hud_element, uintptr_t edx, uintptr_t player, HUDElementUpdateFunc* Update);
-
-	HUDElementUpdateFunc TachometerUpdateHook;
-	static inline HUDElementUpdateFunc* TachometerUpdate;
-
-	HUDElementUpdateFunc NitrousGaugeUpdateHook;
-	static inline HUDElementUpdateFunc* NitrousGaugeUpdate;
-
-	HUDElementUpdateFunc SpeedbreakerMeterUpdateHook;
-	static inline HUDElementUpdateFunc* SpeedbreakerMeterUpdate;
+	//void __fastcall FLMMoveMaybeHook(uintptr_t flm, uintptr_t edx, void* vec2_a, void* vec2_b, void* vec2_c, void* vec2_d, float f);
+	//static inline decltype (&FLMMoveMaybeHook) FLMMoveMaybe;
 
 	//void CreateRoadBlockHook();
 	void UpdateCopElementsHook1();
@@ -169,4 +136,5 @@ namespace hooks
 	void PTagBustedHook();
 	void DebugActionDropCarHook();
 	void NoWingmanSoundHook();
+	void NoIconsWorldMapHook();
 }

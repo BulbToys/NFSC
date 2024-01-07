@@ -1,6 +1,6 @@
 #pragma once
 
-namespace patches
+namespace Patches
 {
 	void Do();
 	void Undo();

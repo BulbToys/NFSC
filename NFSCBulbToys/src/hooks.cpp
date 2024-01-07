@@ -1,38 +1,56 @@
 #include "shared.h"
 
-MH_STATUS hooks::CreateHook(uintptr_t address, void* hook, void* call)
+MH_STATUS Hooks::CreateHook(void* address, void* hook, void* call = nullptr)
 {
 	auto status = MH_CreateHook(reinterpret_cast<void*>(address), hook, reinterpret_cast<void**>(call));
-
 	if (status != MH_OK)
 	{
 		return status;
 	}
-
 	return MH_EnableHook(reinterpret_cast<void*>(address));
 }
 
-bool hooks::Setup()
+MH_STATUS Hooks::CreateHook(uintptr_t address, void* hook, void* call = nullptr)
 {
-	if (MH_Initialize() != MH_OK)
+	return Hooks::CreateHook(reinterpret_cast<void*>(address), hook, call);
+}
+
+//#define CREATE_HOOK(name) { bool func_not_virtual = name != VIRTUAL; ASSERT(func_not_virtual); } CreateHook(name, &name##_##, &name)
+#define CREATE_HOOK(name) CreateHook(name, &name##_##, &name)
+
+void Hooks::CreateVTablePatch(uintptr_t vtbl_func_addr, void* hook, void* call = nullptr)
+{
+	if (call)
 	{
-		Error("Unable to initialize minhook.");
+		*reinterpret_cast<void**>(call) = Read<void*>(vtbl_func_addr);
+	}
+	Patch<void*>(vtbl_func_addr, hook);
+}
+
+#define CREATE_VTABLE_PATCH(addr, name) CreateVTablePatch(addr, &name##_##, &name);
+
+bool Hooks::Setup()
+{
+	auto status = MH_Initialize();
+	if (status != MH_OK)
+	{
+		Error("Unable to initialize MinHook: %s", MH_StatusToString(status));
 		return false;
 	}
 
 	// Check if there's a device in case we late-loaded (via injection instead of an ASI loader, for example)
 	// Otherwise, assume it wasn't created yet and wait
-	auto device = ReadMemory<uintptr_t>(nfsc::Direct3DDevice9);
+	auto device = Read<uintptr_t>(NFSC::Direct3DDevice9);
 	if (device)
 	{
 		return SetupPart2(device);
 	}
 	else
 	{
-		auto status = CreateHook(0x710220, &DxInitHook, &DxInit);
+		auto status = CREATE_HOOK(DirectX_Init);
 		if (status != MH_OK)
 		{
-			Error("Failed to hook DirectX_Init() with MH_STATUS code %d.", status);
+			Error("Failed to hook DirectX_Init(): %s.", MH_StatusToString(status));
 			return false;
 		}
 	}
@@ -40,128 +58,126 @@ bool hooks::Setup()
 	return true;
 }
 
-bool hooks::SetupPart2(uintptr_t device)
+bool Hooks::SetupPart2(uintptr_t device)
 {
-	gui::SetupMenu(reinterpret_cast<IDirect3DDevice9*>(device));
+	GUI::SetupMenu(reinterpret_cast<IDirect3DDevice9*>(device));
 
-	auto status = CreateHook(VirtualFunction(device, 42), &EndSceneHook, &EndScene);
-	if (status != MH_OK)
-	{
-		Error("%08X", VirtualFunction(device, 42));
-		Error("Failed to hook EndScene() with MH_STATUS code %d.", status);
-		return false;
-	}
-
-	status = CreateHook(VirtualFunction(device, 16), &ResetHook, &Reset);
-	if (status != MH_OK)
-	{
-		Error("Failed to hook Reset() with MH_STATUS code %d.", status);
-		return false;
-	}
+	CreateHook(Virtual<42>(device), &ID3DDevice9_EndScene_, &ID3DDevice9_EndScene);
+	CreateHook(Virtual<16>(device), &ID3DDevice9_Reset_, &ID3DDevice9_Reset);
 
 	/* Non-critical hooks go here */
 
 	// Optionally override encounter spawn requirement
-	CreateHook(0x422BF0, &NeedsEncounterHook, &NeedsEncounter);
+	CREATE_HOOK(AITrafficManager_NeedsEncounter);
 
 	// Optionally override traffic spawn requirement
-	CreateHook(0x422990, &NeedsTrafficHook, &NeedsTraffic);
+	CREATE_HOOK(AITrafficManager_NeedsTraffic);
 
 	// Optionally override whether racers should be pursued or not
-	CreateHook(0x423F40, &PursueRacersHook, &PursueRacers);
+	CREATE_HOOK(AICopManager_CanPursueRacers);
 
 	// Smart AI hooks
 	// - Make autopilot drive to the location marked by the GPS
 	// - Make autopilot drive to the location after a navigation reset
-	CreateHook(0x433930, &GpsEngageHook, &GpsEngage);
-	CreateHook(0x427AD0, &ResetDriveToNavHook, &ResetDriveToNav);
+	CREATE_HOOK(Gps_Engage);
+	CREATE_VTABLE_PATCH(0x9C517C, AIVehicleHuman_ResetDriveToNav); // AIVehicleHuman #21
 
 	// Calculate world positions from map positions
 	// Disable snapping to world map icons if we're holding shift
 	// GPS only mode
 	// Wrong warp fix
-	CreateHook(0x5B3850, &WorldMapPadAcceptHook, &WorldMapPadAccept);
+	CREATE_VTABLE_PATCH(0x9D2E88, FEWorldMapStateManager_HandlePadAccept);
 	//CreateHook(0x5C3330, &WorldMapSnapHook, &WorldMapSnap);
-	CreateHook(0x5CF890, &WorldMapShowDialogHook, &WorldMapShowDialog);
-	CreateHook(0x5B3570, &WorldMapButtonPressedHook, &WorldMapButtonPressed);
-	CreateHook(0x5B3A10, &WorldMapStateChangeHook, &WorldMapStateChange);
-	CreateHook(0x5CAED0, &WorldMapScreenTickHook, &WorldMapScreenTick);
-	CreateHook(0x5B3CF0, &WorldMapButton4Hook, &WorldMapButton4);
+	CREATE_VTABLE_PATCH(0x9D2F1C, FEWorldMapStateManager_HandleShowDialog);
+	CREATE_VTABLE_PATCH(0x9D2E38, FEWorldMapStateManager_HandleButtonPressed);
+	CREATE_VTABLE_PATCH(0x9D2F24, FEWorldMapStateManager_HandleStateChange);
+	CREATE_VTABLE_PATCH(0x9D2F14, FEWorldMapStateManager_HandleScreenTick);
+	CREATE_VTABLE_PATCH(0x9D2EA4, FEWorldMapStateManager_HandlePadButton4);
 
 	// Create player (Sim::Entity, IPlayer) instances for AI if we're playing PTag/PKO, necessary for vehicle switching to work
-	CreateHook(0x6298C0, &RacerInfoCreateVehicleHook, &RacerInfoCreateVehicle);
+	CREATE_HOOK(GRacerInfo_CreateVehicle);
 
 	// The original function checks GKnockoutRacer::mPursuitTier, which is always 0 and gives us a destroyable copmidsize every time
 	// Use our own hook to assign pursuit vehicles based on the local player (us) vehicle's car's tier, exactly how the game intended in the code
-	CreateHook(0x616EF0, &GetPursuitVehicleNameHook, &GetPursuitVehicleName);
+	CREATE_HOOK(GKnockoutRacer_GetPursuitVehicleName);
 
 	// For PTag, check if the racer's 60 second timer has elapsed and switch vehicles accordingly
-	CreateHook(0x646B00, &RaceStatusUpdateHook, &RaceStatusUpdate);
+	CREATE_HOOK(GRaceStatus_Update);
 
 	// For testing purposes
 	//CreateHook(0x65D620, &PursuitSwitchHook, &PursuitSwitch);
 
 	// Make sure it takes the Quick Race timelimit (race lap) setting into consideration, instead of that particular race's attributes (always 2 minutes iirc)
-	CreateHook(0x63E6C0, &GetTimeLimitHook, &GetTimeLimit);
+	CREATE_HOOK(GRaceParameters_GetTimeLimit);
 
 	// Prevent double race end screen softlock
-	CreateHook(0x65E240, &ShowLosingScreenHook, &ShowLosingScreen);
-	CreateHook(0x65E270, &ShowWinningScreenHook, &ShowWinningScreen);
+	CREATE_HOOK(FE_ShowLosingPostRaceScreen);
+	CREATE_HOOK(FE_ShowWinningPostRaceScreen);
 
-	// Instead of resuming career, reload the Career menu if we load a save (or if we create a new one (patches::MemcardManagement))
-	CreateHook(0x5BD860, &CareerManagerChildFlowDoneHook, &CareerManagerChildFlowDone);
+	// Instead of resuming career, reload the Career menu if we load a save (or if we create a new one (Patches::MemcardManagement))
+	CREATE_VTABLE_PATCH(0x5BD860, FECareerStateManager_HandleChildFlowDone);
 
 	// Custom encounter vehicles
-	CreateHook(0x42CB70, &GetAvailablePresetVehicleHook, &GetAvailablePresetVehicle);
+	CREATE_HOOK(AITrafficManager_GetAvailablePresetVehicle);
 
 	// Replace "Dump Preset" with "Add to My Cars" for DebugCarCustomize
-	CreateHook(0x854890, &DebugCarPadButton3Hook, &DebugCarPadButton3);
+	CREATE_VTABLE_PATCH(0x854890, FEDebugCarStateManager_HandlePadButton3);
 
 	// Reset GRaceStatus vehicle count to 0 when the race ends
-	CreateHook(0x641310, &SetRoamingHook, &SetRoaming);
+	CREATE_HOOK(GRaceStatus_SetRoaming);
 
 	// Add health icons above vehicles
-	CreateHook(0x7AEFD0, &UpdateIconHook, &UpdateIcon);
+	CREATE_HOOK(CarRenderConn_UpdateIcon);
 
 	// FOV overrides
-	CreateHook(0x4822F0, &SetCameraMatrixHook, &SetCameraMatrix);
+	CREATE_HOOK(Camera_SetCameraMatrix);
 
 	// Make Neville a buggy "boss" if he's racing cuz it's funny lol
-	CreateHook(0x643A50, &GetMainBossHook, &GetMainBoss);
+	CREATE_HOOK(GRaceStatus_GetMainBoss);
 	
 	// Add racers and GPS icon to the world map
-	CreateHook(0x5ACB50, &AddPlayerCarHook, &AddPlayerCar);
+	CREATE_HOOK(WorldMap_AddPlayerCar);
 
 	// PIP tests
-	CreateHook(0x44BCE0, &MLaunchPIPHook, &MLaunchPIP);
+	CREATE_HOOK(MLaunchPIP_MLaunchPIP);
 
 	// Prevent "encounter bleeding" - spawning encounters into the void endlessly
-	CreateHook(0x444D90, &SpawnEncounterHook, &SpawnEncounter);
+	CREATE_HOOK(AITrafficManager_SpawnEncounter);
 
 	// Custom SMS test 1 - DAL getters
-	CreateHook(0x4A1250, &GetSMSHandleHook, &GetSMSHandle);
-	CreateHook(0x4A1290, &GetSMSIsAvailableHook, &GetSMSIsAvailable);
-	CreateHook(0x4A12E0, &GetSMSWasReadHook, &GetSMSWasRead);
-	CreateHook(0x4A1330, &GetSMSIsTipHook, &GetSMSIsTip);
-	CreateHook(0x4A1390, &GetSMSSortOrderHook, &GetSMSSortOrder);
-	CreateHook(0x4A14A0, &GetSMSHashHook, &GetSMSHash);
-	CreateHook(0x4B2B80, &GetSMSIsVoiceHook, &GetSMSIsVoice);
+	CREATE_HOOK(DALCareer_GetSMSHandle);
+	CREATE_HOOK(DALCareer_GetSMSIsAvailable);
+	CREATE_HOOK(DALCareer_GetSMSWasRead);
+	CREATE_HOOK(DALCareer_GetSMSIsTip);
+	CREATE_HOOK(DALCareer_GetSMSSortOrder);
+	CREATE_HOOK(DALCareer_GetSMSHashMessage);
+	CREATE_HOOK(DALCareer_GetSMSIsVoice);
 
 	// Custom SMS part 2 - DAL setters
-	CreateHook(0x4A1530, &SetSMSWasReadHook, &SetSMSWasRead);
-	CreateHook(0x4A15B0, &SetSMSIsAvailableHook, &SetSMSIsAvailable);
-	CreateHook(0x4A1600, &SetSMSHandleHook, &SetSMSHandle);
+	CREATE_HOOK(DALCareer_SetSMSWasRead);
+	CREATE_HOOK(DALCareer_SetSMSIsAvailable);
+	CREATE_HOOK(DALCareer_SetSMSHandle);
 
 	// Custom SMS test 2 - FE rendering
-	CreateHook(0x5D7550, &FESMSRefreshHeaderHook, &FESMSRefreshHeader);
-	CreateHook(0x5C6370, &CTextScrollerSetTextHashHook, &CTextScrollerSetTextHash);
-	CreateHook(0x5D7250, &SMSSlotUpdateHook, &SMSSlotUpdate);
+	CREATE_HOOK(FESMSMessage_RefreshHeader);
+	CREATE_HOOK(CTextScroller_SetTextHash);
+	CREATE_HOOK(SMSSlot_Update);
 
 	// Spectator HUD
-	CreateHook(0x4B62B0, &DALGetIVehicleHook, &DALGetIVehicle);
-	CreateHook(0x5DA340, &TachometerUpdateHook, &TachometerUpdate);
-	CreateHook(0x5DA1E0, &NitrousGaugeUpdateHook, &NitrousGaugeUpdate);
-	CreateHook(0x5D3650, &SpeedbreakerMeterUpdateHook, &SpeedbreakerMeterUpdate);
+	CREATE_HOOK(DALVehicle_GetIVehicle);
+	CREATE_VTABLE_PATCH(PtrVirtual<1>(0x9D6C50), Tachometer_Update);
+	CREATE_VTABLE_PATCH(PtrVirtual<1>(0x9D6A64), NitrousGauge_Update);
+	CREATE_VTABLE_PATCH(PtrVirtual<1>(0x9D6ADC), SpeedbreakerMeter_Update);
+
+	CREATE_HOOK(DALWorldMap_GetBool);
+
+	CREATE_HOOK(cFEngRender_RenderTerritoryBorder);
+
+	//CreateHook(0x5D23E0, &UpdateRaceRouteHook, &UpdateRaceRoute);
+
+	//CreateHook(0x5E5050, &MinimapDestructorHook, &MinimapDestructor);
+
+	//CreateHook(0x7598E0, &FLMMoveMaybeHook, &FLMMoveMaybe);
 
 	// Override the chosen roadblock with our own when manually spawning roadblocks
 	// TODO: uncomment when i've unfucked roadblock creation (might even be useless)
@@ -172,8 +188,8 @@ bool hooks::SetupPart2(uintptr_t device)
 	//WriteJmp(0x445A9D, CreateRoadBlockHook, 6);
 
 	// Fix dead roadblock vehicles not turning off their lights
-	PatchJmp(0x5D8C10, UpdateCopElementsHook1, 6);
-	PatchJmp(0x5D8CFB, UpdateCopElementsHook2, 11);
+	PatchJMP(0x5D8C10, UpdateCopElementsHook1, 6);
+	PatchJMP(0x5D8CFB, UpdateCopElementsHook2, 11);
 
 	// Attach roadblock cops to the pursuit once it's been dodged
 	// TODO: ideally detach from roadblock and destroy said roadblock afterwards because of several bugs
@@ -184,29 +200,32 @@ bool hooks::SetupPart2(uintptr_t device)
 	//WriteJmp(0x4411AD, UpdateRoadBlocksHook, 6);
 
 	// Add ability to increase vinyl move step size to move vinyls faster
-	PatchJmp(0x7B0F63, MoveVinylVerticalHook, 9);
-	PatchJmp(0x7B0F94, MoveVinylHorizontalHook, 9);
+	PatchJMP(0x7B0F63, MoveVinylVerticalHook, 9);
+	PatchJMP(0x7B0F94, MoveVinylHorizontalHook, 9);
 
 	// Use "GRaceStatus" as vehicle cache for NFSCO compatibility
-	PatchJmp(0x7D4EBB, VehicleChangeCacheHook, 7);
+	PatchJMP(0x7D4EBB, VehicleChangeCacheHook, 7);
 
 	// Add AI Players to Player list
-	PatchJmp(0x6D40A6, UpdateAIPlayerListingHook, 5);
+	PatchJMP(0x6D40A6, UpdateAIPlayerListingHook, 5);
 
 	// Check who got busted in pursuit tag and switch vehicles accordingly
-	PatchJmp(0x44A596, PTagBustedHook, 5);
+	PatchJMP(0x44A596, PTagBustedHook, 5);
 
 	// Better debug cam teleport (now properly on ground and takes forward vector into consideration)
-	PatchJmp(0x49319E, DebugActionDropCarHook);
+	PatchJMP(0x49319E, DebugActionDropCarHook);
 
 	// Fix crash when spawning a wingman lacking speech
-	PatchJmp(0x793914, NoWingmanSoundHook, 6);
+	PatchJMP(0x793914, NoWingmanSoundHook, 6);
+
+	PatchJMP(0x5CD975, NoIconsWorldMapHook, 6);
 	
 	return true;
 }
 
-void hooks::Destroy()
+void Hooks::Destroy()
 {
+	// TODO move to patches
 	// UpdateCopElements hooks
 	Unpatch(0x5D8C10);
 	Unpatch(0x5D8CFB);
@@ -229,9 +248,9 @@ void hooks::Destroy()
 	MH_Uninitialize();
 }
 
-HRESULT __cdecl hooks::DxInitHook()
+HRESULT __cdecl Hooks::DirectX_Init_()
 {
-	const auto result = DxInit();
+	const auto result = Hooks::DirectX_Init();
 	if (FAILED(result))
 	{
 		return result;
@@ -242,14 +261,14 @@ HRESULT __cdecl hooks::DxInitHook()
 
 	// The initial setup has completed and thus the thread is operational
 	// Force it to exit in case our final setup fails
-	exitMainLoop = !SetupPart2(ReadMemory<uintptr_t>(nfsc::Direct3DDevice9));
+	exitMainLoop = !SetupPart2(Read<uintptr_t>(NFSC::Direct3DDevice9));
 
 	return result;
 }
 
-long __stdcall hooks::EndSceneHook(IDirect3DDevice9* device)
+HRESULT __stdcall Hooks::ID3DDevice9_EndScene_(IDirect3DDevice9* device)
 {
-	const auto result = EndScene(device);
+	const auto result = Hooks::ID3DDevice9_EndScene(device);
 
 	ImGui_ImplDX9_NewFrame();
 	ImGui_ImplWin32_NewFrame();
@@ -258,13 +277,13 @@ long __stdcall hooks::EndSceneHook(IDirect3DDevice9* device)
 	//static uint32_t frame_count[2] {0, 0};
 
 	//frame_count[0] = frame_count[1];
-	//frame_count[1] = ReadMemory<uint32_t>(0xA996F0); // RealLoopCounter
+	//frame_count[1] = Read<uint32_t>(0xA996F0); // RealLoopCounter
 
 	// Certain loading screens render the game twice, in which case we shouldn't render the GUI
 	// TODO: uncomment when i crash here ig lol (window will be null)
 	//if (frame_count[0] != frame_count[1])
 
-	gui::Render();
+	GUI::Render();
 
 	ImGui::EndFrame();
 	ImGui::Render();
@@ -273,35 +292,35 @@ long __stdcall hooks::EndSceneHook(IDirect3DDevice9* device)
 	return result;
 }
 
-HRESULT __stdcall hooks::ResetHook(IDirect3DDevice9* device, D3DPRESENT_PARAMETERS* params)
+HRESULT __stdcall Hooks::ID3DDevice9_Reset_(IDirect3DDevice9* device, D3DPRESENT_PARAMETERS* params)
 {
 	ImGui_ImplDX9_InvalidateDeviceObjects();
-	const auto result = Reset(device, params);
+	const auto result = Hooks::ID3DDevice9_Reset(device, params);
 	ImGui_ImplDX9_CreateDeviceObjects();
 	return result;
 }
 
-bool __fastcall hooks::NeedsEncounterHook(uintptr_t traffic_manager)
+bool __fastcall Hooks::AITrafficManager_NeedsEncounter_(uintptr_t traffic_manager)
 {
 	// If we've overridden the value, use our own. Instead, let the game decide normally
-	return g::needs_encounter::overridden ? g::needs_encounter::value : NeedsEncounter(traffic_manager);
+	return g::needs_encounter::overridden ? g::needs_encounter::value : Hooks::AITrafficManager_NeedsEncounter(traffic_manager);
 }
 
-bool __fastcall hooks::NeedsTrafficHook(uintptr_t traffic_manager)
+bool __fastcall Hooks::AITrafficManager_NeedsTraffic_(uintptr_t traffic_manager)
 {
 	// Ditto
-	return g::needs_traffic::overridden ? g::needs_traffic::value : NeedsTraffic(traffic_manager);
+	return g::needs_traffic::overridden ? g::needs_traffic::value : Hooks::AITrafficManager_NeedsTraffic(traffic_manager);
 }
 
-bool __fastcall hooks::PursueRacersHook(uintptr_t ai_cop_manager)
+bool __fastcall Hooks::AICopManager_CanPursueRacers_(uintptr_t ai_cop_manager)
 {
 	// Ditto
-	return g::pursue_racers::overridden ? g::pursue_racers::value : PursueRacers(ai_cop_manager);
+	return g::pursue_racers::overridden ? g::pursue_racers::value : Hooks::AICopManager_CanPursueRacers(ai_cop_manager);
 }
 
-bool __fastcall hooks::GpsEngageHook(uintptr_t gps, uintptr_t edx, nfsc::Vector3* target, float max_deviation, bool re_engage, bool always_re_establish)
+bool __fastcall Hooks::Gps_Engage_(uintptr_t gps, uintptr_t edx, NFSC::Vector3* target, float max_deviation, bool re_engage, bool always_re_establish)
 {
-	bool result = GpsEngage(gps, edx, target, max_deviation, re_engage, always_re_establish);
+	bool result = Hooks::Gps_Engage(gps, edx, target, max_deviation, re_engage, always_re_establish);
 
 	// GPS failed to establish
 	if (!result)
@@ -310,13 +329,13 @@ bool __fastcall hooks::GpsEngageHook(uintptr_t gps, uintptr_t edx, nfsc::Vector3
 	}
 
 	uintptr_t my_vehicle = 0;
-	nfsc::BulbToys_GetMyVehicle(&my_vehicle, nullptr);
+	NFSC::BulbToys_GetMyVehicle(&my_vehicle, nullptr);
 	if (!my_vehicle)
 	{
 		return result;
 	}
 
-	auto ai_vehicle = nfsc::PVehicle_GetAIVehiclePtr(my_vehicle);
+	auto ai_vehicle = NFSC::PVehicle_GetAIVehiclePtr(my_vehicle);
 	if (!ai_vehicle)
 	{
 		return result;
@@ -325,28 +344,29 @@ bool __fastcall hooks::GpsEngageHook(uintptr_t gps, uintptr_t edx, nfsc::Vector3
 	g::smart_ai::target.x = target->x;
 	g::smart_ai::target.y = target->y;
 	g::smart_ai::target.z = target->z;
-	nfsc::BulbToys_PathToTarget(ai_vehicle, &g::smart_ai::target);
+	NFSC::BulbToys_PathToTarget(ai_vehicle, &g::smart_ai::target);
 
 	return result;
 }
 
-void __fastcall hooks::ResetDriveToNavHook(uintptr_t ai_vehicle, uintptr_t edx, int lane_selection)
+void __fastcall Hooks::AIVehicleHuman_ResetDriveToNav_(uintptr_t ai_vehicle, uintptr_t edx, int lane_selection)
 {
-	ResetDriveToNav(ai_vehicle, edx, lane_selection);
+	Hooks::AIVehicleHuman_ResetDriveToNav(ai_vehicle, edx, lane_selection);
 
-	if (!nfsc::GPS_IsEngaged())
+	if (!NFSC::GPS_IsEngaged())
 	{
 		return;
 	}
 
+	/*
 	uintptr_t my_vehicle = 0;
-	nfsc::BulbToys_GetMyVehicle(&my_vehicle, nullptr);
+	NFSC::BulbToys_GetMyVehicle(&my_vehicle, nullptr);
 	if (!my_vehicle)
 	{
 		return;
 	}
 
-	auto local_ai_vehicle = nfsc::PVehicle_GetAIVehiclePtr(my_vehicle);
+	auto local_ai_vehicle = NFSC::PVehicle_GetAIVehiclePtr(my_vehicle);
 	if (!local_ai_vehicle)
 	{
 		return;
@@ -357,126 +377,127 @@ void __fastcall hooks::ResetDriveToNavHook(uintptr_t ai_vehicle, uintptr_t edx, 
 	{
 		return;
 	}
+	*/
 
-	nfsc::BulbToys_PathToTarget(ai_vehicle, &g::smart_ai::target);
+	NFSC::BulbToys_PathToTarget(ai_vehicle, &g::smart_ai::target);
 }
 
 /*
-uintptr_t __fastcall hooks::RacerInfoCreateVehicleHook(uintptr_t racer_info, uintptr_t edx, uint32_t key, int racer_index, uint32_t seed)
+uintptr_t __fastcall Hooks::RacerInfoCreateVehicleHook(uintptr_t racer_info, uintptr_t edx, uint32_t key, int racer_index, uint32_t seed)
 {
-	nfsc::race_type type = nfsc::BulbToys_GetRaceType();
+	NFSC::race_type type = NFSC::BulbToys_GetRaceType();
 
-	if (type == nfsc::race_type::pursuit_ko)
+	if (type == NFSC::race_type::pursuit_ko)
 	{
-		uintptr_t stored_vehicle = RacerInfoCreateVehicle(racer_info, edx, nfsc::GKnockoutRacer_GetPursuitVehicleKey(0), racer_index, seed);
+		uintptr_t stored_vehicle = RacerInfoCreateVehicle(racer_info, edx, NFSC::GKnockoutRacer_GetPursuitVehicleKey(0), racer_index, seed);
 		Error("%p", stored_vehicle);
-		nfsc::PVehicle_SetDriverClass(stored_vehicle, nfsc::driver_class::none);
-		nfsc::PVehicle_Deactivate(stored_vehicle);
-		WriteMemory<uintptr_t>(nfsc::ThePursuitSimables + 4 * racer_index, nfsc::PVehicle_GetSimable(stored_vehicle));
+		NFSC::PVehicle_SetDriverClass(stored_vehicle, NFSC::driver_class::none);
+		NFSC::PVehicle_Deactivate(stored_vehicle);
+		Write<uintptr_t>(NFSC::ThePursuitSimables + 4 * racer_index, NFSC::PVehicle_GetSimable(stored_vehicle));
 
 		return RacerInfoCreateVehicle(racer_info, edx, key, racer_index, seed);
 	}
-	else if (type == nfsc::race_type::pursuit_tag)
+	else if (type == NFSC::race_type::pursuit_tag)
 	{
 		if (racer_index == 1)
 		{
-			uintptr_t player_pursuit_simable = nfsc::BulbToys_CreatePursuitSimable(nfsc::driver_class::none);
-			WriteMemory<uintptr_t>(nfsc::ThePursuitSimables, player_pursuit_simable);
-			nfsc::PVehicle_Deactivate(nfsc::BulbToys_FindInterface<nfsc::IVehicle>(player_pursuit_simable));
+			uintptr_t player_pursuit_simable = NFSC::BulbToys_CreatePursuitSimable(NFSC::driver_class::none);
+			Write<uintptr_t>(NFSC::ThePursuitSimables, player_pursuit_simable);
+			NFSC::PVehicle_Deactivate(NFSC::BulbToys_FindInterface<NFSC::IVehicle>(player_pursuit_simable));
 		}
 
 		uintptr_t stored_vehicle = RacerInfoCreateVehicle(racer_info, edx, key, racer_index, seed);
-		nfsc::PVehicle_SetDriverClass(stored_vehicle, nfsc::driver_class::none);
-		nfsc::PVehicle_Deactivate(stored_vehicle);
-		WriteMemory<uintptr_t>(nfsc::ThePursuitSimables + 4 * racer_index, nfsc::PVehicle_GetSimable(stored_vehicle));
+		NFSC::PVehicle_SetDriverClass(stored_vehicle, NFSC::driver_class::none);
+		NFSC::PVehicle_Deactivate(stored_vehicle);
+		Write<uintptr_t>(NFSC::ThePursuitSimables + 4 * racer_index, NFSC::PVehicle_GetSimable(stored_vehicle));
 
-		return RacerInfoCreateVehicle(racer_info, edx, nfsc::GKnockoutRacer_GetPursuitVehicleKey(0), racer_index, seed);
+		return RacerInfoCreateVehicle(racer_info, edx, NFSC::GKnockoutRacer_GetPursuitVehicleKey(0), racer_index, seed);
 	}
 
 	return RacerInfoCreateVehicle(racer_info, edx, key, racer_index, seed);
 }
 */
 
-uintptr_t __fastcall hooks::RacerInfoCreateVehicleHook(uintptr_t racer_info, uintptr_t edx, uint32_t key, int racer_index, uint32_t seed)
+uintptr_t __fastcall Hooks::GRacerInfo_CreateVehicle_(uintptr_t racer_info, uintptr_t edx, uint32_t key, int racer_index, uint32_t seed)
 {
 	uintptr_t vehicle = 0;
 
-	nfsc::race_type type = nfsc::BulbToys_GetRaceType();
+	auto type = NFSC::BulbToys_GetRaceType();
 
 	// Only create players/entities (using our in-house AIPlayer class) for racers if we're playing PKO/PTAG, since they're not really needed elsewhere
 	// NFSC uses player/entity related interfaces for attaching vehicles to (and detaching vehicles from) them
 	// Since AI does not implement any player/entity related interfaces, we must make our own instead
-	if (type == nfsc::race_type::pursuit_ko || type == nfsc::race_type::pursuit_tag)
+	if (type == NFSC::GRaceType::PURSUIT_KO || type == NFSC::GRaceType::PURSUIT_TAG)
 	{
 		// Which tier do we use?
 		uintptr_t my_vehicle = 0;
-		nfsc::BulbToys_GetMyVehicle(&my_vehicle, nullptr);
+		NFSC::BulbToys_GetMyVehicle(&my_vehicle, nullptr);
 
-		int tier = nfsc::BulbToys_GetVehicleTier(my_vehicle);
+		int tier = NFSC::BulbToys_GetVehicleTier(my_vehicle);
 		if (tier < 1 || tier > 3)
 		{
 			tier = 1;
 		}
-		nfsc::player_cop_tier = tier - 1;
+		NFSC::player_cop_tier = tier - 1;
 
 		// For PTAG, AI racers start as cops, so create our pursuit simables first (so the vehicle start grid warping works properly)
-		if (type == nfsc::race_type::pursuit_tag)
+		if (type == NFSC::GRaceType::PURSUIT_TAG)
 		{
 			// Online gamemodes skip the intro NIS, but the main reason is because there is no suitable NIS ever made for PTAG's custom start grid positions
-			//*nfsc::SkipNIS = true;
+			//*NFSC::SkipNIS = true;
 
 			// Create our pursuit simables first (so the vehicle start grid warping works properly)
 			if (racer_index == 1)
 			{
 				// Create AI pursuit simables first
-				for (int i = 1; i < nfsc::GRaceStatus_GetRacerCount(ReadMemory<uintptr_t>(nfsc::GRaceStatus)); i++)
+				for (int i = 1; i < NFSC::GRaceStatus_GetRacerCount(Read<uintptr_t>(NFSC::GRaceStatus)); i++)
 				{
-					uintptr_t pursuit_simable = nfsc::BulbToys_CreatePursuitSimable();
-					WriteMemory<uintptr_t>(nfsc::ThePursuitSimables + 4 * i, pursuit_simable);
+					uintptr_t pursuit_simable = NFSC::BulbToys_CreatePursuitSimable();
+					Write<uintptr_t>(NFSC::ThePursuitSimables + 4 * i, pursuit_simable);
 
-					uintptr_t pursuit_vehicle = nfsc::BulbToys_FindInterface<nfsc::IVehicle>(pursuit_simable);
-					nfsc::PVehicle_Deactivate(pursuit_vehicle);
+					uintptr_t pursuit_vehicle = NFSC::BulbToys_FindInterface<NFSC::IVehicle>(pursuit_simable);
+					NFSC::PVehicle_Deactivate(pursuit_vehicle);
 				}
 
 				// Then our own pursuit simable
-				uintptr_t pursuit_simable = nfsc::BulbToys_CreatePursuitSimable();
-				WriteMemory<uintptr_t>(nfsc::ThePursuitSimables, pursuit_simable);
+				uintptr_t pursuit_simable = NFSC::BulbToys_CreatePursuitSimable();
+				Write<uintptr_t>(NFSC::ThePursuitSimables, pursuit_simable);
 
-				uintptr_t pursuit_vehicle = nfsc::BulbToys_FindInterface<nfsc::IVehicle>(pursuit_simable);
-				nfsc::PVehicle_Deactivate(pursuit_vehicle);
+				uintptr_t pursuit_vehicle = NFSC::BulbToys_FindInterface<NFSC::IVehicle>(pursuit_simable);
+				NFSC::PVehicle_Deactivate(pursuit_vehicle);
 			}
 
 			// We need to create our racer vehicle and player before switching first
-			uintptr_t racer_vehicle = RacerInfoCreateVehicle(racer_info, edx, key, racer_index, seed);
-			uintptr_t racer_simable = nfsc::PVehicle_GetSimable(racer_vehicle);
+			uintptr_t racer_vehicle = Hooks::GRacerInfo_CreateVehicle(racer_info, edx, key, racer_index, seed);
+			uintptr_t racer_simable = NFSC::PVehicle_GetSimable(racer_vehicle);
 
-			nfsc::AIPlayer* ai_player = nfsc::AIPlayer::New();
+			NFSC::AIPlayer* ai_player = NFSC::AIPlayer::New();
 
 			// bool (PhysicsObject) ISimable::Attach(ISimable*, IPlayer*)
 			reinterpret_cast<bool(__thiscall*)(uintptr_t, void*)>(0x6C6740)(racer_simable, &ai_player->IPlayer);
 			
 			// In PTAG, opponents start as cops first
 			int _;
-			vehicle = nfsc::Game_PursuitSwitch(racer_index, true, &_);
+			vehicle = NFSC::Game_PursuitSwitch(racer_index, true, &_);
 
 			// Copy pursuit simable's handle into our racer info
-			uintptr_t simable = nfsc::PVehicle_GetSimable(vehicle);
+			uintptr_t simable = NFSC::PVehicle_GetSimable(vehicle);
 		}
 
 		// For PKO, AI racers start as racers, so create our racer vehicles/simables first (so the vehicle start grid warping works properly)
-		else if (type == nfsc::race_type::pursuit_ko)
+		else if (type == NFSC::GRaceType::PURSUIT_KO)
 		{
 			// Online gamemodes skip the intro NIS, but it's fine here since it starts off as a normal circuit race and thus the normal intro NIS fits
-			//*nfsc::SkipNIS = false;
+			//*NFSC::SkipNIS = false;
 
 			// Create and use our own racer vehicle and player
-			vehicle = RacerInfoCreateVehicle(racer_info, edx, key, racer_index, seed);
+			vehicle = Hooks::GRacerInfo_CreateVehicle(racer_info, edx, key, racer_index, seed);
 
-			nfsc::AIPlayer* ai_player = nfsc::AIPlayer::New();
+			NFSC::AIPlayer* ai_player = NFSC::AIPlayer::New();
 
-			nfsc::PhysicsObject_Attach(nfsc::PVehicle_GetSimable(vehicle), reinterpret_cast<uintptr_t>(&ai_player->IPlayer));
+			NFSC::PhysicsObject_Attach(NFSC::PVehicle_GetSimable(vehicle), reinterpret_cast<uintptr_t>(&ai_player->IPlayer));
 
-			int racer_count = nfsc::GRaceStatus_GetRacerCount(ReadMemory<uintptr_t>(nfsc::GRaceStatus));
+			int racer_count = NFSC::GRaceStatus_GetRacerCount(Read<uintptr_t>(NFSC::GRaceStatus));
 
 			// Final racer's vehicle was created, now we can create our pursuit simables
 			// If we created one per racer in this function, the start grid vehicles would get fucked
@@ -484,41 +505,41 @@ uintptr_t __fastcall hooks::RacerInfoCreateVehicleHook(uintptr_t racer_info, uin
 			{
 				for (int i = 0; i < racer_count; i++)
 				{
-					uintptr_t pursuit_simable = nfsc::BulbToys_CreatePursuitSimable();
+					uintptr_t pursuit_simable = NFSC::BulbToys_CreatePursuitSimable();
 					
 					// Store and deactivate
-					WriteMemory<uintptr_t>(nfsc::ThePursuitSimables + 4 * i, pursuit_simable);
+					Write<uintptr_t>(NFSC::ThePursuitSimables + 4 * i, pursuit_simable);
 
-					uintptr_t pursuit_vehicle = nfsc::BulbToys_FindInterface<nfsc::IVehicle>(pursuit_simable);
-					nfsc::PVehicle_Deactivate(pursuit_vehicle);
+					uintptr_t pursuit_vehicle = NFSC::BulbToys_FindInterface<NFSC::IVehicle>(pursuit_simable);
+					NFSC::PVehicle_Deactivate(pursuit_vehicle);
 				}
 			}
 		}
 	}
 	else // Not a PKO/PTAG race
 	{
-		//*nfsc::SkipNIS = false;
-		vehicle = RacerInfoCreateVehicle(racer_info, edx, key, racer_index, seed);
+		//*NFSC::SkipNIS = false;
+		vehicle = Hooks::GRacerInfo_CreateVehicle(racer_info, edx, key, racer_index, seed);
 	}
 
 	return vehicle;
 }
 
-const char* __cdecl hooks::GetPursuitVehicleNameHook(bool is_player)
+const char* __cdecl Hooks::GKnockoutRacer_GetPursuitVehicleName_(bool is_player)
 {
-	return nfsc::player_cop_cars[nfsc::player_cop_tier];
+	return NFSC::player_cop_cars[NFSC::player_cop_tier];
 }
 
-void __fastcall hooks::RaceStatusUpdateHook(uintptr_t race_status, uintptr_t edx, float dt)
+void __fastcall Hooks::GRaceStatus_Update_(uintptr_t race_status, uintptr_t edx, float dt)
 {
-	RaceStatusUpdate(race_status, edx, dt);
+	Hooks::GRaceStatus_Update(race_status, edx, dt);
 
-	nfsc::race_type type = nfsc::BulbToys_GetRaceType();
+	auto type = NFSC::BulbToys_GetRaceType();
 
-	if (type == nfsc::race_type::pursuit_tag)
+	if (type == NFSC::GRaceType::PURSUIT_TAG)
 	{
 		int runner_index = -1;
-		uintptr_t runner_simable = nfsc::GRaceStatus_GetRacePursuitTarget(race_status, &runner_index);
+		uintptr_t runner_simable = NFSC::GRaceStatus_GetRacePursuitTarget(race_status, &runner_index);
 
 		// FIXME: AI does not pursue you under any of the following conditions
 		// - Goal set to AIGoalPursuit, AIGoalHassle, AIGoalPursuitEncounter, AIGoalRam, AIGoalPit; combined with Game_SetPursuitTarget
@@ -527,39 +548,39 @@ void __fastcall hooks::RaceStatusUpdateHook(uintptr_t race_status, uintptr_t edx
 		// - Setting DriverClass to cop (game crashes by stack overflow in ExtrapolatedRacer dtor ?????)
 		// - Probably a couple other things i forgot to mention here
 		// As a temporary horrible hack, we path to the pursuee every race update. This is very inaccurate and the AI does not behave properly
-		uintptr_t runner_rigidbody = nfsc::PhysicsObject_GetRigidBody(runner_simable);
-		nfsc::Vector3* runner_pos = nfsc::RigidBody_GetPosition(runner_rigidbody);
+		uintptr_t runner_rigidbody = NFSC::PhysicsObject_GetRigidBody(runner_simable);
+		NFSC::Vector3* runner_pos = NFSC::RigidBody_GetPosition(runner_rigidbody);
 
-		for (int i = 0; i < nfsc::GRaceStatus_GetRacerCount(race_status); i++)
+		for (int i = 0; i < NFSC::GRaceStatus_GetRacerCount(race_status); i++)
 		{
 			if (i == runner_index)
 			{
 				continue;
 			}
 
-			uintptr_t racer_info = nfsc::GRaceStatus_GetRacerInfo(race_status, i);
-			uintptr_t simable = nfsc::GRacerInfo_GetSimable(racer_info);
-			uintptr_t vehicle = nfsc::BulbToys_FindInterface<nfsc::IVehicle>(simable);
-			uintptr_t ai_vehicle = nfsc::PVehicle_GetAIVehiclePtr(vehicle);
-			nfsc::BulbToys_PathToTarget(ai_vehicle, runner_pos);
+			uintptr_t racer_info = NFSC::GRaceStatus_GetRacerInfo(race_status, i);
+			uintptr_t simable = NFSC::GRacerInfo_GetSimable(racer_info);
+			uintptr_t vehicle = NFSC::BulbToys_FindInterface<NFSC::IVehicle>(simable);
+			uintptr_t ai_vehicle = NFSC::PVehicle_GetAIVehiclePtr(vehicle);
+			NFSC::BulbToys_PathToTarget(ai_vehicle, runner_pos);
 		}
 
 		// Check the racer's 60 second fleeing timer. If we've run out, switch to our nearest cop
-		// TODO: use pursuit contributions instead?
-		float runner_timer = ReadMemory<float>(race_status + 0xBFB0);
+
+		float runner_timer = Read<float>(race_status + 0xBFB0);
 		if (runner_timer <= 0)
 		{
-			nfsc::BulbToys_SwitchPTagTarget(race_status, false);
+			NFSC::BulbToys_SwitchPTagTarget(race_status, false);
 		}
 	}
 }
 
 /*
-uintptr_t __cdecl hooks::PursuitSwitchHook(int racer_index, bool is_busted, int* result)
+uintptr_t __cdecl Hooks::PursuitSwitchHook(int racer_index, bool is_busted, int* result)
 {
 	uintptr_t vehicle = PursuitSwitch(racer_index, is_busted, result);
 
-	uintptr_t simable = nfsc::PVehicle_GetSimable(vehicle);
+	uintptr_t simable = NFSC::PVehicle_GetSimable(vehicle);
 
 	uintptr_t player = reinterpret_cast<uintptr_t (__thiscall*)(uintptr_t)>(0x6D6C40)(simable);
 
@@ -569,50 +590,50 @@ uintptr_t __cdecl hooks::PursuitSwitchHook(int racer_index, bool is_busted, int*
 }
 */
 
-float __fastcall hooks::GetTimeLimitHook(uintptr_t race_parameters)
+float __fastcall Hooks::GRaceParameters_GetTimeLimit_(uintptr_t race_parameters)
 {
-	if (nfsc::BulbToys_GetRaceType() == nfsc::race_type::pursuit_tag)
+	if (NFSC::BulbToys_GetRaceType() == NFSC::GRaceType::PURSUIT_TAG)
 	{
 		// FEManager::GetUserProfile(FEManager::mInstance, 0);
-		uintptr_t user_profile = reinterpret_cast<uintptr_t(__thiscall*)(uintptr_t, int)>(0x572B90)(ReadMemory<uintptr_t>(nfsc::FEManager), 0);
+		uintptr_t user_profile = reinterpret_cast<uintptr_t(__thiscall*)(uintptr_t, int)>(0x572B90)(Read<uintptr_t>(NFSC::FEManager), 0);
 
 		// user_profile->mRaceSettings[11 (== PTag)].lap_count;
-		int num_laps = ReadMemory<uint8_t>(user_profile + 0x2B258);
+		int num_laps = Read<uint8_t>(user_profile + 0x2B258);
 
 		// Time limit is in seconds, so we multiply by 60 to get minutes
 		return static_cast<float>(num_laps * 60);
 	}
 
-	return GetTimeLimit(race_parameters);
+	return Hooks::GRaceParameters_GetTimeLimit(race_parameters);
 }
 
-void __cdecl hooks::ShowLosingScreenHook()
+void __cdecl Hooks::FE_ShowLosingPostRaceScreen_()
 {
-	nfsc::race_type type = nfsc::BulbToys_GetRaceType();
+	auto type = NFSC::BulbToys_GetRaceType();
 
 	// PTag appears to utilize FE_ShowLosingPostRaceScreen, which calls FE_ShowPostRaceScreen
 	// But FE_ShowPostRaceScreen also gets called in Game_EnterPostRaceFlow
 	// To prevent the infamous double end screen softlock, we're blocking this screen for the former function (this hook)
-	if (type != nfsc::race_type::pursuit_tag && type != nfsc::race_type::pursuit_ko)
+	if (type != NFSC::GRaceType::PURSUIT_TAG && type != NFSC::GRaceType::PURSUIT_KO)
 	{
-		ShowLosingScreen();
+		Hooks::FE_ShowLosingPostRaceScreen();
 	}
 }
 
-void __cdecl hooks::ShowWinningScreenHook()
+void __cdecl Hooks::FE_ShowWinningPostRaceScreen_()
 {
-	nfsc::race_type type = nfsc::BulbToys_GetRaceType();
+	auto type = NFSC::BulbToys_GetRaceType();
 
 	// Ditto, but for FE_ShowWinningPostRaceScreen
-	if (type != nfsc::race_type::pursuit_tag && type != nfsc::race_type::pursuit_ko)
+	if (type != NFSC::GRaceType::PURSUIT_TAG && type != NFSC::GRaceType::PURSUIT_KO)
 	{
-		ShowWinningScreen();
+		Hooks::FE_ShowWinningPostRaceScreen();
 	}
 }
 
-void __fastcall hooks::CareerManagerChildFlowDoneHook(uintptr_t fe_career_state_manager, uintptr_t edx, int unk)
+void __fastcall Hooks::FECareerStateManager_HandleChildFlowDone_(uintptr_t fe_career_state_manager, uintptr_t edx, int unk)
 {
-	int cur_state = ReadMemory<uintptr_t>(fe_career_state_manager + 4);
+	int cur_state = Read<uintptr_t>(fe_career_state_manager + 4);
 
 	if (cur_state == 15)
 	{
@@ -621,22 +642,22 @@ void __fastcall hooks::CareerManagerChildFlowDoneHook(uintptr_t fe_career_state_
 	}
 	else
 	{
-		CareerManagerChildFlowDone(fe_career_state_manager, edx, unk);
+		Hooks::FECareerStateManager_HandleChildFlowDone(fe_career_state_manager, edx, unk);
 	}
 }
 
-uintptr_t __fastcall hooks::GetAvailablePresetVehicleHook(uintptr_t ai_traffic_manager, uintptr_t edx, uint32_t skin_key, uint32_t encounter_key)
+uintptr_t __fastcall Hooks::AITrafficManager_GetAvailablePresetVehicle_(uintptr_t ai_traffic_manager, uintptr_t edx, uint32_t skin_key, uint32_t encounter_key)
 {
 	if (g::encounter::overridden)
 	{
 		skin_key = 0;
-		encounter_key = nfsc::Attrib_StringToKey(g::encounter::vehicle);
+		encounter_key = NFSC::Attrib_StringToKey(g::encounter::vehicle);
 	}
 
-	return GetAvailablePresetVehicle(ai_traffic_manager, edx, skin_key, encounter_key);
+	return Hooks::AITrafficManager_GetAvailablePresetVehicle(ai_traffic_manager, edx, skin_key, encounter_key);
 }
 
-void __fastcall hooks::DebugCarPadButton3Hook(uintptr_t fe_debugcar_state_manager)
+void __fastcall Hooks::FEDebugCarStateManager_HandlePadButton3_(uintptr_t fe_debugcar_state_manager)
 {
 	// DALCareer::GetPodiumVehicle(&index);
 	uint32_t index = 0;
@@ -646,16 +667,16 @@ void __fastcall hooks::DebugCarPadButton3Hook(uintptr_t fe_debugcar_state_manage
 	reinterpret_cast<char(__stdcall*)(uint32_t)>(0x4D1DE0)(index);
 }
 
-void __fastcall hooks::SetRoamingHook(uintptr_t g_race_status)
+void __fastcall Hooks::GRaceStatus_SetRoaming_(uintptr_t g_race_status)
 {
-	SetRoaming(g_race_status);
+	Hooks::GRaceStatus_SetRoaming(g_race_status);
 
-	WriteMemory<uint32_t>(g_race_status + 0x6A08, 0);
+	Write<uint32_t>(g_race_status + 0x6A08, 0);
 }
 
-void __fastcall hooks::UpdateIconHook(uintptr_t car_render_conn, uintptr_t edx, uintptr_t pkt)
+void __fastcall Hooks::CarRenderConn_UpdateIcon_(uintptr_t car_render_conn, uintptr_t edx, uintptr_t pkt)
 {
-	UpdateIcon(car_render_conn, edx, pkt);
+	Hooks::CarRenderConn_UpdateIcon(car_render_conn, edx, pkt);
 
 	if (!g::health_icon::show)
 	{
@@ -663,18 +684,18 @@ void __fastcall hooks::UpdateIconHook(uintptr_t car_render_conn, uintptr_t edx, 
 	}
 
 	// Don't do anything if we have an icon already
-	if (ReadMemory<uintptr_t>(car_render_conn + 0x1AC) != 0)
+	if (Read<uintptr_t>(car_render_conn + 0x1AC) != 0)
 	{
 		return;
 	}
 
-	uint32_t world_id = ReadMemory<uint32_t>(car_render_conn + 0x2C);
+	uint32_t world_id = Read<uint32_t>(car_render_conn + 0x2C);
 
 	uintptr_t this_vehicle = 0;
-	for (size_t i = 0; i < nfsc::VehicleList[nfsc::vehicle_list::aicops]->size; i++)
+	for (size_t i = 0; i < NFSC::VehicleList[NFSC::VLType::AI_COPS]->size; i++)
 	{
-		uintptr_t vehicle = nfsc::VehicleList[nfsc::vehicle_list::aicops]->begin[i];
-		uintptr_t simable = nfsc::PVehicle_GetSimable(vehicle);
+		uintptr_t vehicle = NFSC::VehicleList[NFSC::VLType::AI_COPS]->begin[i];
+		uintptr_t simable = NFSC::PVehicle_GetSimable(vehicle);
 
 		uint32_t simable_wid = reinterpret_cast<uint32_t(__thiscall*)(uintptr_t)>(0x6D6D10)(simable);
 
@@ -688,14 +709,14 @@ void __fastcall hooks::UpdateIconHook(uintptr_t car_render_conn, uintptr_t edx, 
 	{
 		return;
 	}
-	uintptr_t i_damageable = ReadMemory<uintptr_t>(this_vehicle + 0x44);
+	uintptr_t i_damageable = Read<uintptr_t>(this_vehicle + 0x44);
 
 	// Set icon
 	constexpr uint32_t INGAME_ICON_PLAYERCAR = 0x3E9CCFFA;
-	WriteMemory<uintptr_t>(car_render_conn + 0x1AC, reinterpret_cast<uintptr_t(*)(uint32_t, int, int)>(0x55CFD0)(INGAME_ICON_PLAYERCAR, 1, 0));
+	Write<uintptr_t>(car_render_conn + 0x1AC, reinterpret_cast<uintptr_t(*)(uint32_t, int, int)>(0x55CFD0)(INGAME_ICON_PLAYERCAR, 1, 0));
 
 	// Set scale
-	WriteMemory<float>(car_render_conn + 0x1B4, 0.5f);
+	Write<float>(car_render_conn + 0x1B4, 0.5f);
 
 	// DamageVehicle::GetHealth
 	float health = reinterpret_cast<float(__thiscall*)(uintptr_t)>(0x6F7790)(i_damageable);
@@ -724,65 +745,65 @@ void __fastcall hooks::UpdateIconHook(uintptr_t car_render_conn, uintptr_t edx, 
 	}
 
 	// Set color
-	WriteMemory<color_>(car_render_conn + 0x1B0, color);
+	Write<color_>(car_render_conn + 0x1B0, color);
 }
 
-void __fastcall hooks::SetCameraMatrixHook(uintptr_t camera, uintptr_t edx, void* matrix4, float dt)
+void __fastcall Hooks::Camera_SetCameraMatrix_(uintptr_t camera, uintptr_t edx, void* matrix4, float dt)
 {
 	uintptr_t fov = camera + 0xE4;
 	if (camera == g::fov::player)
 	{
 		if (g::fov::player_override)
 		{
-			WriteMemory<int>(fov, g::fov::player_fov);
-			SetCameraMatrix(camera, edx, matrix4, dt);
+			Write<int>(fov, g::fov::player_fov);
+			Hooks::Camera_SetCameraMatrix(camera, edx, matrix4, dt);
 		}
 		else
 		{
-			SetCameraMatrix(camera, edx, matrix4, dt);
-			g::fov::player_fov = ReadMemory<int>(fov);
+			Hooks::Camera_SetCameraMatrix(camera, edx, matrix4, dt);
+			g::fov::player_fov = Read<int>(fov);
 		}
 	}
 	else if (camera == g::fov::rvm)
 	{
 		if (g::fov::rvm_override)
 		{
-			WriteMemory<int>(fov, g::fov::rvm_fov);
-			SetCameraMatrix(camera, edx, matrix4, dt);
+			Write<int>(fov, g::fov::rvm_fov);
+			Hooks::Camera_SetCameraMatrix(camera, edx, matrix4, dt);
 		}
 		else
 		{
-			SetCameraMatrix(camera, edx, matrix4, dt);
-			g::fov::rvm_fov = ReadMemory<int>(fov);
+			Hooks::Camera_SetCameraMatrix(camera, edx, matrix4, dt);
+			g::fov::rvm_fov = Read<int>(fov);
 		}
 	}
 	else if (camera == g::fov::pip)
 	{
 		if (g::fov::pip_override)
 		{
-			WriteMemory<int>(fov, g::fov::pip_fov);
-			SetCameraMatrix(camera, edx, matrix4, dt);
+			Write<int>(fov, g::fov::pip_fov);
+			Hooks::Camera_SetCameraMatrix(camera, edx, matrix4, dt);
 		}
 		else
 		{
-			SetCameraMatrix(camera, edx, matrix4, dt);
-			g::fov::pip_fov = ReadMemory<int>(fov);
+			Hooks::Camera_SetCameraMatrix(camera, edx, matrix4, dt);
+			g::fov::pip_fov = Read<int>(fov);
 		}
 	}
 	else
 	{
-		SetCameraMatrix(camera, edx, matrix4, dt);
+		Hooks::Camera_SetCameraMatrix(camera, edx, matrix4, dt);
 	}
 }
 
-uintptr_t __fastcall hooks::GetMainBossHook(uintptr_t g_race_status)
+uintptr_t __fastcall Hooks::GRaceStatus_GetMainBoss_(uintptr_t g_race_status)
 {
-	uintptr_t racer_info = GetMainBoss(g_race_status);
+	uintptr_t racer_info = Hooks::GRaceStatus_GetMainBoss(g_race_status);
 
 	if (!racer_info)
 	{
 		uintptr_t my_simable = 0;
-		nfsc::BulbToys_GetMyVehicle(nullptr, &my_simable);
+		NFSC::BulbToys_GetMyVehicle(nullptr, &my_simable);
 		if (!my_simable)
 		{
 			return 0;
@@ -794,7 +815,7 @@ uintptr_t __fastcall hooks::GetMainBossHook(uintptr_t g_race_status)
 			return 0;
 		}
 
-		uintptr_t wingman_racer_info = nfsc::GRaceStatus_GetRacerInfo2(g_race_status, wingman_simable);
+		uintptr_t wingman_racer_info = NFSC::GRaceStatus_GetRacerInfo2(g_race_status, wingman_simable);
 		if (!wingman_racer_info)
 		{
 			return 0;
@@ -811,33 +832,32 @@ uintptr_t __fastcall hooks::GetMainBossHook(uintptr_t g_race_status)
 
 	return racer_info;
 }
-void __fastcall hooks::AddPlayerCarHook(uintptr_t world_map)
+void __fastcall Hooks::WorldMap_AddPlayerCar_(uintptr_t world_map)
 {
 	constexpr uint32_t PLAYERCARINDICATOR = 0xDD9EF5FF;
-
 	constexpr uint32_t MMICON_ROADBLOCK_4 = 0xCBD81AE5;
 
 	// FEStateManager::IsGameMode
-	if (!reinterpret_cast<bool(__thiscall*)(uintptr_t, int)>(0x5792A0)(ReadMemory<uintptr_t>(nfsc::FEManager), 0))
+	if (!reinterpret_cast<bool(__thiscall*)(uintptr_t, int)>(0x5792A0)(Read<uintptr_t>(NFSC::FEManager), 0))
 	{
 		// this->PackageFilename
-		char* package_name = ReadMemory<char*>(world_map + 0xC);
+		char* package_name = Read<char*>(world_map + 0xC);
 		if (package_name)
 		{
 			// FE::Object::FindObject
 			uintptr_t object = reinterpret_cast<uintptr_t(*)(char*, uint32_t)>(0x5A0250)(package_name, PLAYERCARINDICATOR);
 
 			// Type == FE_Image
-			if (object && ReadMemory<int>(object + 0x18) == 1)
+			if (object && Read<int>(object + 0x18) == 1)
 			{
 				uintptr_t my_vehicle = 0;
-				nfsc::BulbToys_GetMyVehicle(&my_vehicle, nullptr);
+				NFSC::BulbToys_GetMyVehicle(&my_vehicle, nullptr);
 
-				auto list = nfsc::VehicleList[nfsc::vehicle_list::racers];
+				auto list = NFSC::VehicleList[NFSC::VLType::RACERS];
 				for (int i = 0; i < (int)list->size; i++)
 				{
 					// malloc
-					uintptr_t map_item = nfsc::malloc(0x30);
+					uintptr_t map_item = NFSC::malloc(0x30);
 					if (map_item)
 					{
 						uintptr_t new_object = 0;
@@ -847,8 +867,8 @@ void __fastcall hooks::AddPlayerCarHook(uintptr_t world_map)
 						{
 							new_object = object;
 
-							nfsc::FEColor cyan = { 255, 255, 115, 255 };
-							nfsc::FE_Object_SetColor(new_object, &cyan);
+							NFSC::FEColor cyan = { 255, 255, 115, 255 };
+							NFSC::FE_Object_SetColor(new_object, &cyan);
 						}
 						else
 						{
@@ -857,79 +877,79 @@ void __fastcall hooks::AddPlayerCarHook(uintptr_t world_map)
 							{
 								continue;
 							}
-							if (!nfsc::PVehicle_IsActive(racer))
+							if (!NFSC::PVehicle_IsActive(racer))
 							{
 								continue;
 							}
 
 							// HIDING_SPOT_0 -> HIDING_SPOT_99
-							new_object = nfsc::FE_Object_FindObject(package_name, nfsc::FE_String_HashString("HIDING_SPOT_%d", i));
+							new_object = NFSC::FE_Object_FindObject(package_name, NFSC::FE_String_HashString("HIDING_SPOT_%d", i));
 
 							// FE::Image::SetTextureHash
-							nfsc::FE_Image_SetTextureHash(new_object, ReadMemory<uint32_t>(object + 0x24));
+							NFSC::FE_Image_SetTextureHash(new_object, Read<uint32_t>(object + 0x24));
 
-							nfsc::FEColor orange = { 115, 195, 255, 255 };
-							nfsc::FE_Object_SetColor(new_object, &orange);
+							NFSC::FEColor orange = { 115, 195, 255, 255 };
+							NFSC::FE_Object_SetColor(new_object, &orange);
 						}
 
-						nfsc::Vector2 position, direction;
+						NFSC::Vector2 position, direction;
 
 						// GetVehicleVectors
-						reinterpret_cast<void(*)(nfsc::Vector2&, nfsc::Vector2&, uintptr_t)>(0x5D89B0)(position, direction, nfsc::PVehicle_GetSimable(racer));
+						reinterpret_cast<void(*)(NFSC::Vector2&, NFSC::Vector2&, uintptr_t)>(0x5D89B0)(position, direction, NFSC::PVehicle_GetSimable(racer));
 
-						nfsc::WorldMap_ConvertPos(position.x, position.y, *reinterpret_cast<nfsc::Vector2*>(world_map + 0x44),
-							*reinterpret_cast<nfsc::Vector2*>(world_map + 0x4C));
+						NFSC::WorldMap_ConvertPos(position.x, position.y, *reinterpret_cast<NFSC::Vector2*>(world_map + 0x44),
+							*reinterpret_cast<NFSC::Vector2*>(world_map + 0x4C));
 
 						// bATan
 						float rotation = reinterpret_cast<uint16_t(*)(float, float)>(0x46DFD0)(direction.y, direction.x) * 0.0054931641f;
 
-						map_item = nfsc::MapItem_MapItem(map_item, 1, new_object, position, rotation, 0, 0);
+						map_item = NFSC::MapItem_MapItem(map_item, 1, new_object, position, rotation, 0, 0);
 						if (map_item)
 						{
 							// Add node to map items
 							uintptr_t node = map_item + 4;
-							uintptr_t prev = ReadMemory<uintptr_t>(world_map + 0x64 + 0x4);
+							uintptr_t prev = Read<uintptr_t>(world_map + 0x64 + 0x4);
 
-							WriteMemory<uintptr_t>(prev, node);
-							WriteMemory<uintptr_t>(world_map + 0x64 + 0x4, node);
-							WriteMemory<uintptr_t>(node + 4, prev);
-							WriteMemory<uintptr_t>(node, world_map + 0x64);
+							Write<uintptr_t>(prev, node);
+							Write<uintptr_t>(world_map + 0x64 + 0x4, node);
+							Write<uintptr_t>(node + 4, prev);
+							Write<uintptr_t>(node, world_map + 0x64);
 						}
 					}
 				}
 			}
 			/*
-			uintptr_t gps_icon = ReadMemory<uintptr_t>(0xA977EC);
+			uintptr_t gps_icon = Read<uintptr_t>(0xA977EC);
 			if (gps_icon)
 			{
 				object = reinterpret_cast<uintptr_t(*)(char*, uint32_t)>(0x5A0250)(package_name, MMICON_ROADBLOCK_4);
-				if (object && ReadMemory<int>(object + 0x18) == 1)
+				if (object && Read<int>(object + 0x18) == 1)
 				{
-					uintptr_t map_item = nfsc::malloc(0x30);
+					uintptr_t map_item = NFSC::malloc(0x30);
 					if (map_item)
 					{
-						nfsc::Vector2 position = { ReadMemory<float>(gps_icon + 0x10), ReadMemory<float>(gps_icon + 0x10 + 4) };
+						NFSC::Vector2 position = { Read<float>(gps_icon + 0x10), Read<float>(gps_icon + 0x10 + 4) };
 
-						nfsc::WorldMap_ConvertPos(position.x, position.y, *reinterpret_cast<nfsc::Vector2*>(world_map + 0x44),
-							*reinterpret_cast<nfsc::Vector2*>(world_map + 0x4C));
+						NFSC::WorldMap_ConvertPos(position.x, position.y, *reinterpret_cast<NFSC::Vector2*>(world_map + 0x44),
+							*reinterpret_cast<NFSC::Vector2*>(world_map + 0x4C));
 
-						nfsc::FEColor white = { 255, 255, 255, 255 };
-						nfsc::FE_Object_SetColor(object, &white);
+						NFSC::FEColor white = { 255, 255, 255, 255 };
+						NFSC::FE_Object_SetColor(object, &white);
 
 						// MINIMAP_ICON_EVENT
-						nfsc::FE_Image_SetTextureHash(object, 0xB9358813);
+						NFSC::FE_Image_SetTextureHash(object, 0xB9358813);
 
-						map_item = nfsc::MapItem_MapItem(map_item, 1, object, position, 0.0, 0, gps_icon);
+						map_item = NFSC::MapItem_MapItem(map_item, 1, object, position, 0.0, 0, gps_icon);
 						if (map_item)
 						{
 							// Add node to map items
 							uintptr_t node = map_item + 4;
-							uintptr_t prev = ReadMemory<uintptr_t>(world_map + 0x64 + 0x4);
+							uintptr_t prev = Read<uintptr_t>(world_map + 0x64 + 0x4);
 
-							WriteMemory<uintptr_t>(prev, node);
-							WriteMemory<uintptr_t>(world_map + 0x64 + 0x4, node);
-							WriteMemory<uintptr_t>(node + 4, prev);
-							WriteMemory<uintptr_t>(node, world_map + 0x64);
+							Write<uintptr_t>(prev, node);
+							Write<uintptr_t>(world_map + 0x64 + 0x4, node);
+							Write<uintptr_t>(node + 4, prev);
+							Write<uintptr_t>(node, world_map + 0x64);
 						}
 					}
 				}
@@ -990,43 +1010,43 @@ const char* pip_names[]
 	"TUTORIAL_START"
 };
 
-uintptr_t __fastcall hooks::MLaunchPIPHook(uintptr_t m_launch_pip, uintptr_t edx, int id, uintptr_t simable_handle)
+uintptr_t __fastcall Hooks::MLaunchPIP_MLaunchPIP_(uintptr_t m_launch_pip, uintptr_t edx, int id, uintptr_t simable_handle)
 {
 	LOG(3, "PIP: %d (%s)", id, pip_names[id - 1]);
 
-	return MLaunchPIP(m_launch_pip, edx, id, simable_handle);
+	return Hooks::MLaunchPIP_MLaunchPIP(m_launch_pip, edx, id, simable_handle);
 }
 
-bool __fastcall hooks::SpawnEncounterHook(uintptr_t traffic_manager)
+bool __fastcall Hooks::AITrafficManager_SpawnEncounter_(uintptr_t traffic_manager)
 {
 	static uintptr_t encounter_vehicle = 0;
 
 	// Save the time since the last encounter spawn for later calculations
 	uintptr_t time_since_last_encounter_spawn = traffic_manager + 0x130;
-	float time = ReadMemory<float>(time_since_last_encounter_spawn);
+	float time = Read<float>(time_since_last_encounter_spawn);
 
 	//LOG(1, "SpawnEncounter: TSLE = %.2f", time);
 
 	// Tweak_TrafficRandomEncounter
-	if (!ReadMemory<bool>(0xA4BF80))
+	if (!Read<bool>(0xA4BF80))
 	{
 		return false;
 	}
 
 	// GCareer::mObj && (GCareer::mObj->mPendingAcitivity || *&GCareer::mObj->data_00_20[12]) - checks if we're in a race?
-	uintptr_t g_career = ReadMemory<uintptr_t>(0xA982B8);
-	if (g_career && (ReadMemory<uint32_t>(g_career + 0x118) || ReadMemory<int>(g_career + 0x110)))
+	uintptr_t g_career = Read<uintptr_t>(0xA982B8);
+	if (g_career && (Read<uint32_t>(g_career + 0x118) || Read<int>(g_career + 0x110)))
 	{
 		return false;
 	}
 
 	uintptr_t vehicle, simable;
-	if (!nfsc::BulbToys_GetMyVehicle(&vehicle, &simable))
+	if (!NFSC::BulbToys_GetMyVehicle(&vehicle, &simable))
 	{
 		return false;
 	}
 
-	uintptr_t vehicle_ai = nfsc::PVehicle_GetAIVehiclePtr(vehicle);
+	uintptr_t vehicle_ai = NFSC::PVehicle_GetAIVehiclePtr(vehicle);
 	if (!vehicle_ai)
 	{
 		return false;
@@ -1057,23 +1077,23 @@ bool __fastcall hooks::SpawnEncounterHook(uintptr_t traffic_manager)
 
 	// Custom check - again, is it *really* time for us to spawn?
 	// This time we don't care if next_encounter_key is set or not, we return false if it's not our time yet
-	if (ReadMemory<float>(time_since_last_encounter_spawn) > ...)
+	if (Read<float>(time_since_last_encounter_spawn) > ...)
 	{
 		return false;
 	}
 
 	// Time for us to spawn. If we fail for any reason (other than the vehicle loading), we start over at half our timer (pointless without custom check)
-	WriteMemory<float>(time_since_last_encounter_spawn, time / 2);
+	Write<float>(time_since_last_encounter_spawn, time / 2);
 	*/
 
-	nfsc::WRoadNav nav;
-	nfsc::WRoadNav_WRoadNav(nav);
+	NFSC::WRoadNav nav;
+	NFSC::WRoadNav_WRoadNav(nav);
 
-	uintptr_t rigid_body = nfsc::PhysicsObject_GetRigidBody(simable);
+	uintptr_t rigid_body = NFSC::PhysicsObject_GetRigidBody(simable);
 
-	nfsc::Vector3 position = *nfsc::RigidBody_GetPosition(rigid_body);
-	nfsc::Vector3 fwd_vec;
-	nfsc::RigidBody_GetForwardVector(rigid_body, &fwd_vec);
+	NFSC::Vector3 position = *NFSC::RigidBody_GetPosition(rigid_body);
+	NFSC::Vector3 fwd_vec;
+	NFSC::RigidBody_GetForwardVector(rigid_body, &fwd_vec);
 
 	// Distance when spawning in front of us
 	// TODO: is it worth keeping this feature? it kinda sucks lol
@@ -1091,23 +1111,23 @@ bool __fastcall hooks::SpawnEncounterHook(uintptr_t traffic_manager)
 
 	nav.fNavType = 2; // kTypeDirection
 
-	nfsc::WRoadNav_InitAtPoint(nav, &position, &fwd_vec, false, 1.0);
+	NFSC::WRoadNav_InitAtPoint(nav, &position, &fwd_vec, false, 1.0);
 	if (!nav.fValid)
 	{
-		nfsc::WRoadNav_Destructor(nav);
+		NFSC::WRoadNav_Destructor(nav);
 		return false;
 	}
 
-	nfsc::WRoadNav_IncNavPosition(nav, distance, &fwd_vec, 0.0, 0);
+	NFSC::WRoadNav_IncNavPosition(nav, distance, &fwd_vec, 0.0, 0);
 
-	nfsc::WCollisionMgr mgr;
+	NFSC::WCollisionMgr mgr;
 	mgr.fPrimitiveMask = 3;
 	mgr.fSurfaceExclusionMask = 0;
 
 	float _;
-	if (!nfsc::WCollisionMgr_GetWorldHeightAtPointRigorous(mgr, &nav.fPosition, &_, nullptr))
+	if (!NFSC::WCollisionMgr_GetWorldHeightAtPointRigorous(mgr, &nav.fPosition, &_, nullptr))
 	{
-		nfsc::WRoadNav_Destructor(nav);
+		NFSC::WRoadNav_Destructor(nav);
 		return 0;
 	}
 
@@ -1116,27 +1136,27 @@ bool __fastcall hooks::SpawnEncounterHook(uintptr_t traffic_manager)
 	fwd_vec.z = -nav.fForwardVector.z;
 
 	encounter_vehicle = reinterpret_cast<uintptr_t(__thiscall*)(uintptr_t, uint32_t, uint32_t)>(0x42CB70)
-		(traffic_manager, ReadMemory<uint32_t>(traffic_manager + 0x120), ReadMemory<uint32_t>(traffic_manager + 0x128));
+		(traffic_manager, Read<uint32_t>(traffic_manager + 0x120), Read<uint32_t>(traffic_manager + 0x128));
 	if (!encounter_vehicle)
 	{
 		return false;
 	}
 
-	if (nfsc::PVehicle_IsLoading(encounter_vehicle))
+	if (NFSC::PVehicle_IsLoading(encounter_vehicle))
 	{
 		// Give it some time to load - try again after 1 second (pointless without custom check)
-		//WriteMemory<float>(time_since_last_encounter_spawn, time - 1.0f);
+		//Write<float>(time_since_last_encounter_spawn, time - 1.0f);
 		return false;
 	}
 
 	// Encounter has successfully spawned - reset timer and skin/vehicle keys to 0
-	WriteMemory<float>(time_since_last_encounter_spawn, 0.0);
-	WriteMemory<uint32_t>(traffic_manager + 0x120, 0);
-	WriteMemory<uint32_t>(traffic_manager + 0x128, 0);
+	Write<float>(time_since_last_encounter_spawn, 0.0);
+	Write<uint32_t>(traffic_manager + 0x120, 0);
+	Write<uint32_t>(traffic_manager + 0x128, 0);
 
-	nfsc::PVehicle_SetVehicleOnGround(encounter_vehicle, &nav.fPosition, &fwd_vec);
+	NFSC::PVehicle_SetVehicleOnGround(encounter_vehicle, &nav.fPosition, &fwd_vec);
 
-	uintptr_t encounter_ai = nfsc::PVehicle_GetAIVehiclePtr(encounter_vehicle);
+	uintptr_t encounter_ai = NFSC::PVehicle_GetAIVehiclePtr(encounter_vehicle);
 	
 	// AIVehicle::SetSpawned
 	reinterpret_cast<void(__thiscall*)(uintptr_t)>(0x418600)(encounter_ai);
@@ -1145,15 +1165,15 @@ bool __fastcall hooks::SpawnEncounterHook(uintptr_t traffic_manager)
 	constexpr uint32_t AIGoalEncounterPursuit = 0xD4272692;
 	reinterpret_cast<void(__thiscall*)(uintptr_t, const uint32_t&)>(0x427A60)(encounter_ai, AIGoalEncounterPursuit);
 
-	nfsc::PVehicle_Activate(encounter_vehicle);
-	nfsc::PVehicle_SetSpeed(encounter_vehicle, 15.64605); // 35 mph
+	NFSC::PVehicle_Activate(encounter_vehicle);
+	NFSC::PVehicle_SetSpeed(encounter_vehicle, 15.64605); // 35 mph
 
-	nfsc::WRoadNav_Destructor(nav);
+	NFSC::WRoadNav_Destructor(nav);
 
 	return true;
 }
 
-bool __fastcall hooks::GetSMSHandleHook(uintptr_t ecx, uintptr_t edx, int* a1, int a2)
+bool __fastcall Hooks::DALCareer_GetSMSHandle_(uintptr_t ecx, uintptr_t edx, int* a1, int a2)
 {
 	if (a2 == g::custom_sms::handle)
 	{
@@ -1167,10 +1187,10 @@ bool __fastcall hooks::GetSMSHandleHook(uintptr_t ecx, uintptr_t edx, int* a1, i
 		return true;
 	}
 
-	return GetSMSHandle(ecx, edx, a1, a2);
+	return Hooks::DALCareer_GetSMSHandle(ecx, edx, a1, a2);
 }
 
-bool __fastcall hooks::GetSMSIsAvailableHook(uintptr_t ecx, uintptr_t edx, int* a1, int a2)
+bool __fastcall Hooks::DALCareer_GetSMSIsAvailable_(uintptr_t ecx, uintptr_t edx, int* a1, int a2)
 {
 	if (a2 == g::custom_sms::handle)
 	{
@@ -1179,10 +1199,10 @@ bool __fastcall hooks::GetSMSIsAvailableHook(uintptr_t ecx, uintptr_t edx, int* 
 		return true;
 	}
 
-	return GetSMSIsAvailable(ecx, edx, a1, a2);
+	return Hooks::DALCareer_GetSMSIsAvailable(ecx, edx, a1, a2);
 }
 
-bool __fastcall hooks::GetSMSWasReadHook(uintptr_t ecx, uintptr_t edx, int* a1, int a2)
+bool __fastcall Hooks::DALCareer_GetSMSWasRead_(uintptr_t ecx, uintptr_t edx, int* a1, int a2)
 {
 	if (a2 == g::custom_sms::handle)
 	{
@@ -1191,10 +1211,10 @@ bool __fastcall hooks::GetSMSWasReadHook(uintptr_t ecx, uintptr_t edx, int* a1, 
 		return true;
 	}
 
-	return GetSMSWasRead(ecx, edx, a1, a2);
+	return Hooks::DALCareer_GetSMSWasRead(ecx, edx, a1, a2);
 }
 
-bool __fastcall hooks::GetSMSIsTipHook(uintptr_t ecx, uintptr_t edx, int* a1, int a2)
+bool __fastcall Hooks::DALCareer_GetSMSIsTip_(uintptr_t ecx, uintptr_t edx, int* a1, int a2)
 {
 	if (a2 == g::custom_sms::handle)
 	{
@@ -1203,10 +1223,10 @@ bool __fastcall hooks::GetSMSIsTipHook(uintptr_t ecx, uintptr_t edx, int* a1, in
 		return true;
 	}
 
-	return GetSMSIsTip(ecx, edx, a1, a2);
+	return Hooks::DALCareer_GetSMSIsTip(ecx, edx, a1, a2);
 }
 
-bool __fastcall hooks::GetSMSSortOrderHook(uintptr_t ecx, uintptr_t edx, int* a1, int a2)
+bool __fastcall Hooks::DALCareer_GetSMSSortOrder_(uintptr_t ecx, uintptr_t edx, int* a1, int a2)
 {
 	if (a2 == g::custom_sms::handle)
 	{
@@ -1215,10 +1235,10 @@ bool __fastcall hooks::GetSMSSortOrderHook(uintptr_t ecx, uintptr_t edx, int* a1
 		return true;
 	}
 
-	return GetSMSSortOrder(ecx, edx, a1, a2);
+	return Hooks::DALCareer_GetSMSSortOrder(ecx, edx, a1, a2);
 }
 
-bool __fastcall hooks::GetSMSHashHook(uintptr_t ecx, uintptr_t edx, int* a1, int a2)
+bool __fastcall Hooks::DALCareer_GetSMSHashMessage_(uintptr_t ecx, uintptr_t edx, int* a1, int a2)
 {
 	if (a2 == g::custom_sms::handle)
 	{
@@ -1226,10 +1246,10 @@ bool __fastcall hooks::GetSMSHashHook(uintptr_t ecx, uintptr_t edx, int* a1, int
 		return true;
 	}
 
-	return GetSMSHash(ecx, edx, a1, a2);
+	return Hooks::DALCareer_GetSMSHashMessage(ecx, edx, a1, a2);
 }
 
-bool __fastcall hooks::GetSMSIsVoiceHook(uintptr_t ecx, uintptr_t edx, int* a1, int a2)
+bool __fastcall Hooks::DALCareer_GetSMSIsVoice_(uintptr_t ecx, uintptr_t edx, int* a1, int a2)
 {
 	if (a2 == g::custom_sms::handle)
 	{
@@ -1238,10 +1258,10 @@ bool __fastcall hooks::GetSMSIsVoiceHook(uintptr_t ecx, uintptr_t edx, int* a1, 
 		return true;
 	}
 
-	return GetSMSIsVoice(ecx, edx, a1, a2);
+	return Hooks::DALCareer_GetSMSIsVoice(ecx, edx, a1, a2);
 }
 
-bool __fastcall hooks::SetSMSWasReadHook(uintptr_t ecx, uintptr_t edx, int a1, int a2)
+bool __fastcall Hooks::DALCareer_SetSMSWasRead_(uintptr_t ecx, uintptr_t edx, int a1, int a2)
 {
 	if (a2 == g::custom_sms::handle)
 	{
@@ -1255,10 +1275,10 @@ bool __fastcall hooks::SetSMSWasReadHook(uintptr_t ecx, uintptr_t edx, int a1, i
 		return true;
 	}
 
-	return SetSMSWasRead(ecx, edx, a1, a2);
+	return Hooks::DALCareer_SetSMSWasRead(ecx, edx, a1, a2);
 }
 
-bool __fastcall hooks::SetSMSIsAvailableHook(uintptr_t ecx, uintptr_t edx, int a1, int a2)
+bool __fastcall Hooks::DALCareer_SetSMSIsAvailable_(uintptr_t ecx, uintptr_t edx, int a1, int a2)
 {
 	// No need to check "a1" as it is always 1 in game code (called in GManager::AddSMS)
 	if (a2 == g::custom_sms::handle)
@@ -1273,10 +1293,10 @@ bool __fastcall hooks::SetSMSIsAvailableHook(uintptr_t ecx, uintptr_t edx, int a
 		return true;
 	}
 
-	return SetSMSIsAvailable(ecx, edx, a1, a2);
+	return Hooks::DALCareer_SetSMSIsAvailable(ecx, edx, a1, a2);
 }
 
-bool __fastcall hooks::SetSMSHandleHook(uintptr_t ecx, uintptr_t edx, int a1, int a2)
+bool __fastcall Hooks::DALCareer_SetSMSHandle_(uintptr_t ecx, uintptr_t edx, int a1, int a2)
 {
 	// No need to check "a1" as it is always 255 in game code (called in FESMSStateManager::HandleButtonPressed)
 	if (a2 == g::custom_sms::handle)
@@ -1286,76 +1306,76 @@ bool __fastcall hooks::SetSMSHandleHook(uintptr_t ecx, uintptr_t edx, int a1, in
 		return true;
 	}
 
-	return SetSMSHandle(ecx, edx, a1, a2);
+	return Hooks::DALCareer_SetSMSHandle(ecx, edx, a1, a2);
 }
 
-void __fastcall hooks::FESMSRefreshHeaderHook(uintptr_t fe_sms_message)
+void __fastcall Hooks::FESMSMessage_RefreshHeader_(uintptr_t fe_sms_message)
 {
 	// Set SMS headers (From & Subject) for our custom SMS
-	if (ReadMemory<uint32_t>(fe_sms_message + 0xD8) == g::custom_sms::handle)
+	if (Read<uint32_t>(fe_sms_message + 0xD8) == g::custom_sms::handle)
 	{	
-		char* package_name = ReadMemory<char*>(fe_sms_message + 0xC);
+		char* package_name = Read<char*>(fe_sms_message + 0xC);
 
-		uintptr_t object = nfsc::FE_Object_FindObject(package_name, 0xFECED617);
-		nfsc::FE_String_SetString(object, g::custom_sms::from);
+		uintptr_t object = NFSC::FE_Object_FindObject(package_name, 0xFECED617);
+		NFSC::FE_String_SetString(object, g::custom_sms::from);
 
-		object = nfsc::FE_Object_FindObject(package_name, 0x2C167533);
-		nfsc::FE_String_SetString(object, g::custom_sms::subject);
+		object = NFSC::FE_Object_FindObject(package_name, 0x2C167533);
+		NFSC::FE_String_SetString(object, g::custom_sms::subject);
 
 		return;
 	}
 
-	FESMSRefreshHeader(fe_sms_message);
+	Hooks::FESMSMessage_RefreshHeader(fe_sms_message);
 }
 
-void __fastcall hooks::CTextScrollerSetTextHashHook(uintptr_t c_text_scroller, uintptr_t edx, uint32_t language_hash)
+void __fastcall Hooks::CTextScroller_SetTextHash_(uintptr_t c_text_scroller, uintptr_t edx, uint32_t language_hash)
 {
 	// Set SMS message for our custom SMS
-	if (ReadMemory<uint32_t>(c_text_scroller - 0x28 /* FESMSMessage */ + 0xD8) == g::custom_sms::handle)
+	if (Read<uint32_t>(c_text_scroller - 0x28 /* FESMSMessage */ + 0xD8) == g::custom_sms::handle)
 	{
 		// CTextScroller::SetText
 		reinterpret_cast<void(__thiscall*)(uintptr_t, const wchar_t*)>(0x5BCDF0)(c_text_scroller, g::custom_sms::message);
 		return;
 	}
 
-	CTextScrollerSetTextHash(c_text_scroller, edx, language_hash);
+	Hooks::CTextScroller_SetTextHash(c_text_scroller, edx, language_hash);
 }
 
-void __fastcall hooks::SMSSlotUpdateHook(uintptr_t sms_slot, uintptr_t edx, uintptr_t sms_datum, bool a3, uintptr_t fe_object)
+void __fastcall Hooks::SMSSlot_Update_(uintptr_t sms_slot, uintptr_t edx, uintptr_t sms_datum, bool a3, uintptr_t fe_object)
 {
 	// Set SMS subject (in the mailbox list) for our custom SMS
-	if (sms_datum && ReadMemory<uint32_t>(sms_datum + 0x18) == g::custom_sms::handle)
+	if (sms_datum && Read<uint32_t>(sms_datum + 0x18) == g::custom_sms::handle)
 	{
 		// ArraySlot::Update
 		reinterpret_cast<void(__thiscall*)(uintptr_t, uintptr_t, bool, uintptr_t)>(0x59A360)(sms_slot, sms_datum, a3, fe_object);
 
 		// this->text_object
-		nfsc::FE_String_SetString(ReadMemory<uintptr_t>(sms_slot + 0x18), g::custom_sms::subject);
+		NFSC::FE_String_SetString(Read<uintptr_t>(sms_slot + 0x18), g::custom_sms::subject);
 
 		// this->image_object, sms_datum->checked
-		nfsc::FE_Object_SetVisibility(ReadMemory<uintptr_t>(sms_slot + 0x14), ReadMemory<bool>(sms_datum + 0x17));
+		NFSC::FE_Object_SetVisibility(Read<uintptr_t>(sms_slot + 0x14), Read<bool>(sms_datum + 0x17));
 
 		return;
 	}
 
-	SMSSlotUpdate(sms_slot, edx, sms_datum, a3, fe_object);
+	Hooks::SMSSlot_Update(sms_slot, edx, sms_datum, a3, fe_object);
 }
 
 bool dal_spectate = false;
 
-uintptr_t __stdcall hooks::DALGetIVehicleHook(int settings_index)
+uintptr_t __stdcall Hooks::DALVehicle_GetIVehicle_(int settings_index)
 {
 	if (dal_spectate)
 	{
-		return nfsc::spectate::vehicle;
+		return NFSC::spectate::vehicle;
 	}
 
-	return DALGetIVehicle(settings_index);
+	return Hooks::DALVehicle_GetIVehicle(settings_index);
 }
 
-void hooks::HUDElementUpdateHook(uintptr_t hud_element, uintptr_t edx, uintptr_t player, HUDElementUpdateFunc* Update)
+void Hooks::HUDElement_Update_(uintptr_t hud_element, uintptr_t edx, uintptr_t player, HUDElementUpdateFunc* Update)
 {
-	if (*nfsc::spectate::enabled)
+	if (*NFSC::spectate::enabled)
 	{
 		dal_spectate = true;
 	}
@@ -1365,192 +1385,195 @@ void hooks::HUDElementUpdateHook(uintptr_t hud_element, uintptr_t edx, uintptr_t
 	dal_spectate = false;
 }
 
-void __fastcall hooks::TachometerUpdateHook(uintptr_t hud_element, uintptr_t edx, uintptr_t player)
+void __fastcall Hooks::Tachometer_Update_(uintptr_t hud_element, uintptr_t edx, uintptr_t player)
 {
-	HUDElementUpdateHook(hud_element, edx, player, TachometerUpdate);
+	Hooks::HUDElement_Update_(hud_element, edx, player, Tachometer_Update);
 }
 
-void __fastcall hooks::NitrousGaugeUpdateHook(uintptr_t hud_element, uintptr_t edx, uintptr_t player)
+void __fastcall Hooks::NitrousGauge_Update_(uintptr_t hud_element, uintptr_t edx, uintptr_t player)
 {
-	HUDElementUpdateHook(hud_element, edx, player, NitrousGaugeUpdate);
+	Hooks::HUDElement_Update_(hud_element, edx, player, NitrousGauge_Update);
 }
 
-void __fastcall hooks::SpeedbreakerMeterUpdateHook(uintptr_t hud_element, uintptr_t edx, uintptr_t player)
+void __fastcall Hooks::SpeedbreakerMeter_Update_(uintptr_t hud_element, uintptr_t edx, uintptr_t player)
 {
-	HUDElementUpdateHook(hud_element, edx, player, SpeedbreakerMeterUpdate);
+	Hooks::HUDElement_Update_(hud_element, edx, player, SpeedbreakerMeter_Update);
 }
 
 /*
-void* __cdecl hooks::PickRoadblockSetupHook(float width, int num_vehicles, bool use_spikes)
+void* __cdecl Hooks::PickRoadblockSetupHook(float width, int num_vehicles, bool use_spikes)
 {
 	return g::roadblock_setups::force ? g::roadblock_setups::force : PickRoadblockSetup(width, num_vehicles, use_spikes);
 }
 */
-void __fastcall hooks::WorldMapPadAcceptHook(uintptr_t fe_state_manager)
+
+void __fastcall Hooks::FEWorldMapStateManager_HandlePadAccept_(uintptr_t fe_state_manager)
 {
 	// mCurrentState
-	auto state = ReadMemory<nfsc::world_map_state>(fe_state_manager + 4);
+	auto state = Read<int>(fe_state_manager + 4);
 
-	if (g::world_map::shift_held && state == nfsc::world_map_state::normal)
+	if (g::world_map::shift_held && state == NFSC::FESM::WorldMap::NORMAL)
 	{
-		reinterpret_cast<void(__thiscall*)(uintptr_t, bool)>(0x582D90)(ReadMemory<uintptr_t>(nfsc::WorldMap), true);
-		nfsc::FEStateManager_ShowDialog(fe_state_manager, (int)nfsc::world_map_state::click_tp);
+		// sub_00582D90 (seems legit???)
+		reinterpret_cast<void(__thiscall*)(uintptr_t, bool)>(0x582D90)(Read<uintptr_t>(NFSC::WorldMap), true);
+		NFSC::FEStateManager_ShowDialog(fe_state_manager, NFSC::FESM::WorldMap::CLICK_TP);
 		return;
 	}
 
-	WorldMapPadAccept(fe_state_manager);
+	Hooks::FEWorldMapStateManager_HandlePadAccept(fe_state_manager);
 }
 
-void __fastcall hooks::WorldMapButtonPressedHook(uintptr_t fe_state_manager, uintptr_t edx, uint32_t unk)
+void __fastcall Hooks::FEWorldMapStateManager_HandleButtonPressed_(uintptr_t fe_state_manager, uintptr_t edx, uint32_t unk)
 {
 	// mCurrentState
-	auto state = ReadMemory<nfsc::world_map_state>(fe_state_manager + 4);
+	auto state = Read<int>(fe_state_manager + 4);
 
-	uintptr_t dialog_screen = ReadMemory<uintptr_t>(0xA97B14);
+	uintptr_t dialog_screen = Read<uintptr_t>(0xA97B14);
 	if (!dialog_screen)
 	{
-		WorldMapButtonPressed(fe_state_manager, edx, unk);
+		Hooks::FEWorldMapStateManager_HandleButtonPressed(fe_state_manager, edx, unk);
 		return;
 	}
 
-	uint32_t* button_hashes = ReadMemory<uint32_t*>(dialog_screen + 0x2C);
+	uint32_t* button_hashes = Read<uint32_t*>(dialog_screen + 0x2C);
 
-	nfsc::gameflow_state gfs = nfsc::BulbToys_GetGameFlowState();
+	auto gfs = NFSC::BulbToys_GetGameFlowState();
 
-	if (state == nfsc::world_map_state::click_tp)
+	if (state == NFSC::FESM::WorldMap::CLICK_TP)
 	{
-		if (gfs == nfsc::gameflow_state::racing && !isnan(g::world_map::location.y))
+		// We are not in FE and we clicked on a valid road
+		if (gfs == NFSC::GFS::RACING && !isnan(g::world_map::location.y))
 		{
 			// First button - Jump to Location
 			if (unk == button_hashes[0])
 			{
-				nfsc::FEStateManager_ChangeState(fe_state_manager, (int)nfsc::world_map_state::click_tp_jump);
+				NFSC::FEStateManager_ChangeState(fe_state_manager, NFSC::FESM::WorldMap::CLICK_TP_JUMP);
 			}
 
 			// Second button - Activate GPS
 			else if (unk == button_hashes[1])
 			{
-				nfsc::FEStateManager_ChangeState(fe_state_manager, (int)nfsc::world_map_state::click_tp_gps);
+				NFSC::FEStateManager_ChangeState(fe_state_manager, NFSC::FESM::WorldMap::CLICK_TP_GPS);
 			}
 
 			// Third button - Cancel
 			else if (unk == button_hashes[2])
 			{
-				nfsc::FEStateManager_PopBack(fe_state_manager, 3);
+				NFSC::FEStateManager_PopBack(fe_state_manager, 3);
 			}
 		}
 
 		// First button - OK
 		else if (unk == button_hashes[0])
 		{
-			nfsc::FEStateManager_PopBack(fe_state_manager, 3);
+			NFSC::FEStateManager_PopBack(fe_state_manager, 3);
 		}
 
 		return;
 	}
 
 	// Only offer GPS if the option is enabled and we're not in FE
-	if (g::world_map::gps_only && gfs == nfsc::gameflow_state::racing)
+	if (g::world_map::gps_only && gfs == NFSC::GFS::RACING)
 	{
-		if (state == nfsc::world_map_state::race_event || state == nfsc::world_map_state::car_lot || state == nfsc::world_map_state::safehouse)
+		if (state == NFSC::FESM::WorldMap::RACE_EVENT || state == NFSC::FESM::WorldMap::CAR_LOT || state == NFSC::FESM::WorldMap::SAFEHOUSE)
 		{
 			// For these types of dialogs, use the button hashes of the GPS to safehouse prompt during pursuits
-			//WriteMemory<int>(fe_state_manager + 4, 18);
+			//Write<int>(fe_state_manager + 4, 18);
 
 			// ???
 
 			// First button - Activate GPS
 			if (unk == button_hashes[0])
 			{
-				nfsc::FEStateManager_ChangeState(fe_state_manager, 21);
+				NFSC::FEStateManager_ChangeState(fe_state_manager, 21);
 			}
 
 			// Second button - Cancel
 			else if (unk == button_hashes[1])
 			{
-				nfsc::FEStateManager_PopBack(fe_state_manager, 3);
+				NFSC::FEStateManager_PopBack(fe_state_manager, 3);
 			}
 
 			return;
 		}
 	}
 
-	WorldMapButtonPressed(fe_state_manager, edx, unk);
+	Hooks::FEWorldMapStateManager_HandleButtonPressed(fe_state_manager, edx, unk);
 }
 
-void __fastcall hooks::WorldMapStateChangeHook(uintptr_t fe_state_manager)
+void __fastcall Hooks::FEWorldMapStateManager_HandleStateChange_(uintptr_t fe_state_manager)
 {
 	// mCurrentState
-	auto state = ReadMemory<nfsc::world_map_state>(fe_state_manager + 4);
+	auto state = Read<int>(fe_state_manager + 4);
 
-	if (state == nfsc::world_map_state::click_tp_jump)
+	if (state == NFSC::FESM::WorldMap::CLICK_TP_JUMP)
 	{
 		uintptr_t vehicle = 0;
 		uintptr_t simable = 0;
-		if (!nfsc::BulbToys_GetMyVehicle(&vehicle, &simable))
+		if (!NFSC::BulbToys_GetMyVehicle(&vehicle, &simable))
 		{
 			return;
 		}
 
-		uintptr_t rigid_body = nfsc::PhysicsObject_GetRigidBody(simable);
+		uintptr_t rigid_body = NFSC::PhysicsObject_GetRigidBody(simable);
 
-		nfsc::Vector3 fwd_vec;
-		nfsc::RigidBody_GetForwardVector(rigid_body, &fwd_vec);
+		NFSC::Vector3 fwd_vec;
+		NFSC::RigidBody_GetForwardVector(rigid_body, &fwd_vec);
 
-		nfsc::Vector3 dimensions;
-		nfsc::RigidBody_GetDimension(rigid_body, &dimensions);
+		NFSC::Vector3 dimensions;
+		NFSC::RigidBody_GetDimension(rigid_body, &dimensions);
 		g::world_map::location.y += dimensions.y + 0.5f;
 
-		nfsc::PVehicle_SetVehicleOnGround(vehicle, &g::world_map::location, &fwd_vec);
+		NFSC::PVehicle_SetVehicleOnGround(vehicle, &g::world_map::location, &fwd_vec);
 
 		// this->mNextManager = this->mParentManager;
-		WriteMemory<uintptr_t>(fe_state_manager + 0xB4, ReadMemory<uintptr_t>(fe_state_manager + 0xAC));
+		Write<uintptr_t>(fe_state_manager + 0xB4, Read<uintptr_t>(fe_state_manager + 0xAC));
 
 		// this->mExitPoint = 2;
-		WriteMemory<int>(fe_state_manager + 0xC, 2);
+		Write<int>(fe_state_manager + 0xC, 2);
 
 		// this->mSubState = 3;
-		WriteMemory<int>(fe_state_manager + 0x18, 3);
+		Write<int>(fe_state_manager + 0x18, 3);
 
 		// FEStateManager::ProcessScreenTransition(this);
 		reinterpret_cast<void(__thiscall*)(uintptr_t)>(0x59B1B0)(fe_state_manager);
 
 		return;
 	}
-	else if (state == nfsc::world_map_state::click_tp_gps)
+	else if (state == NFSC::FESM::WorldMap::CLICK_TP_GPS)
 	{
-		if (nfsc::GPS_Engage(&g::world_map::location, 0.0, false))
+		if (NFSC::GPS_Engage(&g::world_map::location, 0.0, false))
 		{
-			nfsc::Vector3 position = { g::world_map::location.z, -g::world_map::location.x, g::world_map::location.y };
-			auto icon = nfsc::GManager_AllocIcon(ReadMemory<uintptr_t>(nfsc::GManagerBase), 0x15, &position, 0, false);
+			NFSC::Vector3 position = { g::world_map::location.z, -g::world_map::location.x, g::world_map::location.y };
+			auto icon = NFSC::GManager_AllocIcon(Read<uintptr_t>(NFSC::GManagerBase), 0x15, &position, 0, false);
 
 			// Set flag to ShowOnSpawn
-			//WriteMemory<uint8_t>(icon_addr + 1, 0x40);
+			//Write<uint8_t>(icon_addr + 1, 0x40);
 
 			// Set flag to ShowInWorld + ShowOnMap
-			WriteMemory<uint8_t>(icon + 0x1, 3);
+			Write<uint8_t>(icon + 0x1, 3);
 
 			// Set color to white
-			WriteMemory<uint32_t>(icon + 0x20, g::world_map::gps_color);
+			Write<uint32_t>(icon + 0x20, g::world_map::gps_color);
 
 			// Set tex hash
-			WriteMemory<uint32_t>(icon + 0x24, nfsc::bStringHash("MINIMAP_ICON_EVENT"));
+			Write<uint32_t>(icon + 0x24, NFSC::bStringHash("MINIMAP_ICON_EVENT"));
 
-			nfsc::GIcon_Spawn(icon);
-			nfsc::WorldMap_SetGPSIng(icon);
+			NFSC::GIcon_Spawn(icon);
+			NFSC::WorldMap_SetGPSIng(icon);
 
 			// Set flag to previous + Spawned + Enabled + GPSing
-			WriteMemory<uint8_t>(icon + 1, 0x8F);
+			Write<uint8_t>(icon + 1, 0x8F);
 		}
 
 		// this->mNextManager = this->mParentManager;
-		WriteMemory<uintptr_t>(fe_state_manager + 0xB4, ReadMemory<uintptr_t>(fe_state_manager + 0xAC));
+		Write<uintptr_t>(fe_state_manager + 0xB4, Read<uintptr_t>(fe_state_manager + 0xAC));
 
 		// this->mExitPoint = 2;
-		WriteMemory<int>(fe_state_manager + 0xC, 2);
+		Write<int>(fe_state_manager + 0xC, 2);
 
 		// this->mSubState = 3;
-		WriteMemory<int>(fe_state_manager + 0x18, 3);
+		Write<int>(fe_state_manager + 0x18, 3);
 
 		// FEStateManager::ProcessScreenTransition(this);
 		reinterpret_cast<void(__thiscall*)(uintptr_t)>(0x59B1B0)(fe_state_manager);
@@ -1558,96 +1581,98 @@ void __fastcall hooks::WorldMapStateChangeHook(uintptr_t fe_state_manager)
 		return;
 	}
 
-	WorldMapStateChange(fe_state_manager);
+	Hooks::FEWorldMapStateManager_HandleStateChange(fe_state_manager);
 }
 
-void __fastcall hooks::WorldMapScreenTickHook(uintptr_t fe_state_manager)
+void __fastcall Hooks::FEWorldMapStateManager_HandleScreenTick_(uintptr_t fe_state_manager)
 {
-	nfsc::BulbToys_UpdateWorldMapCursor(fe_state_manager);
+	NFSC::BulbToys_UpdateWorldMapCursor(fe_state_manager);
 
-	WorldMapScreenTick(fe_state_manager);
+	Hooks::FEWorldMapStateManager_HandleScreenTick(fe_state_manager);
 }
 
 // The "2" key
-void __fastcall hooks::WorldMapButton4Hook(uintptr_t fe_state_manager)
+void __fastcall Hooks::FEWorldMapStateManager_HandlePadButton4_(uintptr_t fe_state_manager)
 {
 	// Correctly set FEManager's event key if we press the "Select wingman" button when interacting with an event's engagement ring
-	if (g::wrong_warp_fix::enabled && ReadMemory<nfsc::world_map_state>(fe_state_manager + 4) == nfsc::world_map_state::engage_event)
+	if (g::wrong_warp_fix::enabled && Read<int>(fe_state_manager + 4) == NFSC::FESM::WorldMap::ENGAGE_EVENT)
 	{
 		// FEManager::mInstance->mEventKey = WorldMap::GetEventHash(WorldMap::mInstance);
-		WriteMemory<uint32_t>(ReadMemory<uintptr_t>(nfsc::FEManager) + 0xEC,
-			reinterpret_cast<uint32_t(__thiscall*)(uintptr_t)>(0x58FDC0)(ReadMemory<uintptr_t>(nfsc::WorldMap)));
+		Write<uint32_t>(Read<uintptr_t>(NFSC::FEManager) + 0xEC,
+			reinterpret_cast<uint32_t(__thiscall*)(uintptr_t)>(0x58FDC0)(Read<uintptr_t>(NFSC::WorldMap)));
 	}
 
-	WorldMapButton4(fe_state_manager);
+	Hooks::FEWorldMapStateManager_HandlePadButton4(fe_state_manager);
 }
 
-void __fastcall hooks::WorldMapShowDialogHook(uintptr_t fe_state_manager)
+void __fastcall Hooks::FEWorldMapStateManager_HandleShowDialog_(uintptr_t fe_state_manager)
 {	
-	const char* COMMON_CANCEL = nfsc::GetLocalizedString(0x1A294DAD);
-	const char* COMMON_OK = nfsc::GetLocalizedString(0x417B2601);	
-	const char* DIALOG_MSG_ACTIVATE_GPS = nfsc::GetLocalizedString(0x6EB0EACE);
+	constexpr uintptr_t HideCursor = 0xA97B38;
+
+	const char* COMMON_CANCEL = NFSC::GetLocalizedString(0x1A294DAD);
+	const char* COMMON_OK = NFSC::GetLocalizedString(0x417B2601);	
+	const char* DIALOG_MSG_ACTIVATE_GPS = NFSC::GetLocalizedString(0x6EB0EACE);
 
 	// mCurrentState
-	auto type = ReadMemory<nfsc::world_map_state>(fe_state_manager + 4);
+	auto type = Read<int>(fe_state_manager + 4);
 
-	if (type == nfsc::world_map_state::click_tp)
+	if (type == NFSC::FESM::WorldMap::CLICK_TP)
 	{
-		WriteMemory<bool>(0xA97B38, false);
+		Write<bool>(HideCursor, false);
 
 		char title[64];
 		if (isnan(g::world_map::location.y))
 		{
 			sprintf_s(title, 64, "Selected coordinates: (%.2f, N/A, %.2f)", g::world_map::location.x, g::world_map::location.z);
 
-			nfsc::FEDialogScreen_ShowDialog(title, COMMON_OK, nullptr, nullptr);
+			NFSC::FEDialogScreen_ShowDialog(title, COMMON_OK, nullptr, nullptr);
 		}
 		else
 		{
 			sprintf_s(title, 64, "Selected coordinates: (%.2f, %.2f, %.2f)", g::world_map::location.x, g::world_map::location.y, g::world_map::location.z);
 
-			nfsc::FEDialogScreen_ShowDialog(title, "Jump to Location", DIALOG_MSG_ACTIVATE_GPS, COMMON_CANCEL);
+			NFSC::FEDialogScreen_ShowDialog(title, "Jump to Location", DIALOG_MSG_ACTIVATE_GPS, COMMON_CANCEL);
 		}
 
 		return;
 	}
 
 	// Only offer GPS if the option is enabled and we're not in FE
-	if (g::world_map::gps_only && nfsc::BulbToys_GetGameFlowState() == nfsc::gameflow_state::racing)
+	if (g::world_map::gps_only && NFSC::BulbToys_GetGameFlowState() == NFSC::GFS::RACING)
 	{
-		if (type == nfsc::world_map_state::race_event)
+		if (type == NFSC::FESM::WorldMap::RACE_EVENT)
 		{
 			// Unhide the cursor and show the dialog with its respective string
-			WriteMemory<bool>(0xA97B38, false);
+			Write<bool>(HideCursor, false);
 
 			// DIALOG_MSG_WORLDMAP_EVENT
-			nfsc::FEDialogScreen_ShowDialog(nfsc::GetLocalizedString(0xCF93709B), DIALOG_MSG_ACTIVATE_GPS, COMMON_CANCEL, nullptr);
+			NFSC::FEDialogScreen_ShowDialog(NFSC::GetLocalizedString(0xCF93709B), DIALOG_MSG_ACTIVATE_GPS, COMMON_CANCEL, nullptr);
 			return;
 		}
-		else if (type == nfsc::world_map_state::car_lot)
+		else if (type == NFSC::FESM::WorldMap::CAR_LOT)
 		{
-			WriteMemory<bool>(0xA97B38, false);
+			Write<bool>(HideCursor, false);
 			
 			// DIALOG_MSG_WORLDMAP_CARLOT
-			nfsc::FEDialogScreen_ShowDialog(nfsc::GetLocalizedString(0xBBE2483E), DIALOG_MSG_ACTIVATE_GPS, COMMON_CANCEL, nullptr);
+			NFSC::FEDialogScreen_ShowDialog(NFSC::GetLocalizedString(0xBBE2483E), DIALOG_MSG_ACTIVATE_GPS, COMMON_CANCEL, nullptr);
 
 			return;
 		}
-		else if (type == nfsc::world_map_state::safehouse)
+		else if (type == NFSC::FESM::WorldMap::SAFEHOUSE)
 		{
-			WriteMemory<bool>(0xA97B38, false);
+			Write<bool>(HideCursor, false);
 
 			// DIALOG_MSG_WORLDMAP_SAFEHOUSE
-			nfsc::FEDialogScreen_ShowDialog(nfsc::GetLocalizedString(0x8B776D3C), DIALOG_MSG_ACTIVATE_GPS, COMMON_CANCEL, nullptr);
+			NFSC::FEDialogScreen_ShowDialog(NFSC::GetLocalizedString(0x8B776D3C), DIALOG_MSG_ACTIVATE_GPS, COMMON_CANCEL, nullptr);
 
 			return;
 		}
 	}
 
-	WorldMapShowDialog(fe_state_manager);
+	Hooks::FEWorldMapStateManager_HandleShowDialog(fe_state_manager);
 }
 
-/*__declspec(naked) void hooks::CreateRoadBlockHook()
+/*__declspec(naked) void Hooks::CreateRoadBlockHook()
 {
 	__asm
 	{
@@ -1664,8 +1689,142 @@ void __fastcall hooks::WorldMapShowDialogHook(uintptr_t fe_state_manager)
 	}
 }*/
 
+bool __fastcall Hooks::DALWorldMap_GetBool_(uintptr_t dal_world_map, uintptr_t edx, int id, bool* result)
+{
+	*result = true;
+	return true;
+}
+
+// World Map Fat Line Mesh
+uintptr_t wm_flm = 0;
+/*
+void __fastcall Hooks::UpdateRaceRouteHook(uintptr_t minimap)
+{
+	UpdateRaceRoute(minimap);
+
+
+//////////////////////////////
+	uintptr_t flm = Read<uintptr_t>(minimap + 0x158);
+
+	if (wm_flm)
+	{
+		// dtor
+		reinterpret_cast<void(__thiscall*)(uintptr_t)>(0x7597C0)(wm_flm);
+		NFSC::free(wm_flm);
+	}
+	
+	// ctor
+	wm_flm = reinterpret_cast<uintptr_t(__thiscall*)(uintptr_t, bool)>(0x759690)(NFSC::malloc(0x160), false);
+
+	// copy mBuildData
+	memcpy(Read<void*>(wm_flm + 0), Read<void*>(flm + 0), 0x5C);
+
+//////////////////
+}
+*/
+
+/*
+void __fastcall Hooks::MinimapDestructorHook(uintptr_t minimap)
+{
+	if (wm_flm)
+	{
+		// dtor
+		reinterpret_cast<void(__thiscall*)(uintptr_t)>(0x7597C0)(wm_flm);
+		NFSC::free(wm_flm);
+	}
+
+	uintptr_t flm = Read<uintptr_t>(minimap + 0x158);
+	wm_flm = flm;
+	Write<void*>(minimap + 0x158, nullptr);
+
+	MinimapDestructor(minimap);
+}
+*/
+
+/*
+void __fastcall Hooks::FLMMoveMaybeHook(uintptr_t flm, uintptr_t edx, void* vec2_a, void* vec2_b, void* vec2_c, void* vec2_d, float f)
+{
+	auto a = (NFSC::Vector2*)vec2_a;
+	auto b = (NFSC::Vector2*)vec2_b;
+	auto c = (NFSC::Vector2*)vec2_c;
+	auto d = (NFSC::Vector2*)vec2_d;
+
+	//Error("A: { %.2f, %.2f }\nB: { %.2f, %.2f }\nC: { %.2f, %.2f }\nC: { %.2f, %.2f }", a->x, a->y, b->x, b->y, c->x, c->y, d->x, d->y);
+
+	float x = g::flm::x;
+	float y = g::flm::y;
+	float scale = g::flm::scale;
+
+	if (!g::flm::custom)
+	{
+		if (NFSC::BulbToys_IsGameNFSCO())
+		{
+			x = 287.f;
+		}
+		else
+		{
+			x = -9.f;
+		}
+
+		y = 451.f;
+		scale = 1.27f;
+	}
+
+
+	a->x -= x;
+	a->y -= y;
+	b->x -= x;
+	b->y -= y;
+	c->x -= x;
+	c->y -= y;
+	d->x -= x;
+	d->y -= y;
+
+	a->x *= scale;
+	a->y *= scale;
+	b->x *= scale;
+	b->y *= scale;
+	c->x *= scale;
+	c->y *= scale;
+	d->x *= scale;
+	d->y *= scale;
+
+	FLMMoveMaybe(flm, edx, vec2_a, vec2_b, vec2_c, vec2_d, f);
+}
+*/
+
+void __stdcall Hooks::cFEngRender_RenderTerritoryBorder_(uintptr_t object)
+{
+	if (NFSC::BulbToys_GetGameFlowState() == NFSC::GFS::IN_FRONTEND)
+	{
+		if (wm_flm)
+		{
+			// dtor
+			reinterpret_cast<void(__thiscall*)(uintptr_t)>(0x7597C0)(wm_flm);
+			NFSC::free(wm_flm);
+		}
+	}
+
+	if (!wm_flm)
+	{
+		Hooks::cFEngRender_RenderTerritoryBorder(object);
+		return;
+	}
+
+	NFSC::Vector2 min = { -100000, -100000 };
+	NFSC::Vector2 max = { +100000, +100000 };
+
+	// FatLineMesh::SetMaskBoundingBox
+	reinterpret_cast<void(__thiscall*)(uintptr_t, NFSC::Vector2*, NFSC::Vector2*)>(0x740940)(wm_flm, &min, &max);
+
+	uintptr_t territory = Read<uintptr_t>(0xA977F8);
+
+	// FatLineMesh::RenderFE(wm_flm, FEWorldMapTerritory::sInstance->views, &FEWorldMapTerritory::sInstance->matrix)
+	reinterpret_cast<void(__thiscall*)(uintptr_t, uintptr_t, uintptr_t)>(0x74F0B0)(wm_flm, Read<uintptr_t>(territory + 0xA0), territory + 0x50);
+}
+
 uintptr_t IVehicle_temp;
-__declspec(naked) void hooks::UpdateCopElementsHook1()
+__declspec(naked) void Hooks::UpdateCopElementsHook1()
 {
 	__asm
 	{
@@ -1685,7 +1844,7 @@ __declspec(naked) void hooks::UpdateCopElementsHook1()
 constexpr uintptr_t AIVehicle_GetVehicle = 0x406700;
 constexpr uintptr_t PVehicle_IsDestroyed = 0x6D8030;
 constexpr uintptr_t Minimap_GetCurrCopElementColor = 0x5D2200;
-__declspec(naked) void hooks::UpdateCopElementsHook2()
+__declspec(naked) void Hooks::UpdateCopElementsHook2()
 {
 	__asm
 	{
@@ -1714,7 +1873,7 @@ constexpr uintptr_t AIPursuit_Attach = 0x412850;
 uintptr_t AIPursuit;
 uintptr_t AIRoadBlock;
 //uintptr_t IVehicle;
-__declspec(naked) void hooks::UpdateRoadBlocksHook()
+__declspec(naked) void Hooks::UpdateRoadBlocksHook()
 {
 	__asm
 	{
@@ -1790,7 +1949,7 @@ __declspec(naked) void hooks::UpdateRoadBlocksHook()
 }
 */
 
-__declspec(naked) void hooks::MoveVinylVerticalHook()
+__declspec(naked) void Hooks::MoveVinylVerticalHook()
 {
 	__asm
 	{
@@ -1813,7 +1972,7 @@ __declspec(naked) void hooks::MoveVinylVerticalHook()
 	}
 }
 
-__declspec(naked) void hooks::MoveVinylHorizontalHook()
+__declspec(naked) void Hooks::MoveVinylHorizontalHook()
 {
 	__asm
 	{
@@ -1836,7 +1995,7 @@ __declspec(naked) void hooks::MoveVinylHorizontalHook()
 	}
 }
 
-__declspec(naked) void hooks::VehicleChangeCacheHook()
+__declspec(naked) void Hooks::VehicleChangeCacheHook()
 {
 	__asm
 	{
@@ -1859,7 +2018,7 @@ constexpr uintptr_t PhysicsObject_IsPlayer = 0x6D6C30;
 constexpr uintptr_t PVehicle_GetSimable = 0x6D7EC0;
 // void __thiscall UTL::ListableSet<IVehicle,12,enum eVehicleList,12>::AddToList(char *this, eVehicleList list)
 constexpr uintptr_t AddToList = 0x6CFBA0;
-__declspec(naked) void hooks::UpdateAIPlayerListingHook()
+__declspec(naked) void Hooks::UpdateAIPlayerListingHook()
 {
 	__asm
 	{
@@ -1888,7 +2047,7 @@ __declspec(naked) void hooks::UpdateAIPlayerListingHook()
 	}
 }
 
-__declspec(naked) void hooks::PTagBustedHook()
+__declspec(naked) void Hooks::PTagBustedHook()
 {
 	__asm
 	{
@@ -1896,12 +2055,12 @@ __declspec(naked) void hooks::PTagBustedHook()
 		// TODO: use pursuit contributions instead?
 
 		// In the __fastcall calling convention, the first argument is stored in ecx (pointer to GRaceStatus instance)
-		mov     ecx, nfsc::GRaceStatus
+		mov     ecx, NFSC::GRaceStatus
 		mov     ecx, [ecx]
 
 		// The second argument is stored in edx (is_busted (= true))
 		mov     edx, 1
-		call    nfsc::BulbToys_SwitchPTagTarget
+		call    NFSC::BulbToys_SwitchPTagTarget
 
 		push    0x44A59B
 		ret
@@ -1910,11 +2069,11 @@ __declspec(naked) void hooks::PTagBustedHook()
 	}
 }
 
-__declspec(naked) void hooks::DebugActionDropCarHook()
+__declspec(naked) void Hooks::DebugActionDropCarHook()
 {
 	__asm
 	{
-		call    nfsc::BulbToys_DebugActionDropCar
+		call    NFSC::BulbToys_DebugActionDropCar
 
 		// Return to the end of the case instead of where we left off
 		push    0x49321D
@@ -1922,7 +2081,7 @@ __declspec(naked) void hooks::DebugActionDropCarHook()
 	}
 }
 
-__declspec(naked) void hooks::NoWingmanSoundHook()
+__declspec(naked) void Hooks::NoWingmanSoundHook()
 {
 	__asm
 	{
@@ -1937,6 +2096,19 @@ __declspec(naked) void hooks::NoWingmanSoundHook()
 
 	skip:
 		push    0x7939AB
+		ret
+	}
+}
+
+constexpr uintptr_t WorldMap_AddPlayerIcon = 0x5ACB50;
+__declspec(naked) void Hooks::NoIconsWorldMapHook()
+{
+	__asm
+	{
+		mov     ecx, esi
+		call    WorldMap_AddPlayerIcon
+
+		push    0x5CDBC0
 		ret
 	}
 }
