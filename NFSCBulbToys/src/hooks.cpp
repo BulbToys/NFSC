@@ -62,6 +62,7 @@ bool Hooks::SetupPart2(uintptr_t device)
 {
 	GUI::SetupMenu(reinterpret_cast<IDirect3DDevice9*>(device));
 
+	// todo vtable patching doesn't work for this?
 	CreateHook(Virtual<42>(device), &ID3DDevice9_EndScene_, &ID3DDevice9_EndScene);
 	CreateHook(Virtual<16>(device), &ID3DDevice9_Reset_, &ID3DDevice9_Reset);
 
