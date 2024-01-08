@@ -2,6 +2,8 @@
 
 MH_STATUS Hooks::CreateHook(void* address, void* hook, void* call = nullptr)
 {
+	ASSERT(address != nullptr);
+
 	auto status = MH_CreateHook(reinterpret_cast<void*>(address), hook, reinterpret_cast<void**>(call));
 	if (status != MH_OK)
 	{
@@ -75,7 +77,7 @@ bool Hooks::SetupPart2(uintptr_t device)
 	CREATE_HOOK(AITrafficManager_NeedsTraffic);
 
 	// Optionally override whether racers should be pursued or not
-	CREATE_HOOK(AICopManager_CanPursueRacers);
+	CREATE_VTABLE_PATCH(0x9C3B58, AICopManager_CanPursueRacers);
 
 	// Smart AI hooks
 	// - Make autopilot drive to the location marked by the GPS
