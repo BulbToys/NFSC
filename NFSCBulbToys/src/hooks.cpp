@@ -116,13 +116,13 @@ bool Hooks::SetupPart2(uintptr_t device)
 	CREATE_HOOK(FE_ShowWinningPostRaceScreen);
 
 	// Instead of resuming career, reload the Career menu if we load a save (or if we create a new one (Patches::MemcardManagement))
-	CREATE_VTABLE_PATCH(0x5BD860, FECareerStateManager_HandleChildFlowDone);
+	CREATE_VTABLE_PATCH(0x9D26BC, FECareerStateManager_HandleChildFlowDone);
 
 	// Custom encounter vehicles
 	CREATE_HOOK(AITrafficManager_GetAvailablePresetVehicle);
 
 	// Replace "Dump Preset" with "Add to My Cars" for DebugCarCustomize
-	CREATE_VTABLE_PATCH(0x854890, FEDebugCarStateManager_HandlePadButton3);
+	CREATE_VTABLE_PATCH(0x9FB518, FEDebugCarStateManager_HandlePadButton3);
 
 	// Reset GRaceStatus vehicle count to 0 when the race ends
 	CREATE_HOOK(GRaceStatus_SetRoaming);
