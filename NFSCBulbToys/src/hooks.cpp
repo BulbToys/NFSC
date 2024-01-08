@@ -221,7 +221,7 @@ bool Hooks::SetupPart2(uintptr_t device)
 	// Fix crash when spawning a wingman lacking speech
 	PatchJMP(0x793914, NoWingmanSoundHook, 6);
 
-	PatchJMP(0x5CD975, NoIconsWorldMapHook, 6);
+	//PatchJMP(0x5CD975, NoIconsWorldMapHook, 6);
 	
 	return true;
 }
