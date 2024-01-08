@@ -166,9 +166,9 @@ bool Hooks::SetupPart2(uintptr_t device)
 
 	// Spectator HUD
 	CREATE_HOOK(DALVehicle_GetIVehicle);
-	CREATE_VTABLE_PATCH(PtrVirtual<1>(0x9D6C50), Tachometer_Update);
-	CREATE_VTABLE_PATCH(PtrVirtual<1>(0x9D6A64), NitrousGauge_Update);
-	CREATE_VTABLE_PATCH(PtrVirtual<1>(0x9D6ADC), SpeedbreakerMeter_Update);
+	CREATE_VTABLE_PATCH(0x9D6C50 + 0x4, Tachometer_Update);
+	CREATE_VTABLE_PATCH(0x9D6A64 + 0x4, NitrousGauge_Update);
+	CREATE_VTABLE_PATCH(0x9D6ADC + 0x4, SpeedbreakerMeter_Update);
 
 	CREATE_HOOK(DALWorldMap_GetBool);
 

@@ -156,14 +156,14 @@ inline void Unpatch(uintptr_t address, bool low_priority = false)
 	delete p;
 }
 
-// Returns address to virtual function at <index>
+// Returns THE ADDRESS to the virtual function at <index> in the virtual table of this_
 template <int index>
 inline uintptr_t Virtual(uintptr_t this_)
 {
 	return Read<uintptr_t>(Read<uintptr_t>(this_) + index * 4);
 }
 
-// Returns a pointer to the virtual function at <index> in the virtual table of this_
+// Returns A POINTER TO THE ADDRESS of the virtual function at <index> in the virtual table of this_
 template <int index>
 inline uintptr_t PtrVirtual(uintptr_t this_)
 {
