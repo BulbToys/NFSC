@@ -388,37 +388,52 @@ namespace NFSC
 		return result;
 	}
 
-	FUNC(0x436820, void, __thiscall, AIGoal_AddAction, uintptr_t goal, char const* name);
-	FUNC(0x42A2D0, void, __thiscall, AIGoal_ChooseAction, uintptr_t goal, float dt);
-	FUNC(0x42A240, void, __thiscall, AIGoal_ClearAllActions, uintptr_t goal);
+	FUNC(0x436820, void, __thiscall, AIGoal_AddAction, uintptr_t ai_goal, char const* name);
+	FUNC(0x42A2D0, void, __thiscall, AIGoal_ChooseAction, uintptr_t ai_goal, float dt);
+	FUNC(0x42A240, void, __thiscall, AIGoal_ClearAllActions, uintptr_t ai_goal);
 
-	FUNC(0x40EBC0, bool, __thiscall, AITarget_GetVehicleInterface, uintptr_t target, uintptr_t* ivehicle);
-	FUNC(0x429C80, void, __thiscall, AITarget_Acquire, uintptr_t target, uintptr_t simable);
+	FUNC(0x40EBC0, bool, __thiscall, AITarget_GetVehicleInterface, uintptr_t ai_target, uintptr_t* i_vehicle);
+	FUNC(0x429C80, void, __thiscall, AITarget_Acquire, uintptr_t ai_target, uintptr_t simable);
+
+	FUNC(0x43BD80, uintptr_t, __thiscall, AIVehicle_GetPursuit, uintptr_t ai_vehicle);
 
 	FUNC(0x4639D0, uint32_t, , Attrib_StringToKey, const char* string);
 
-	FUNC(0x48D620, void, , CameraAI_SetAction, int eview, const char* name);
+	FUNC(0x46DFD0, uint16_t, , bATan, float x, float y);
+
+	FUNC(0x48D620, void, , CameraAI_SetAction, int e_view, const char* name);
 
 	FUNC(0x65B000, void, , ChangeLocalPlayerCameraInfo);
 
-	FUNC(0x571040, void, , FE_Image_SetTextureHash, uintptr_t image, uint32_t key);
+	FUNC(0x4A0890, char, __stdcall, DALCareer_GetPodiumVehicle, uint32_t* index);
+
+	FUNC(0x4D1DE0, char, __stdcall, DALFeVehicle_AddCarToMyCarsDB, uint32_t index);
+
+	FUNC(0x6F7790, float, __thiscall, DamageVehicle_GetHealth, uintptr_t damage_vehicle);
+
+	FUNC(0x571040, void, , FE_Image_SetTextureHash, uintptr_t fe_image, uint32_t key);
+
+	FUNC(0x572B90, uintptr_t, __thiscall, FEManager_GetUserProfile, uintptr_t fe_manager, int index);
 
 	FUNC(0x5A0250, uintptr_t, , FE_Object_FindObject, const char* package_name, uint32_t key);
-	FUNC(0x597900, void, , FE_Object_GetCenter, uintptr_t object, float* x, float* y);
-	FUNC(0x570CC0, void, , FE_Object_SetColor, uintptr_t object, FEColor* color);
-	FUNC(0x570460, void, , FE_Object_SetVisibility, uintptr_t object, bool visible);
+	FUNC(0x597900, void, , FE_Object_GetCenter, uintptr_t fe_object, float* x, float* y);
+	FUNC(0x570CC0, void, , FE_Object_SetColor, uintptr_t fe_object, FEColor* color);
+	FUNC(0x570460, void, , FE_Object_SetVisibility, uintptr_t fe_object, bool visible);
 
 	FUNC(0x5711C0, uint32_t, , FE_String_HashString, const char* fmt, ...);
 	FUNC(0x583B10, void, , FE_String_SetString, uintptr_t object, const wchar_t* wide_string);
 
 	FUNC(0x5CDEA0, void, , FEDialogScreen_ShowDialog, const char* message, const char* button1, const char* button2, const char* button3);
 
-	FUNC(0x579200, void, __thiscall, FEStateManager_ChangeState, uintptr_t state_manager, int current_state);
-	FUNC(0x5A53A0, void, __thiscall, FEStateManager_PopBack, uintptr_t state_manager, int next_state);
-	FUNC(0x579C10, void, __thiscall, FEStateManager_ShowDialog, uintptr_t state_manager, int next_state);
+	FUNC(0x579200, void, __thiscall, FEStateManager_ChangeState, uintptr_t fe_state_manager, int current_state);
+	FUNC(0x5792A0, bool, __thiscall, FEStateManager_IsGameMode, uintptr_t fe_manager, int efegamemode);
+	FUNC(0x5A53A0, void, __thiscall, FEStateManager_PopBack, uintptr_t fe_state_manager, int next_state);
+	FUNC(0x579C10, void, __thiscall, FEStateManager_ShowDialog, uintptr_t fe_state_manager, int next_state);
+	FUNC(0x59B140, void, __thiscall, FEStateManager_Switch, uintptr_t fe_state_manager, const char* next_screen, uint32_t leave_message, int next_state, int screens_to_pop);
 
 	FUNC(0x65C330, void, , Game_ClearAIControl, int unk);
 	FUNC(0x65C2C0, void, , Game_ForceAIControl, int unk);
+	FUNC(0x6517E0, uintptr_t, , Game_GetWingman, uintptr_t i_simable);
 	FUNC(0x65D620, uintptr_t, , Game_PursuitSwitch, int racer_index, bool is_busted, int* result);
 	FUNC(0x651750, void, , Game_SetAIGoal, uintptr_t simable, const char* goal);
 	FUNC(0x6513E0, void, , Game_SetCopsEnabled, bool enable);
@@ -427,6 +442,8 @@ namespace NFSC
 	FUNC(0x667FF0, void, , Game_UnlockNikki);
 
 	FUNC(0x578830, const char*, , GetLocalizedString, uint32_t key);
+	FUNC(0x55CFD0, uintptr_t, , GetTextureInfo, uint32_t key, int return_default_texture_if_not_found, int include_unloaded_textures);
+	FUNC(0x5D89B0, void, , GetVehicleVectors, NFSC::Vector2& position, NFSC::Vector2& direction, uintptr_t i_simable);
 
 	FUNC(0x627840, void, __thiscall, GIcon_Spawn, uintptr_t icon);
 
@@ -458,6 +475,7 @@ namespace NFSC
 	FUNC(0x6C6740, bool, __thiscall, PhysicsObject_Attach, uintptr_t physics_object, uintptr_t player);
 	FUNC(0x6D6C40, uintptr_t, __thiscall, PhysicsObject_GetPlayer, uintptr_t physics_object);
 	FUNC(0x6D6CD0, uintptr_t, __thiscall, PhysicsObject_GetRigidBody, uintptr_t physics_object);
+	FUNC(0x6D6D10, uint32_t, __thiscall, PhysicsObject_GetWorldID, uintptr_t physics_object);
 	FUNC(0x6D19A0, void, __thiscall, PhysicsObject_Kill, uintptr_t physics_object);
 
 	FUNC(0x803B40, bool, , Props_CreateInstance, uintptr_t& placeable_scenery, const char* name, uint32_t attributes);
@@ -503,6 +521,7 @@ namespace NFSC
 
 	FUNC(0x56E770, void, , WorldMap_ConvertPos, float& x, float& y, Vector2& track_map_tl, Vector2& track_map_size);
 	FUNC(0x5ACA90, void, __thiscall, WorldMap_GetPanFromMapCoordLocation, uintptr_t world_map, Vector2* output, Vector2* input);
+	FUNC(0x582E60, bool, __thiscall, WorldMap_IsInPursuit, uintptr_t world_map);
 	FUNC(0x582C30, void, , WorldMap_SetGPSIng, uintptr_t icon);
 
 	FUNC(0x7F7BF0, void, __thiscall, WRoadNav_Destructor, WRoadNav& nav);

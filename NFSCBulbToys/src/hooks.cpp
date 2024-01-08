@@ -475,7 +475,7 @@ uintptr_t __fastcall Hooks::GRacerInfo_CreateVehicle_(uintptr_t racer_info, uint
 			NFSC::AIPlayer* ai_player = NFSC::AIPlayer::New();
 
 			// bool (PhysicsObject) ISimable::Attach(ISimable*, IPlayer*)
-			reinterpret_cast<bool(__thiscall*)(uintptr_t, void*)>(0x6C6740)(racer_simable, &ai_player->IPlayer);
+			NFSC::PhysicsObject_Attach(racer_simable, reinterpret_cast<uintptr_t>(&ai_player->IPlayer));
 			
 			// In PTAG, opponents start as cops first
 			int _;
@@ -595,8 +595,7 @@ float __fastcall Hooks::GRaceParameters_GetTimeLimit_(uintptr_t race_parameters)
 {
 	if (NFSC::BulbToys_GetRaceType() == NFSC::GRaceType::PURSUIT_TAG)
 	{
-		// FEManager::GetUserProfile(FEManager::mInstance, 0);
-		uintptr_t user_profile = reinterpret_cast<uintptr_t(__thiscall*)(uintptr_t, int)>(0x572B90)(Read<uintptr_t>(NFSC::FEManager), 0);
+		uintptr_t user_profile = NFSC::FEManager_GetUserProfile(Read<uintptr_t>(NFSC::FEManager), 0);
 
 		// user_profile->mRaceSettings[11 (== PTag)].lap_count;
 		int num_laps = Read<uint8_t>(user_profile + 0x2B258);
@@ -638,8 +637,7 @@ void __fastcall Hooks::FECareerStateManager_HandleChildFlowDone_(uintptr_t fe_ca
 
 	if (cur_state == 15)
 	{
-		// FEStateManager::Switch(this, "FeMainMenu_Sub.fng", 0x93E8A57C, 1, 1);
-		reinterpret_cast<void(__thiscall*)(uintptr_t, const char*, uint32_t, int, int)>(0x59B140)(fe_career_state_manager, "FeMainMenu_Sub.fng", 0x93E8A57C, 1, 1);
+		NFSC::FEStateManager_Switch(fe_career_state_manager, "FeMainMenu_Sub.fng", 0x93E8A57C, 1, 1);
 	}
 	else
 	{
@@ -660,12 +658,9 @@ uintptr_t __fastcall Hooks::AITrafficManager_GetAvailablePresetVehicle_(uintptr_
 
 void __fastcall Hooks::FEDebugCarStateManager_HandlePadButton3_(uintptr_t fe_debugcar_state_manager)
 {
-	// DALCareer::GetPodiumVehicle(&index);
 	uint32_t index = 0;
-	reinterpret_cast<char(__stdcall*)(uint32_t*)>(0x4A0890)(&index);
-	
-	// DALFeVehicle::AddCarToMyCarsDB(index)
-	reinterpret_cast<char(__stdcall*)(uint32_t)>(0x4D1DE0)(index);
+	NFSC::DALCareer_GetPodiumVehicle(&index);
+	NFSC::DALFeVehicle_AddCarToMyCarsDB(index);
 }
 
 void __fastcall Hooks::GRaceStatus_SetRoaming_(uintptr_t g_race_status)
@@ -698,7 +693,7 @@ void __fastcall Hooks::CarRenderConn_UpdateIcon_(uintptr_t car_render_conn, uint
 		uintptr_t vehicle = NFSC::VehicleList[NFSC::VLType::AI_COPS]->begin[i];
 		uintptr_t simable = NFSC::PVehicle_GetSimable(vehicle);
 
-		uint32_t simable_wid = reinterpret_cast<uint32_t(__thiscall*)(uintptr_t)>(0x6D6D10)(simable);
+		uint32_t simable_wid = NFSC::PhysicsObject_GetWorldID(simable);
 
 		if (simable_wid == world_id)
 		{
@@ -714,13 +709,12 @@ void __fastcall Hooks::CarRenderConn_UpdateIcon_(uintptr_t car_render_conn, uint
 
 	// Set icon
 	constexpr uint32_t INGAME_ICON_PLAYERCAR = 0x3E9CCFFA;
-	Write<uintptr_t>(car_render_conn + 0x1AC, reinterpret_cast<uintptr_t(*)(uint32_t, int, int)>(0x55CFD0)(INGAME_ICON_PLAYERCAR, 1, 0));
+	Write<uintptr_t>(car_render_conn + 0x1AC, NFSC::GetTextureInfo(INGAME_ICON_PLAYERCAR, 1, 0));
 
 	// Set scale
 	Write<float>(car_render_conn + 0x1B4, 0.5f);
 
-	// DamageVehicle::GetHealth
-	float health = reinterpret_cast<float(__thiscall*)(uintptr_t)>(0x6F7790)(i_damageable);
+	float health = NFSC::DamageVehicle_GetHealth(i_damageable);
 
 	struct color_
 	{
@@ -810,7 +804,7 @@ uintptr_t __fastcall Hooks::GRaceStatus_GetMainBoss_(uintptr_t g_race_status)
 			return 0;
 		}
 
-		uintptr_t wingman_simable = reinterpret_cast<uintptr_t(*)(uintptr_t)>(0x6517E0)(my_simable);
+		uintptr_t wingman_simable = NFSC::Game_GetWingman(my_simable);
 		if (!wingman_simable)
 		{
 			return 0;
@@ -838,15 +832,13 @@ void __fastcall Hooks::WorldMap_AddPlayerCar_(uintptr_t world_map)
 	constexpr uint32_t PLAYERCARINDICATOR = 0xDD9EF5FF;
 	constexpr uint32_t MMICON_ROADBLOCK_4 = 0xCBD81AE5;
 
-	// FEStateManager::IsGameMode
-	if (!reinterpret_cast<bool(__thiscall*)(uintptr_t, int)>(0x5792A0)(Read<uintptr_t>(NFSC::FEManager), 0))
+	if (!NFSC::FEStateManager_IsGameMode(Read<uintptr_t>(NFSC::FEManager), 0))
 	{
 		// this->PackageFilename
 		char* package_name = Read<char*>(world_map + 0xC);
 		if (package_name)
 		{
-			// FE::Object::FindObject
-			uintptr_t object = reinterpret_cast<uintptr_t(*)(char*, uint32_t)>(0x5A0250)(package_name, PLAYERCARINDICATOR);
+			uintptr_t object = NFSC::FE_Object_FindObject(package_name, PLAYERCARINDICATOR);
 
 			// Type == FE_Image
 			if (object && Read<int>(object + 0x18) == 1)
@@ -873,8 +865,7 @@ void __fastcall Hooks::WorldMap_AddPlayerCar_(uintptr_t world_map)
 						}
 						else
 						{
-							// WorldMap::IsInPursuit
-							if (reinterpret_cast<bool(__thiscall*)(uintptr_t)>(0x582E60)(world_map))
+							if (NFSC::WorldMap_IsInPursuit(world_map))
 							{
 								continue;
 							}
@@ -896,13 +887,13 @@ void __fastcall Hooks::WorldMap_AddPlayerCar_(uintptr_t world_map)
 						NFSC::Vector2 position, direction;
 
 						// GetVehicleVectors
-						reinterpret_cast<void(*)(NFSC::Vector2&, NFSC::Vector2&, uintptr_t)>(0x5D89B0)(position, direction, NFSC::PVehicle_GetSimable(racer));
+						NFSC::GetVehicleVectors(position, direction, NFSC::PVehicle_GetSimable(racer));
 
 						NFSC::WorldMap_ConvertPos(position.x, position.y, *reinterpret_cast<NFSC::Vector2*>(world_map + 0x44),
 							*reinterpret_cast<NFSC::Vector2*>(world_map + 0x4C));
 
 						// bATan
-						float rotation = reinterpret_cast<uint16_t(*)(float, float)>(0x46DFD0)(direction.y, direction.x) * 0.0054931641f;
+						float rotation = NFSC::bATan(direction.y, direction.x) * 0.0054931641f;
 
 						map_item = NFSC::MapItem_MapItem(map_item, 1, new_object, position, rotation, 0, 0);
 						if (map_item)
@@ -1054,14 +1045,14 @@ bool __fastcall Hooks::AITrafficManager_SpawnEncounter_(uintptr_t traffic_manage
 	}
 
 	// AIVehicle::GetPursuit
-	uintptr_t pursuit = reinterpret_cast<uintptr_t(__thiscall*)(uintptr_t)>(0x43BD80)(vehicle_ai);
+	uintptr_t pursuit = NFSC::AIVehicle_GetPursuit(vehicle_ai);
 	if (pursuit)
 	{
 		return false;
 	}
 
 	// AITrafficManager::NeedsEncounter - returns false if a SPAWNED/ACTIVE racer already exists
-	if (!reinterpret_cast<bool(__thiscall*)(uintptr_t)>(0x422BF0)(traffic_manager))
+	if (!Hooks::AITrafficManager_NeedsEncounter_(traffic_manager))
 	{
 		return false;
 	}
@@ -1136,6 +1127,7 @@ bool __fastcall Hooks::AITrafficManager_SpawnEncounter_(uintptr_t traffic_manage
 	fwd_vec.y = -nav.fForwardVector.y;
 	fwd_vec.z = -nav.fForwardVector.z;
 
+	// AITrafficManager::GetAvailablePresetVehicle
 	encounter_vehicle = reinterpret_cast<uintptr_t(__thiscall*)(uintptr_t, uint32_t, uint32_t)>(0x42CB70)
 		(traffic_manager, Read<uint32_t>(traffic_manager + 0x120), Read<uint32_t>(traffic_manager + 0x128));
 	if (!encounter_vehicle)
