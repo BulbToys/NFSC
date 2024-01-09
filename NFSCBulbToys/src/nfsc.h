@@ -622,7 +622,9 @@ namespace NFSC
 
 	inline bool BulbToys_IsGameNFSCO()
 	{
-		return NFSC::VehicleList[NFSC::VLType::ALL]->capacity == 100;
+		//return NFSC::VehicleList[NFSC::VLType::ALL]->capacity == 100;
+
+		return *reinterpret_cast<uint32_t*>(0x692539) == 28;
 	}
 
 	inline bool BulbToys_IsPlayerLocal(uintptr_t player);
