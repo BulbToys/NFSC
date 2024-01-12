@@ -2213,6 +2213,13 @@ void GUI::Render()
 			}
 		}
 
+		// DALRacer::GetAvgSpeed(float* ret, int racer_index)
+		float avg_speed = 0;
+		if (reinterpret_cast<bool(__stdcall*)(float*, int)>(0x4CA4D0)(&avg_speed, 0))
+		{
+			ImGui::Text("TEST: Average speed: %.2f", avg_speed);
+		}
+
 		/* ===== LOGGING ===== */
 		GUI::the_logger.Print(update, overlays::logging);
 
