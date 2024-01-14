@@ -967,6 +967,20 @@ void GUI::Render()
 			/* ===== FRONTEND ===== */
 			if (ImGui::BulbToys_Menu("Frontend", &menu[id++]))
 			{
+				// Stop on Alt-Tab
+				static bool stop = true;
+				if (ImGui::Checkbox("Stop on Alt-Tab", &stop))
+				{
+					if (stop)
+					{
+						Unpatch(0x711F0A, true);
+					}
+					else
+					{
+						PatchNOP(0x711F0A, 8);
+					}
+				}
+
 				// UnlockAll
 				ImGui::Checkbox("UnlockAll", reinterpret_cast<bool*>(0xA9E6C0));
 
