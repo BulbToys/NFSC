@@ -1767,10 +1767,15 @@ void GUI::Render()
 					}
 				}
 
+				ImGui::Separator();
+
+				// Override FLM
+				/*
 				ImGui::Checkbox("Override FLM", &g::flm::custom);
 				ImGui::BulbToys_SliderFloat("X", "##FLMX", &g::flm::x, -10000, 10000);
 				ImGui::BulbToys_SliderFloat("Y", "##FLMY", &g::flm::y, -10000, 10000);
 				ImGui::BulbToys_SliderFloat("Scale", "##FLMScale", &g::flm::scale, 0.1, 2);
+				
 
 				if (uintptr_t territory = Read<uintptr_t>(0xA977F8))
 				{
@@ -1790,8 +1795,10 @@ void GUI::Render()
 				}
 
 				ImGui::Separator();
+				*/
 
-				if (ImGui::Button("SSEverything"))
+				// Screenshot Everything
+				if (ImGui::Button("Screenshot Everything"))
 				{
 					const char* target_ids[]
 					{
@@ -2088,7 +2095,7 @@ void GUI::Render()
 		ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoBackground))
 	{
 		/* ===== MAIN ===== */
-		ImGui::Text("%u FPS | Powered by BulbToys %d - " __DATE__ " " __TIME__, fps, REV_COUNT + 1);
+		ImGui::Text("%u FPS | Powered by BulbToys (Build %d - " __DATE__ " " __TIME__ ")", fps, REV_COUNT + 1);
 		auto draw_list = ImGui::GetWindowDrawList();
 
 		/* ===== STOPWATCH ====== */
