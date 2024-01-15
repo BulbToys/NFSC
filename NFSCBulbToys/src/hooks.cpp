@@ -831,9 +831,7 @@ uintptr_t __fastcall Hooks::GRaceStatus_GetMainBoss_(uintptr_t g_race_status)
 }
 void __fastcall Hooks::WorldMap_AddPlayerCar_(uintptr_t world_map)
 {
-	constexpr uint32_t PLAYERCARINDICATOR = 0xDD9EF5FF;
-	constexpr uint32_t MMICON_ROADBLOCK_4 = 0xCBD81AE5;
-
+	// eFE_GAME_MODE_CAREER
 	if (NFSC::FEStateManager_IsGameMode(Read<uintptr_t>(NFSC::FEManager), 0))
 	{
 		return;
@@ -846,6 +844,7 @@ void __fastcall Hooks::WorldMap_AddPlayerCar_(uintptr_t world_map)
 		return;
 	}
 
+	constexpr uint32_t PLAYERCARINDICATOR = 0xDD9EF5FF;
 	uintptr_t object = NFSC::FE_Object_FindObject(package_name, PLAYERCARINDICATOR);
 	if (!object)
 	{
