@@ -834,121 +834,88 @@ void __fastcall Hooks::WorldMap_AddPlayerCar_(uintptr_t world_map)
 	constexpr uint32_t PLAYERCARINDICATOR = 0xDD9EF5FF;
 	constexpr uint32_t MMICON_ROADBLOCK_4 = 0xCBD81AE5;
 
-	if (!NFSC::FEStateManager_IsGameMode(Read<uintptr_t>(NFSC::FEManager), 0))
+	if (NFSC::FEStateManager_IsGameMode(Read<uintptr_t>(NFSC::FEManager), 0))
 	{
-		// this->PackageFilename
-		char* package_name = Read<char*>(world_map + 0xC);
-		if (package_name)
+		return;
+	}
+
+	// this->PackageFilename
+	auto package_name = Read<char*>(world_map + 0xC);
+	if (!package_name)
+	{
+		return;
+	}
+
+	uintptr_t object = NFSC::FE_Object_FindObject(package_name, PLAYERCARINDICATOR);
+	if (!object)
+	{
+		return;
+	}
+
+	// object->Type != FE_Image
+	if (Read<int>(object + 0x18) != 1)
+	{
+		return;
+	}
+
+	uintptr_t my_vehicle = 0;
+	NFSC::BulbToys_GetMyVehicle(&my_vehicle, nullptr);
+
+	auto list = NFSC::VehicleList[NFSC::VLType::RACERS];
+	for (int i = 0; i < (int)list->size; i++)
+	{
+		uintptr_t new_object = 0;
+
+		auto racer = list->begin[i];
+		if (racer == my_vehicle)
 		{
-			uintptr_t object = NFSC::FE_Object_FindObject(package_name, PLAYERCARINDICATOR);
+			new_object = object;
 
-			// Type == FE_Image
-			if (object && Read<int>(object + 0x18) == 1)
+			NFSC::FEColor cyan = { 255, 255, 115, 255 };
+			NFSC::FE_Object_SetColor(new_object, &cyan);
+		}
+		else
+		{
+			if (NFSC::WorldMap_IsInPursuit(world_map))
 			{
-				uintptr_t my_vehicle = 0;
-				NFSC::BulbToys_GetMyVehicle(&my_vehicle, nullptr);
-
-				auto list = NFSC::VehicleList[NFSC::VLType::RACERS];
-				for (int i = 0; i < (int)list->size; i++)
-				{
-					// malloc
-					uintptr_t map_item = NFSC::malloc(0x30);
-					if (map_item)
-					{
-						uintptr_t new_object = 0;
-
-						auto racer = list->begin[i];
-						if (racer == my_vehicle)
-						{
-							new_object = object;
-
-							NFSC::FEColor cyan = { 255, 255, 115, 255 };
-							NFSC::FE_Object_SetColor(new_object, &cyan);
-						}
-						else
-						{
-							if (NFSC::WorldMap_IsInPursuit(world_map))
-							{
-								continue;
-							}
-							if (!NFSC::PVehicle_IsActive(racer))
-							{
-								continue;
-							}
-
-							// HIDING_SPOT_0 -> HIDING_SPOT_99
-							new_object = NFSC::FE_Object_FindObject(package_name, NFSC::FE_String_HashString("HIDING_SPOT_%d", i));
-
-							// FE::Image::SetTextureHash
-							NFSC::FE_Image_SetTextureHash(new_object, Read<uint32_t>(object + 0x24));
-
-							NFSC::FEColor orange = { 115, 195, 255, 255 };
-							NFSC::FE_Object_SetColor(new_object, &orange);
-						}
-
-						NFSC::Vector2 position, direction;
-
-						// GetVehicleVectors
-						NFSC::GetVehicleVectors(position, direction, NFSC::PVehicle_GetSimable(racer));
-
-						NFSC::WorldMap_ConvertPos(position.x, position.y, *reinterpret_cast<NFSC::Vector2*>(world_map + 0x44),
-							*reinterpret_cast<NFSC::Vector2*>(world_map + 0x4C));
-
-						// bATan
-						float rotation = NFSC::bATan(direction.y, direction.x) * 0.0054931641f;
-
-						map_item = NFSC::MapItem_MapItem(map_item, 1, new_object, position, rotation, 0, 0);
-						if (map_item)
-						{
-							// Add node to map items
-							uintptr_t node = map_item + 4;
-							uintptr_t prev = Read<uintptr_t>(world_map + 0x64 + 0x4);
-
-							Write<uintptr_t>(prev, node);
-							Write<uintptr_t>(world_map + 0x64 + 0x4, node);
-							Write<uintptr_t>(node + 4, prev);
-							Write<uintptr_t>(node, world_map + 0x64);
-						}
-					}
-				}
+				continue;
 			}
-			/*
-			uintptr_t gps_icon = Read<uintptr_t>(0xA977EC);
-			if (gps_icon)
+			if (!NFSC::PVehicle_IsActive(racer))
 			{
-				object = reinterpret_cast<uintptr_t(*)(char*, uint32_t)>(0x5A0250)(package_name, MMICON_ROADBLOCK_4);
-				if (object && Read<int>(object + 0x18) == 1)
-				{
-					uintptr_t map_item = NFSC::malloc(0x30);
-					if (map_item)
-					{
-						NFSC::Vector2 position = { Read<float>(gps_icon + 0x10), Read<float>(gps_icon + 0x10 + 4) };
-
-						NFSC::WorldMap_ConvertPos(position.x, position.y, *reinterpret_cast<NFSC::Vector2*>(world_map + 0x44),
-							*reinterpret_cast<NFSC::Vector2*>(world_map + 0x4C));
-
-						NFSC::FEColor white = { 255, 255, 255, 255 };
-						NFSC::FE_Object_SetColor(object, &white);
-
-						// MINIMAP_ICON_EVENT
-						NFSC::FE_Image_SetTextureHash(object, 0xB9358813);
-
-						map_item = NFSC::MapItem_MapItem(map_item, 1, object, position, 0.0, 0, gps_icon);
-						if (map_item)
-						{
-							// Add node to map items
-							uintptr_t node = map_item + 4;
-							uintptr_t prev = Read<uintptr_t>(world_map + 0x64 + 0x4);
-
-							Write<uintptr_t>(prev, node);
-							Write<uintptr_t>(world_map + 0x64 + 0x4, node);
-							Write<uintptr_t>(node + 4, prev);
-							Write<uintptr_t>(node, world_map + 0x64);
-						}
-					}
-				}
+				continue;
 			}
-			*/
+
+			// HIDING_SPOT_0 -> HIDING_SPOT_99
+			new_object = NFSC::FE_Object_FindObject(package_name, NFSC::FE_String_HashString("HIDING_SPOT_%d", i));
+
+			NFSC::FE_Image_SetTextureHash(new_object, Read<uint32_t>(object + 0x24));
+
+			NFSC::FEColor orange = { 115, 195, 255, 255 };
+			NFSC::FE_Object_SetColor(new_object, &orange);
+		}
+
+		uintptr_t map_item = NFSC::malloc(0x30);
+		if (map_item)
+		{
+			NFSC::Vector2 position, direction;
+			NFSC::GetVehicleVectors(position, direction, NFSC::PVehicle_GetSimable(racer));
+
+			// this->track_map_top_left, this->track_map_size
+			NFSC::WorldMap_ConvertPos(position.x, position.y, *reinterpret_cast<NFSC::Vector2*>(world_map + 0x44),
+				*reinterpret_cast<NFSC::Vector2*>(world_map + 0x4C));
+
+			float rotation = NFSC::bATan(direction.y, direction.x) * 0.0054931641f /* 360 / 65536 */;
+
+			map_item = NFSC::MapItem_MapItem(map_item, 1, new_object, position, rotation, 0, 0);
+
+			// Add node to map items
+			uintptr_t node = map_item + 4;
+			uintptr_t prev = Read<uintptr_t>(world_map + 0x64 + 0x4);
+
+			Write<uintptr_t>(prev, node);
+			Write<uintptr_t>(world_map + 0x64 + 0x4, node);
+			Write<uintptr_t>(node + 4, prev);
+			Write<uintptr_t>(node, world_map + 0x64);
 		}
 	}
 }
