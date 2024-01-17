@@ -42,7 +42,7 @@ namespace GUI
 	void SetupMenu(LPDIRECT3DDEVICE9 device);
 	void Destroy();
 	void Render();
-	void CreateMemoryWindow(uintptr_t addr);
+	void CreateMemoryWindow(uintptr_t addr, bool use_vprot);
 	void Detach();
 
 	struct MemoryWindow
@@ -58,17 +58,25 @@ namespace GUI
 		char* addr;
 		size_t size;
 
-		MemoryWindow(uintptr_t address, size_t size) : mem_edit(new MemoryEditor()), open(true), malloc(address == -1),
+		MemoryWindow(uintptr_t address, size_t size, bool use_vprot) : mem_edit(new MemoryEditor()), open(true), malloc(address == -1),
 			addr(malloc? new char[size] {0} : reinterpret_cast<char*>(address)), size(size)
 		{
+			const char* prefix = use_vprot ? "[VP] " : "";
+
 			title = new char[48];
 			if (malloc)
 			{
-				sprintf_s(title, 48, "Playground 0x%p##ME%u", addr, id++);
+				sprintf_s(title, 48, "%sPlayground 0x%p##ME%u", prefix, addr, id++);
 			}
 			else
 			{
-				sprintf_s(title, 48, "Memory Editor 0x%p##ME%u", addr, id++);
+				sprintf_s(title, 48, "%sMemory Editor 0x%p##ME%u", prefix, addr, id++);
+			}
+
+			if (use_vprot)
+			{
+				mem_edit->ReadFn = ReadFn;
+				mem_edit->WriteFn = WriteFn;
 			}
 		}
 
@@ -82,6 +90,9 @@ namespace GUI
 				delete[] addr;
 			}
 		}
+
+		static uint8_t ReadFn(const uint8_t* address, size_t offset);
+		static void WriteFn(uint8_t* address, size_t offset, uint8_t data);
 	};
 	inline uint32_t MemoryWindow::id = 0;
 	inline std::vector<MemoryWindow*> mem_windows;

@@ -885,14 +885,20 @@ void GUI::Render()
 
 				ImGui::Separator();
 
-				// New Memory Editor & + 0000
+				// Address
 				ImGui::InputText("##addr", GUI::input_addr, IM_ARRAYSIZE(GUI::input_addr), ImGuiInputTextFlags_CharsHexadecimal);
+
+				// Use VirtualProtect for new window
+				static bool use_vprot = false;
+				ImGui::Checkbox("Use VirtualProtect for new window", &use_vprot);
+
+				// New Memory Editor & + 0000
 				if (ImGui::Button("New Memory Editor"))
 				{
 					uintptr_t addr;
 					if (sscanf_s(GUI::input_addr, "%IX", &addr) == 1)
 					{
-						CreateMemoryWindow(addr);
+						CreateMemoryWindow(addr, use_vprot);
 					}
 				}
 				ImGui::SameLine();
@@ -901,14 +907,14 @@ void GUI::Render()
 					uintptr_t addr;
 					if (sscanf_s(GUI::input_addr, "%IX", &addr) == 1 && addr < 0xFFFF)
 					{
-						CreateMemoryWindow(addr * 0x10000);
+						CreateMemoryWindow(addr * 0x10000, use_vprot);
 					}
 				}
 
 				// New Playground
 				if (ImGui::Button("New Playground"))
 				{
-					CreateMemoryWindow(-1);
+					CreateMemoryWindow(-1, false);
 				}
 
 				ImGui::Separator();
@@ -2289,7 +2295,7 @@ void GUI::Render()
 }
 
 // Pass 0xFFFFFFFF (-1) as the address to make a Playground (memory allocated memory editor) instead
-void GUI::CreateMemoryWindow(uintptr_t address)
+void GUI::CreateMemoryWindow(uintptr_t address, bool use_vprot)
 {
 	// Add a unique ID "##ME<id>" to each memory editor to allow duplicate windows
 	static uint32_t id = 0;
@@ -2297,7 +2303,7 @@ void GUI::CreateMemoryWindow(uintptr_t address)
 	// Weak safety precaution in case of mistypes. Any non-readable memory will cause a crash, as well as writing to non-writable memory
 	if (address >= 0x400000)
 	{
-		mem_windows.push_back(new MemoryWindow(address, 0x10000));
+		mem_windows.push_back(new MemoryWindow(address, 0x10000, use_vprot));
 	}
 }
 
@@ -2361,4 +2367,29 @@ LRESULT CALLBACK WindowProcess(HWND window, UINT message, WPARAM wideParam, LPAR
 	}
 
 	return CallWindowProc(GUI::originalWindowProcess, window, message, wideParam, longParam);
+}
+
+uint8_t GUI::MemoryWindow::ReadFn(const uint8_t* address, size_t offset)
+{
+	uint8_t data = 0;
+
+	uint8_t* addy = const_cast<uint8_t*>(address);
+	addy += offset;
+
+	DWORD protection_flags = 0;
+	VirtualProtect(addy, 1, PAGE_EXECUTE_READWRITE, &protection_flags);
+	data = *addy;
+	VirtualProtect(addy, 1, protection_flags, &protection_flags);
+
+	return data;
+}
+
+void GUI::MemoryWindow::WriteFn(uint8_t* address, size_t offset, uint8_t data)
+{
+	address += offset;
+
+	DWORD protection_flags = 0;
+	VirtualProtect(address, 1, PAGE_EXECUTE_READWRITE, &protection_flags);
+	*address = data;
+	VirtualProtect(address, 1, protection_flags, &protection_flags);
 }
