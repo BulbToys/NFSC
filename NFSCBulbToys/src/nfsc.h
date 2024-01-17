@@ -422,7 +422,7 @@ namespace NFSC
 
 	FUNC(0x4A0890, char, __stdcall, DALCareer_GetPodiumVehicle, uint32_t* index);
 
-	FUNC(0x4D1DE0, char, __stdcall, DALFeVehicle_AddCarToMyCarsDB, uint32_t index);
+	FUNC(0x4D1DE0, bool, __stdcall, DALFeVehicle_AddCarToMyCarsDB, uint32_t index);
 
 	FUNC(0x6F7790, float, __thiscall, DamageVehicle_GetHealth, uintptr_t damage_vehicle);
 

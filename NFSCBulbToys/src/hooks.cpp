@@ -662,7 +662,14 @@ void __fastcall Hooks::FEDebugCarStateManager_HandlePadButton3_(uintptr_t fe_deb
 {
 	uint32_t index = 0;
 	NFSC::DALCareer_GetPodiumVehicle(&index);
-	NFSC::DALFeVehicle_AddCarToMyCarsDB(index);
+	if (NFSC::DALFeVehicle_AddCarToMyCarsDB(index))
+	{
+		NFSC::FE_ShowChyron("Added to My Cars.", NFSC::Chyron::MAIL, false);
+	}
+	else
+	{
+		NFSC::FE_ShowChyron("Invalid vehicle or garage is full.", NFSC::Chyron::MAIL, false);
+	}
 }
 
 void __fastcall Hooks::GRaceStatus_SetRoaming_(uintptr_t g_race_status)
