@@ -162,6 +162,21 @@ namespace NFSC
 		}
 	}
 
+	inline const char* chyron_icons[] = { "Connect", "Disconnect", "Mail", "Race Invite", "Sound", "No Sound", "Reward" };
+	namespace Chyron
+	{
+		enum
+		{
+			CONNECT     = 0x1,
+			DISCONNECT  = 0x2,
+			MAIL        = 0x4,
+			RACE_INVITE = 0x8,
+			SOUND       = 0x10,
+			NO_SOUND    = 0x20,
+			REWARD      = 0x40,
+		};
+	}
+
 	/* ===== GAME OBJECTS ===== */
 
 	// B, G, R, A (stored as ints, but they're actually chars in practice)
@@ -413,17 +428,19 @@ namespace NFSC
 
 	FUNC(0x571040, void, , FE_Image_SetTextureHash, uintptr_t fe_image, uint32_t key);
 
-	FUNC(0x572B90, uintptr_t, __thiscall, FEManager_GetUserProfile, uintptr_t fe_manager, int index);
-
 	FUNC(0x5A0250, uintptr_t, , FE_Object_FindObject, const char* package_name, uint32_t key);
 	FUNC(0x597900, void, , FE_Object_GetCenter, uintptr_t fe_object, float* x, float* y);
 	FUNC(0x570CC0, void, , FE_Object_SetColor, uintptr_t fe_object, FEColor* color);
 	FUNC(0x570460, void, , FE_Object_SetVisibility, uintptr_t fe_object, bool visible);
 
+	FUNC(0x59D450, void, , FE_ShowChyron, const char* message, int icon, bool linger);
+
 	FUNC(0x5711C0, uint32_t, , FE_String_HashString, const char* fmt, ...);
 	FUNC(0x583B10, void, , FE_String_SetString, uintptr_t object, const wchar_t* wide_string);
 
 	FUNC(0x5CDEA0, void, , FEDialogScreen_ShowDialog, const char* message, const char* button1, const char* button2, const char* button3);
+
+	FUNC(0x572B90, uintptr_t, __thiscall, FEManager_GetUserProfile, uintptr_t fe_manager, int index);
 
 	FUNC(0x579200, void, __thiscall, FEStateManager_ChangeState, uintptr_t fe_state_manager, int current_state);
 	FUNC(0x5792A0, bool, __thiscall, FEStateManager_IsGameMode, uintptr_t fe_manager, int efegamemode);

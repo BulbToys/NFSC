@@ -1097,6 +1097,44 @@ void GUI::Render()
 				{
 					// todo
 				}
+
+				ImGui::Separator();
+
+				// Chyron Message
+				static char msg[128];
+				ImGui::InputText("##CHYmsg", msg, IM_ARRAYSIZE(msg));
+
+				// List all icons
+				int icon = 0;
+
+				constexpr int size = IM_ARRAYSIZE(NFSC::chyron_icons);
+				static bool icons[size] { false };
+				for (int i = 0; i < IM_ARRAYSIZE(NFSC::chyron_icons); i++)
+				{
+					int value = (1 << i);
+
+					ImGui::Checkbox(NFSC::chyron_icons[i], &icons[i]);
+					ImGui::SameLine();
+					ImGui::Text("(%d)", value);
+
+					if (icons[i])
+					{
+						icon += value;
+					}
+				}
+
+				// Icon
+				ImGui::Text("Icon: %d", icon);
+
+				// Linger
+				static bool linger = false;
+				ImGui::Checkbox("Linger", &linger);
+
+				// Chyron Test
+				if (ImGui::Button("Chyron Test"))
+				{
+					NFSC::FE_ShowChyron(msg, icon, linger);
+				}
 			}
 
 			/* ===== STATE MANAGERS ===== */
