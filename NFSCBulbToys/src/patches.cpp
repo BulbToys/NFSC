@@ -181,8 +181,8 @@ void Patches::DebugCarCustomizeHelp()
 
 	//Patch<const char*>(0x841F67, "[?] Help");
 	Patch<const char*>(0x841EDA, ""); // [?] Hide
-	Patch<const char*>(0x841EED, "[Enter] Inst.");
-	Patch<const char*>(0x841F00, "[2] Uninst. Part");
+	Patch<const char*>(0x841EED, "[Enter] Add &");
+	Patch<const char*>(0x841F00, "[2] Remove Part");
 	Patch<const char*>(0x841F13, "[1] Free Roam");
 	Patch<const char*>(0x841F26, "[3] Save Alias");
 	Patch<const char*>(0x841F39, "[4] Add to MyCars");
