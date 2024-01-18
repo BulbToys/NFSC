@@ -570,9 +570,24 @@ void GUI::Render()
 
 			if (ImGui::BeginTabBar("RBTabs"))
 			{
+				static bool open[3] = { true, false, false };
+
 				if (ImGui::BeginTabItem("Normal RBs"))
 				{
 					// already set
+
+					// Reset index if we just switched menus
+					if (open[0])
+					{
+						i = 0;
+						open[0] = false;
+					}
+					else if (open[2])
+					{
+						i = 0;
+						open[2] = false;
+					}
+					open[1] = true;
 
 					ImGui::EndTabItem();
 				}
@@ -581,12 +596,36 @@ void GUI::Render()
 					size = 10;
 					rb = g::roadblock_setups::spiked;
 
+					if (open[0])
+					{
+						i = 0;
+						open[0] = false;
+					}
+					else if (open[1])
+					{
+						i = 0;
+						open[1] = false;
+					}
+					open[2] = true;
+
 					ImGui::EndTabItem();
 				}
 				if (ImGui::BeginTabItem("My RBs"))
 				{
 					size = g::roadblock_setups::size - 1;
 					rb = g::roadblock_setups::mine;
+
+					if (open[1])
+					{
+						i = 0;
+						open[1] = false;
+					}
+					else if (open[2])
+					{
+						i = 0;
+						open[2] = false;
+					}
+					open[0] = true;
 
 					ImGui::EndTabItem();
 				}
