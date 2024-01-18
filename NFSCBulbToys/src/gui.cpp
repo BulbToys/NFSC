@@ -888,8 +888,16 @@ void GUI::Render()
 				// Address
 				ImGui::InputText("##addr", GUI::input_addr, IM_ARRAYSIZE(GUI::input_addr), ImGuiInputTextFlags_CharsHexadecimal);
 
+				// !!! THIS TANKS PERFORMANCE - USE SPARINGLY !!!
+				// With this option, VirtualProtect is called every time a byte is read or written to
+				// Keep in mind bytes are being read every frame as they're rendered, thus VirtualProtect gets called twice per frame for every byte you see on screen
+				// If you have, say, 4 large memory windows, showing 1024 bytes each, running at 100fps - this equates to (((819200 VP calls per second))) !!!
+				// However, for practical intents and purposes, the performance impact is *just* negligible enough to leave this option on by default
+				// TODO: Rewrite imgui_memory_editor.h to better support VirtualProtect, calling for the entire range of visible bytes when changed (scrolling/resizing)
+				//       This would lower VirtualProtect usage to anywhere from 0 to FPS*2 times per second (maybe even lower?)
+				static bool use_vprot = true;
+
 				// Use VirtualProtect for new window
-				static bool use_vprot = false;
 				ImGui::Checkbox("Use VirtualProtect for new window", &use_vprot);
 
 				// New Memory Editor & + 0000

@@ -62,16 +62,10 @@ namespace GUI
 			addr(malloc? new char[size] {0} : reinterpret_cast<char*>(address)), size(size)
 		{
 			const char* prefix = use_vprot ? "[VP] " : "";
+			const char* name = malloc ? "Playground" : "Memory Editor";
 
 			title = new char[48];
-			if (malloc)
-			{
-				sprintf_s(title, 48, "%sPlayground 0x%p##ME%u", prefix, addr, id++);
-			}
-			else
-			{
-				sprintf_s(title, 48, "%sMemory Editor 0x%p##ME%u", prefix, addr, id++);
-			}
+			sprintf_s(title, 48, "%s%s 0x%p##ME%u", prefix, name, addr, id++);
 
 			if (use_vprot)
 			{

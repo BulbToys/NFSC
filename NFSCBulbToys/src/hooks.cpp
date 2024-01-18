@@ -172,6 +172,7 @@ bool Hooks::SetupPart2(uintptr_t device)
 	CREATE_VTABLE_PATCH(0x9D6A64 + 0x4, NitrousGauge_Update);
 	CREATE_VTABLE_PATCH(0x9D6ADC + 0x4, SpeedbreakerMeter_Update);
 
+	// TODO: FLM stuff
 	//CREATE_HOOK(DALWorldMap_GetBool);
 
 	CREATE_HOOK(cFEngRender_RenderTerritoryBorder);
