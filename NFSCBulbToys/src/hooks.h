@@ -125,6 +125,9 @@ namespace Hooks
 	//void __fastcall FLMMoveMaybeHook(uintptr_t flm, uintptr_t edx, void* vec2_a, void* vec2_b, void* vec2_c, void* vec2_d, float f);
 	//static inline decltype (&FLMMoveMaybeHook) FLMMoveMaybe;
 
+	HOOK(VIRTUAL, void, __fastcall, FEPhotoModeStateManager_Start, uintptr_t state_manager);
+	HOOK(VIRTUAL, void, __fastcall, FEPhotoModeStateManager_HandlePadAccept, uintptr_t state_manager);
+
 	//void CreateRoadBlockHook();
 	void UpdateCopElementsHook1();
 	void UpdateCopElementsHook2();

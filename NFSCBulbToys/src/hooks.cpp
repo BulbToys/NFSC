@@ -187,6 +187,9 @@ bool Hooks::SetupPart2(uintptr_t device)
 	// TODO: uncomment when i've unfucked roadblock creation (might even be useless)
 	//CreateHook(0x407040, &PickRoadblockSetupHook, &PickRoadblockSetup);
 
+	CREATE_VTABLE_PATCH(0x9D2FB4, FEPhotoModeStateManager_Start);
+	CREATE_VTABLE_PATCH(0x9D3010, FEPhotoModeStateManager_HandlePadAccept);
+
 	// Increment cop counter by 1 per roadblock vehicle
 	// TODO: if re-enabling this, make sure roadblock cops that get attached don't increment again
 	//WriteJmp(0x445A9D, CreateRoadBlockHook, 6);
@@ -1790,6 +1793,28 @@ void __stdcall Hooks::cFEngRender_RenderTerritoryBorder_(uintptr_t object)
 
 	// FatLineMesh::RenderFE(wm_flm, FEWorldMapTerritory::sInstance->views, &FEWorldMapTerritory::sInstance->matrix)
 	reinterpret_cast<void(__thiscall*)(uintptr_t, uintptr_t, uintptr_t)>(0x74F0B0)(wm_flm, Read<uintptr_t>(territory + 0xA0), territory + 0x50);
+}
+
+void __fastcall Hooks::FEPhotoModeStateManager_Start_(uintptr_t state_manager)
+{
+	auto manager = Read<NFSC::FEStateManager*>(NFSC::FEManager);
+
+	// FEQuickRaceStateManager
+	if (manager->child && manager->child->child && manager->child->child->vtable == 0x9F8428)
+	{
+		// FeCrewCar.fng
+		NFSC::FEStateManager_Push(state_manager, reinterpret_cast<char*>(0x9D0078), 0);
+	}
+	else
+	{
+		// FEPhotoMode.fng
+		NFSC::FEStateManager_Push(state_manager, reinterpret_cast<char*>(0x9CFCA8), 0);
+	}
+}
+
+void __fastcall Hooks::FEPhotoModeStateManager_HandlePadAccept_(uintptr_t state_manager)
+{
+	Error("Not yet implemented.");
 }
 
 uintptr_t IVehicle_temp;
