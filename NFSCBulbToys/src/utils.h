@@ -26,10 +26,107 @@ inline void Error(const char* message, ...)
 
 // Interface for structs/classes that can be saved to files
 // For game structs/classes, make an adapter class first (ie. RoadblockSetupFile contains RoadblockSetup)
-struct IFile
+struct IFileBase
 {
+	virtual size_t Size() const = 0;
+
 	// Return false if struct/class data is bogus, true otherwise. Returning false prompts a warning when saving/loading
 	virtual bool Validate() = 0;
+
+	virtual void Save(const char* filename) final
+	{
+		size_t size = Size();
+
+		if (!Validate())
+		{
+			char msg[512];
+			sprintf_s(msg, 512, "Error saving file %s.\n\n"
+				"The object you are trying to save has failed to validate, indicating it contains invalid (corrupt or otherwise unsafe) values.\n\nProceed?", filename);
+
+			if (MessageBoxA(NULL, msg, PROJECT_NAME, MB_ICONWARNING | MB_YESNO) != IDYES)
+			{
+				return;
+			}
+		}
+
+		// Avoid saving the vtable pointer
+		size -= 4;
+
+		FILE* file = nullptr;
+		fopen_s(&file, filename, "wb");
+		if (!file)
+		{
+			char error[64];
+			strerror_s(error, errno);
+			Error("Error saving file %s.\n\nError code %d: %s", filename, errno, error);
+		}
+		else
+		{
+			// Avoid saving the vtable pointer
+			fwrite((char*)this + 4, 1, size, file);
+			fclose(file);
+		}
+	}
+
+	// Object remains unchanged if this returns false!
+	virtual bool Load(const char* filename, bool allow_undersize = false) final
+	{
+		size_t size = Size();
+
+		// Offset from vtable pointer
+		size -= 4;
+
+		FILE* file = nullptr;
+		fopen_s(&file, filename, "rb");
+		if (!file)
+		{
+			char error[64];
+			strerror_s(error, errno);
+			Error("Error opening file %s.\n\nError code %d: %s", filename, errno, error);
+			return false;
+		}
+		else
+		{
+			char* buffer = new char[size];
+
+			fseek(file, 0, SEEK_END);
+			int len = ftell(file);
+			fseek(file, 0, SEEK_SET);
+
+			if (len > size || (!allow_undersize && len < size))
+			{
+				fclose(file);
+				Error("Error opening file %s.\n\nInvalid file length - expected %d, got %d.", filename, size, len);
+				return false;
+			}
+
+			fread_s(buffer, len, 1, len, file);
+			fclose(file);
+
+			if (!Validate())
+			{
+				char msg[512];
+				sprintf_s(msg, 512, "Error opening file %s.\n\n"
+					"The object you are trying to load has failed to validate, indicating it contains invalid (corrupt or otherwise unsafe) values.\n\nProceed?", filename);
+
+				if (MessageBoxA(NULL, msg, PROJECT_NAME, MB_ICONWARNING | MB_YESNO) != IDYES)
+				{
+					return false;
+				}
+			}
+
+			// Offset from vtable pointer
+			memcpy((char*)this + 4, buffer, len);
+		}
+
+		return true;
+	}
+};
+
+template <typename T>
+struct IFile : IFileBase
+{
+	virtual size_t Size() const override final { return sizeof(T); }
 };
 
 struct PatchInfo
@@ -184,91 +281,6 @@ inline __declspec(noreturn) void PurecallHandler()
 }
 
 /* ===== Miscellaneous utility functions ===== */
-
-inline void SaveStruct(const char* filename, IFile& object, size_t size)
-{
-	if (!object.Validate())
-	{
-		char msg[512];
-		sprintf_s(msg, 512, "Error saving file %s.\n\n"
-			"The object you are trying to save has failed to validate, indicating it contains invalid (corrupt or otherwise unsafe) values.\n\nProceed?", filename);
-
-		if (MessageBoxA(NULL, msg, PROJECT_NAME, MB_ICONWARNING | MB_YESNO) != IDYES)
-		{
-			return;
-		}
-	}
-
-	// Avoid saving the vtable pointer
-	size -= 4;
-
-	FILE* file = nullptr;
-	fopen_s(&file, filename, "wb");
-	if (!file)
-	{
-		char error[64];
-		strerror_s(error, errno);
-		Error("Error saving file %s.\n\nError code %d: %s", filename, errno, error);
-	}
-	else
-	{
-		// Avoid saving the vtable pointer
-		fwrite((char*)&object + 4, 1, size, file);
-		fclose(file);
-	}
-}
-
-// Object remains unchanged if this returns false!
-inline bool LoadStruct(const char* filename, IFile& object, size_t size, bool allow_undersize = false)
-{
-	// Offset from vtable pointer
-	size -= 4;
-
-	FILE* file = nullptr;
-	fopen_s(&file, filename, "rb");
-	if (!file)
-	{
-		char error[64];
-		strerror_s(error, errno);
-		Error("Error opening file %s.\n\nError code %d: %s", filename, errno, error);
-		return false;
-	}
-	else
-	{
-		char* buffer = new char[size];
-
-		fseek(file, 0, SEEK_END);
-		int len = ftell(file);
-		fseek(file, 0, SEEK_SET);
-
-		if (len > size || (!allow_undersize && len < size))
-		{
-			fclose(file);
-			Error("Error opening file %s.\n\nInvalid file length - expected %d, got %d.", filename, size, len);
-			return false;
-		}
-
-		fread_s(buffer, len, 1, len, file);
-		fclose(file);
-
-		if (!object.Validate())
-		{
-			char msg[512];
-			sprintf_s(msg, 512, "Error opening file %s.\n\n"
-				"The object you are trying to load has failed to validate, indicating it contains invalid (corrupt or otherwise unsafe) values.\n\nProceed?", filename);
-
-			if (MessageBoxA(NULL, msg, PROJECT_NAME, MB_ICONWARNING | MB_YESNO) != IDYES)
-			{
-				return false;
-			}
-		}
-
-		// Offset from vtable pointer
-		memcpy((char*)&object + 4, buffer, len);
-	}
-
-	return true;
-}
 
 // !!! Length MUST match for both strings !!!
 inline void ScuffedStringToWide(const char* string, wchar_t* wide, size_t len = 0xFFFFFFFF)

@@ -656,7 +656,7 @@ void GUI::Render()
 				{
 					NFSC::RoadblockSetupFile buffer;
 					buffer = rb[i];
-					SaveStruct(ofn.lpstrFile, buffer, sizeof(NFSC::RoadblockSetupFile));
+					buffer.Save(ofn.lpstrFile);
 				}
 			}
 			if (!readonly)
@@ -680,7 +680,7 @@ void GUI::Render()
 					if (GetOpenFileNameA(&ofn))
 					{
 						NFSC::RoadblockSetupFile buffer;
-						if (LoadStruct(ofn.lpstrFile, buffer, sizeof(NFSC::RoadblockSetupFile)))
+						if (buffer.Load(ofn.lpstrFile))
 						{
 							rb[i] = buffer;
 						}

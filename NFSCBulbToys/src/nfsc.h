@@ -267,7 +267,7 @@ namespace NFSC
 		void operator=(const struct RoadblockSetupFile& rbsf);
 	};
 
-	struct RoadblockSetupFile : public IFile
+	struct RoadblockSetupFile : public IFile<RoadblockSetupFile>
 	{
 		RoadblockSetup rbs;
 
