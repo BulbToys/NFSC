@@ -1807,7 +1807,7 @@ void __fastcall Hooks::FEPhotoModeStateManager_Start_(uintptr_t state_manager)
 	}
 	else
 	{
-		// FEPhotoMode.fng
+		// FePhotoMode.fng
 		NFSC::FEStateManager_Push(state_manager, reinterpret_cast<char*>(0x9CFCA8), 0);
 	}
 }

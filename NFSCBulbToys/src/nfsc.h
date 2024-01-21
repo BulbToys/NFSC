@@ -463,8 +463,9 @@ namespace NFSC
 		inline uintptr_t vehicle = 0;
 	}
 	
-	/* ===== GAME FUNCTIONS ===== */
+	/* ===== HASHING FUNCTIONS AND MAPS ===== */
 
+	// "BIN Memory" Hash
 	constexpr uint32_t bStringHash(const char* string)
 	{
 		uint32_t result = -1;
@@ -477,6 +478,119 @@ namespace NFSC
 
 		return result;
 	}
+
+	/*
+	#define HASH(str) { bStringHash(str), str }
+	inline std::unordered_map<uint32_t, const char*> bin_hashes
+	{
+		HASH("example"),
+	};
+	#undef HASH
+	*/
+
+	// "VLT Memory" Hash
+	constexpr uint32_t hash32(const char* string, unsigned int seed, unsigned int length)
+	{
+		unsigned int v3; 
+		unsigned int v4; 
+		unsigned int v5; 
+		unsigned int v6; 
+		unsigned int v8; 
+		unsigned int v9; 
+		unsigned int v10;
+		unsigned int v11;
+		unsigned int v12;
+		unsigned int v13;
+		unsigned int v14;
+		unsigned int v15;
+		unsigned int v16;
+		unsigned int v17;
+		unsigned int v18;
+		unsigned int v19;
+		unsigned int v20;
+		unsigned int v21;
+		unsigned int v22;
+		unsigned int v23;
+		unsigned int v25;
+
+		v3 = length;
+		v4 = 0x9E3779B9;
+		v5 = length;
+		v6 = 0x9E3779B9;
+		if (length >= 0xC)
+		{
+			v25 = length / 0xC;
+			do
+			{
+				v8 = v4 + *(string + 4) + ((*(string + 5) + ((*(string + 6) + (*(string + 7) << 8)) << 8)) << 8);
+				v9 = seed + *(string + 8) + ((*(string + 9) + ((*(string + 10) + (*(string + 11) << 8)) << 8)) << 8);
+				v10 = (v9 >> 13) ^ (v6 + *string
+					+ ((*(string + 1) + ((*(string + 2) + (*(string + 3) << 8)) << 8)) << 8)
+					- v9
+					- v8);
+				v11 = (v10 << 8) ^ (v8 - v9 - v10);
+				v12 = (v11 >> 13) ^ (v9 - v11 - v10);
+				v13 = (v12 >> 12) ^ (v10 - v12 - v11);
+				v14 = (v13 << 16) ^ (v11 - v12 - v13);
+				v15 = (v14 >> 5) ^ (v12 - v14 - v13);
+				v6 = (v15 >> 3) ^ (v13 - v15 - v14);
+				v4 = (v6 << 10) ^ (v14 - v15 - v6);
+				seed = (v4 >> 15) ^ (v15 - v4 - v6);
+				string += 12;
+				v5 -= 12;
+				--v25;
+			} while (v25);
+			v3 = length;
+		}
+		v16 = v3 + seed;
+		switch (v5)
+		{
+			case 11:
+				v16 += *(string + 10) << 24;
+			case 10:
+				v16 += *(string + 9) << 16;
+			case 9:
+				v16 += *(string + 8) << 8;
+			case 8:
+				v4 += *(string + 7) << 24;
+			case 7:
+				v4 += *(string + 6) << 16;
+			case 6:
+				v4 += *(string + 5) << 8;
+			case 5:
+				v4 += *(string + 4);
+			case 4:
+				v6 += *(string + 3) << 24;
+			case 3:
+				v6 += *(string + 2) << 16;
+			case 2:
+				v6 += *(string + 1) << 8;
+			case 1:
+				v6 += *string;
+				break;
+			default:
+				break;
+		}
+		v17 = (v16 >> 13) ^ (v6 - v16 - v4);
+		v18 = (v17 << 8) ^ (v4 - v16 - v17);
+		v19 = (v18 >> 13) ^ (v16 - v18 - v17);
+		v20 = (v19 >> 12) ^ (v17 - v19 - v18);
+		v21 = (v20 << 16) ^ (v18 - v19 - v20);
+		v22 = (v21 >> 5) ^ (v19 - v21 - v20);
+		v23 = (v22 >> 3) ^ (v20 - v22 - v21);
+		return (((v23 << 10) ^ (v21 - v22 - v23)) >> 15) ^ (v22 - ((v23 << 10) ^ (v21 - v22 - v23)) - v23);
+	}
+
+	/*
+	#define HASH(str) { hash32(str, 0xABCDEF00, strlen(str)), str }
+	inline std::unordered_map<uint32_t, const char*> vlt_hashes
+	{
+		HASH("example"),
+	};
+	#undef HASH
+	*/
+
+	/* ===== GAME FUNCTIONS ===== */
 
 	FUNC(0x436820, void, __thiscall, AIGoal_AddAction, uintptr_t ai_goal, char const* name);
 	FUNC(0x42A2D0, void, __thiscall, AIGoal_ChooseAction, uintptr_t ai_goal, float dt);
