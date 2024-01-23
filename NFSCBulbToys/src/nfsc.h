@@ -139,6 +139,16 @@ namespace NFSC
 	// FEStateManager (States)
 	namespace FESM
 	{
+		namespace PhotoMode
+		{
+			enum
+			{
+				// This state is used on Photo Mode when we're entering the Customization state manager, so it can later give us our FNG back
+				// This is exactly what the Crew Management state manager uses to push FeCrewCar.fng again once customization has finished
+				GIMME_MY_QR_FNG = 100,
+			};
+		}
+
 		namespace WorldMap
 		{
 			enum

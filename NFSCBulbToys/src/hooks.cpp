@@ -187,8 +187,13 @@ bool Hooks::SetupPart2(uintptr_t device)
 	// TODO: uncomment when i've unfucked roadblock creation (might even be useless)
 	//CreateHook(0x407040, &PickRoadblockSetupHook, &PickRoadblockSetup);
 
+	// Adds a "Customize" button to Photo Mode when in the Quick Race car selection screen, for vehicles in the My Cars garage only
 	CREATE_VTABLE_PATCH(0x9D2FB4, FEPhotoModeStateManager_Start);
 	CREATE_VTABLE_PATCH(0x9D3010, FEPhotoModeStateManager_HandlePadAccept);
+	CREATE_VTABLE_PATCH(0x9D2FCC, FEPhotoModeStateManager_HandleChildFlowDone)
+
+	// Fixes an issue where your crew member's car will not render in Photo Mode if you've last used Photo Mode outside FE/in the world
+	CREATE_VTABLE_PATCH(0x9F8344, FECrewManagementStateManager_HandleOptionSelected);
 
 	// Increment cop counter by 1 per roadblock vehicle
 	// TODO: if re-enabling this, make sure roadblock cops that get attached don't increment again
@@ -1821,24 +1826,36 @@ void __fastcall Hooks::FEPhotoModeStateManager_Start_(uintptr_t state_manager)
 
 void __fastcall Hooks::FEPhotoModeStateManager_HandlePadAccept_(uintptr_t state_manager)
 {
-	Error("Not yet implemented.");
-
-	/*
 	auto fesm = reinterpret_cast<NFSC::FEStateManager*>(state_manager);
 	auto handle = Read<uint32_t>(Read<uintptr_t>(reinterpret_cast<uintptr_t>(fesm->parent) + 0xD0) + 0x8);
 
 	uintptr_t user_profile = NFSC::FEManager_GetUserProfile(Read<uintptr_t>(NFSC::FEManager), 0);
 	uintptr_t car_record = NFSC::FEPlayerCarDB_GetCarRecordByHandle(user_profile + 0x234, handle);
 
-	// FEPhotoModeStateManager::sIsInFE
-	//Write<bool>(0xA5EC7C, true);
-
-	// 1st: 0, 1, 2
-	// 2nd: 6, 7, 0
-
+	// FECustomizeStateManager::FECustomizeStateManager
 	uintptr_t fe_customize_sm = reinterpret_cast<uintptr_t(__thiscall*)(uintptr_t, uintptr_t, int, uintptr_t)>(0x8631D0)(NFSC::malloc(0xD4), state_manager, 0, car_record);
-	NFSC::FEStateManager_SwitchChildManager(state_manager, fe_customize_sm, 0, 2);
-	*/
+	NFSC::FEStateManager_SwitchChildManager(state_manager, fe_customize_sm, NFSC::FESM::PhotoMode::GIMME_MY_QR_FNG, 1);
+}
+
+void __fastcall Hooks::FEPhotoModeStateManager_HandleChildFlowDone_(uintptr_t state_manager, uintptr_t edx, int unk)
+{
+	if (Read<int>(state_manager + 0x4) == NFSC::FESM::PhotoMode::GIMME_MY_QR_FNG)
+	{
+		// FeCrewCar.fng
+		NFSC::FEStateManager_Push(state_manager, reinterpret_cast<char*>(0x9D0078), 0);
+	}
+}
+
+void __fastcall Hooks::FECrewManagementStateManager_HandleOptionSelected_(uintptr_t state_manager, uintptr_t edx, uint32_t value, int buttons)
+{
+	// !this->mCurState && FECrewManagement::sInstance && value == 1
+	if (!Read<int>(state_manager + 0x4) && Read<uintptr_t>(0xBBAA70) && value == 1)
+	{
+		// FEPhotoModeStateManager::sIsInFE
+		Write<bool>(0xA5EC7C, true);
+	}
+
+	Hooks::FECrewManagementStateManager_HandleOptionSelected(state_manager, edx, value, buttons);
 }
 
 uintptr_t IVehicle_temp;

@@ -127,6 +127,9 @@ namespace Hooks
 
 	HOOK(VIRTUAL, void, __fastcall, FEPhotoModeStateManager_Start, uintptr_t state_manager);
 	HOOK(VIRTUAL, void, __fastcall, FEPhotoModeStateManager_HandlePadAccept, uintptr_t state_manager);
+	HOOK(VIRTUAL, void, __fastcall, FEPhotoModeStateManager_HandleChildFlowDone, uintptr_t state_manager, uintptr_t edx, int unk);
+
+	HOOK(VIRTUAL, void, __fastcall, FECrewManagementStateManager_HandleOptionSelected, uintptr_t state_manager, uintptr_t edx, uint32_t value, int buttons);
 
 	//void CreateRoadBlockHook();
 	void UpdateCopElementsHook1();
