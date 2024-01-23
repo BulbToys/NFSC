@@ -628,8 +628,11 @@ namespace NFSC
 	FUNC(0x583B10, void, , FE_String_SetString, uintptr_t object, const wchar_t* wide_string);
 
 	FUNC(0x5CDEA0, void, , FEDialogScreen_ShowDialog, const char* message, const char* button1, const char* button2, const char* button3);
+	FUNC(0x5CF440, void, , FEDialogScreen_ShowOK, const char* message);
 
 	FUNC(0x572B90, uintptr_t, __thiscall, FEManager_GetUserProfile, uintptr_t fe_manager, int index);
+
+	FUNC(0x49C020, uintptr_t, __thiscall, FEPlayerCarDB_GetCarRecordByHandle, uintptr_t player_car_db, uint32_t handle);
 
 	FUNC(0x579200, void, __thiscall, FEStateManager_ChangeState, uintptr_t state_manager, int current_state);
 	FUNC(0x5792A0, bool, __thiscall, FEStateManager_IsGameMode, uintptr_t state_manager, int efegamemode);
@@ -637,6 +640,7 @@ namespace NFSC
 	FUNC(0x593750, void, __thiscall, FEStateManager_Push, uintptr_t state_manager, const char* next_screen, int next_state);
 	FUNC(0x579C10, void, __thiscall, FEStateManager_ShowDialog, uintptr_t state_manager, int next_state);
 	FUNC(0x59B140, void, __thiscall, FEStateManager_Switch, uintptr_t state_manager, const char* next_screen, uint32_t leave_message, int next_state, int screens_to_pop);
+	FUNC(0x5A52B0, void, __thiscall, FEStateManager_SwitchChildManager, uintptr_t state_manager, uintptr_t state_manager_child, int next_state, int screens_to_pop);
 
 	FUNC(0x65C330, void, , Game_ClearAIControl, int unk);
 	FUNC(0x65C2C0, void, , Game_ForceAIControl, int unk);

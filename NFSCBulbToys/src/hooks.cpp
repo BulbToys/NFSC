@@ -1797,24 +1797,48 @@ void __stdcall Hooks::cFEngRender_RenderTerritoryBorder_(uintptr_t object)
 
 void __fastcall Hooks::FEPhotoModeStateManager_Start_(uintptr_t state_manager)
 {
-	auto manager = Read<NFSC::FEStateManager*>(NFSC::FEManager);
-
+	auto fesm = reinterpret_cast<NFSC::FEStateManager*>(state_manager);
+	
 	// FEQuickRaceStateManager
-	if (manager->child && manager->child->child && manager->child->child->vtable == 0x9F8428)
+	if (fesm->parent && fesm->parent->parent && fesm->parent->parent->vtable == 0x9F8428)
 	{
-		// FeCrewCar.fng
-		NFSC::FEStateManager_Push(state_manager, reinterpret_cast<char*>(0x9D0078), 0);
+		auto handle = Read<uint32_t>(Read<uintptr_t>(reinterpret_cast<uintptr_t>(fesm->parent) + 0xD0) + 0x8);
+
+		// Only show the Customize button for My Cars vehicles
+		uintptr_t user_profile = NFSC::FEManager_GetUserProfile(Read<uintptr_t>(NFSC::FEManager), 0);
+		uintptr_t car_record = NFSC::FEPlayerCarDB_GetCarRecordByHandle(user_profile + 0x234, handle);
+		if ((Read<uint32_t>(car_record + 0xC) & 0x4) == 0x4)
+		{
+			// FeCrewCar.fng
+			NFSC::FEStateManager_Push(state_manager, reinterpret_cast<char*>(0x9D0078), 0);
+			return;
+		}
 	}
-	else
-	{
-		// FePhotoMode.fng
-		NFSC::FEStateManager_Push(state_manager, reinterpret_cast<char*>(0x9CFCA8), 0);
-	}
+
+	// FePhotoMode.fng
+	NFSC::FEStateManager_Push(state_manager, reinterpret_cast<char*>(0x9CFCA8), 0);
 }
 
 void __fastcall Hooks::FEPhotoModeStateManager_HandlePadAccept_(uintptr_t state_manager)
 {
 	Error("Not yet implemented.");
+
+	/*
+	auto fesm = reinterpret_cast<NFSC::FEStateManager*>(state_manager);
+	auto handle = Read<uint32_t>(Read<uintptr_t>(reinterpret_cast<uintptr_t>(fesm->parent) + 0xD0) + 0x8);
+
+	uintptr_t user_profile = NFSC::FEManager_GetUserProfile(Read<uintptr_t>(NFSC::FEManager), 0);
+	uintptr_t car_record = NFSC::FEPlayerCarDB_GetCarRecordByHandle(user_profile + 0x234, handle);
+
+	// FEPhotoModeStateManager::sIsInFE
+	//Write<bool>(0xA5EC7C, true);
+
+	// 1st: 0, 1, 2
+	// 2nd: 6, 7, 0
+
+	uintptr_t fe_customize_sm = reinterpret_cast<uintptr_t(__thiscall*)(uintptr_t, uintptr_t, int, uintptr_t)>(0x8631D0)(NFSC::malloc(0xD4), state_manager, 0, car_record);
+	NFSC::FEStateManager_SwitchChildManager(state_manager, fe_customize_sm, 0, 2);
+	*/
 }
 
 uintptr_t IVehicle_temp;
@@ -1834,6 +1858,7 @@ __declspec(naked) void Hooks::UpdateCopElementsHook1()
 	}
 }
 
+/*
 // This is wasteful, but MASM lacks a JNZ instruction, so there really is no better way
 constexpr uintptr_t AIVehicle_GetVehicle = 0x406700;
 constexpr uintptr_t PVehicle_IsDestroyed = 0x6D8030;
@@ -1855,6 +1880,31 @@ __declspec(naked) void Hooks::UpdateCopElementsHook2()
 		mov     ecx, [esp + 0xC]
 		call    Minimap_GetCurrCopElementColor
 		mov     edi, eax
+		push    0x5D8D06
+		ret
+	}
+}
+*/
+
+constexpr uintptr_t AIVehicle_GetVehicle = 0x406700;
+constexpr uintptr_t PVehicle_IsDestroyed = 0x6D8030;
+constexpr uintptr_t Minimap_GetCurrCopElementColor = 0x5D2200;
+__declspec(naked) void Hooks::UpdateCopElementsHook2()
+{
+	__asm
+	{
+		// Skip changing the color if the cop vehicle is destroyed
+		mov     ecx, IVehicle_temp
+		call    PVehicle_IsDestroyed
+		test    eax, eax
+		jnz     skip
+
+		// Redo what we've overwritten
+		mov     ecx, [esp + 0xC]
+		call    Minimap_GetCurrCopElementColor
+		mov     edi, eax
+
+	skip:
 		push    0x5D8D06
 		ret
 	}
