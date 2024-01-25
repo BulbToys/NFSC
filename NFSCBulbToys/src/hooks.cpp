@@ -195,6 +195,9 @@ bool Hooks::SetupPart2(uintptr_t device)
 	// Fixes an issue where your crew member's car will not render in Photo Mode if you've last used Photo Mode outside FE/in the world
 	CREATE_VTABLE_PATCH(0x9F8344, FECrewManagementStateManager_HandleOptionSelected);
 
+	// In drift races, give the player racer a default "Player" name if they create a nameless alias, exactly as other races do it
+	CREATE_HOOK(DriftScoring_AddRacer);
+
 	// Increment cop counter by 1 per roadblock vehicle
 	// TODO: if re-enabling this, make sure roadblock cops that get attached don't increment again
 	//WriteJmp(0x445A9D, CreateRoadBlockHook, 6);
@@ -1856,6 +1859,18 @@ void __fastcall Hooks::FECrewManagementStateManager_HandleOptionSelected_(uintpt
 	}
 
 	Hooks::FECrewManagementStateManager_HandleOptionSelected(state_manager, edx, value, buttons);
+}
+
+void __fastcall Hooks::DriftScoring_AddRacer_(uintptr_t drift_scoring, uintptr_t edx, int unk1, const char* player_name, int unk2)
+{
+	if (strlen(player_name) == 0)
+	{
+		// COMMON_PLAYER: Player
+		Hooks::DriftScoring_AddRacer(drift_scoring, edx, unk1, NFSC::GetLocalizedString(0x393CA814), unk2);
+		return;
+	}
+
+	Hooks::DriftScoring_AddRacer(drift_scoring, edx, unk1, player_name, unk2);
 }
 
 uintptr_t IVehicle_temp;

@@ -131,6 +131,8 @@ namespace Hooks
 
 	HOOK(VIRTUAL, void, __fastcall, FECrewManagementStateManager_HandleOptionSelected, uintptr_t state_manager, uintptr_t edx, uint32_t value, int buttons);
 
+	HOOK(0x6BD0F0, void, __fastcall, DriftScoring_AddRacer, uintptr_t drift_scoring, uintptr_t edx, int unk1, const char* player_name, int unk2);
+
 	//void CreateRoadBlockHook();
 	void UpdateCopElementsHook1();
 	void UpdateCopElementsHook2();
