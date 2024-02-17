@@ -1780,17 +1780,21 @@ void __fastcall Hooks::FatLineMesh_AddBezier_(uintptr_t flm, uintptr_t edx, void
 
 void __stdcall Hooks::cFEngRender_RenderTerritoryBorder_(uintptr_t object)
 {
+	/*
 	// If we don't have a FLM, let the map render its territory borders normally
 	if (!g::world_map::flm)
 	{
 		Hooks::cFEngRender_RenderTerritoryBorder(object);
 		return;
 	}
+	*/
 
 	uintptr_t territory = Read<uintptr_t>(0xA977F8);
 
 	// FatLineMesh::RenderFE(wm_flm, FEWorldMapTerritory::sInstance->views, &FEWorldMapTerritory::sInstance->matrix)
 	reinterpret_cast<void(__thiscall*)(uintptr_t, uintptr_t, uintptr_t)>(0x74F0B0)(g::world_map::flm, Read<uintptr_t>(territory + 0xA0), territory + 0x50);
+
+	Hooks::cFEngRender_RenderTerritoryBorder(object);
 }
 
 void __fastcall Hooks::FEPhotoModeStateManager_Start_(uintptr_t state_manager)
