@@ -22,27 +22,43 @@ inline bool ImGui::BulbToys_SliderInt(const char* text, const char* id, int* v, 
 	return ImGui::SliderInt(id, v, v_min, v_max, format);
 }
 
-inline bool ImGui::BulbToys_Menu(const char* text, bool* show)
+inline bool ImGui::BulbToys_Menu(const char* menu_name, const char* menu_label = nullptr)
 {
-	ImGui::SeparatorText(text);
-	ImGui::SameLine();
+	// Get the ID through the menu name. Some people may want to rename their menus dynamically, so we have a separate label for that
+	ImGuiID id = ImGui::GetID(menu_name);
+	static std::unordered_map<ImGuiID, bool> menu_map;
+	bool& show = menu_map[id];
 
-	char button[16];
-	if (*show)
+	// If we have a menu label, show that instead
+	if (menu_label)
 	{
-		sprintf_s(button, 16, "hide##%p", show);
+		ImGui::SeparatorText(menu_label);
 	}
 	else
 	{
-		sprintf_s(button, 16, "show##%p", show);
+		ImGui::SeparatorText(menu_name);
+	}
+	ImGui::SameLine();
+
+	// Hide and show button, using the menu name ID as their ID as well
+	char button[32];
+	if (show)
+	{
+		sprintf_s(button, 32, "hide##%u", id);
+	}
+	else
+	{
+		sprintf_s(button, 32, "show##%u", id);
 	}
 
+	// Toggle show/hide
 	if (ImGui::Button(button))
 	{
-		*show = !*show;
+		show = !show;
 	}
 
-	return *show;
+	// Should this menu be shown?
+	return show;
 }
 
 // Min and max are inclusive!
@@ -900,15 +916,12 @@ void GUI::Render()
 		/* ========== M A I N   W I N D O W ========== */
 		if (ImGui::Begin(PROJECT_NAME, nullptr, ImGuiWindowFlags_NoScrollbar))
 		{
-			static bool menu[32] { false };
-			int id = 0;
-
 			// GetWindowWidth() - GetStyle().WindowPadding
 			auto width = ImGui::GetWindowWidth() - 16.0f;
 			ImGui::PushItemWidth(width);
 
 			/* ===== MAIN ===== */
-			if (ImGui::BulbToys_Menu("Main", &menu[id++]))
+			if (ImGui::BulbToys_Menu("Main"))
 			{
 				// Detach & Confirm
 				static bool confirm_close = false;
@@ -992,7 +1005,7 @@ void GUI::Render()
 			}
 
 			/* ===== RENDER ===== */
-			if (ImGui::BulbToys_Menu("Render", &menu[id++]))
+			if (ImGui::BulbToys_Menu("Render"))
 			{
 				// Coords
 				ImGui::Checkbox("Coords", &overlays::coords);
@@ -1018,7 +1031,7 @@ void GUI::Render()
 			}
 
 			/* ===== FRONTEND ===== */
-			if (ImGui::BulbToys_Menu("Frontend", &menu[id++]))
+			if (ImGui::BulbToys_Menu("Frontend"))
 			{
 				// Stop on Alt-Tab
 				static bool stop = true;
@@ -1191,7 +1204,7 @@ void GUI::Render()
 			}
 
 			/* ===== STATE MANAGERS ===== */
-			if (ImGui::BulbToys_Menu("State Managers", &menu[id++]))
+			if (ImGui::BulbToys_Menu("State Managers"))
 			{
 				auto fesm = Read<NFSC::FEStateManager*>(NFSC::FEManager);
 
@@ -1241,7 +1254,7 @@ void GUI::Render()
 			}
 
 			/* ===== CAMERAS ===== */
-			if (ImGui::BulbToys_Menu("Cameras", &menu[id++]))
+			if (ImGui::BulbToys_Menu("Cameras"))
 			{
 				// Spectate vehicles
 				if (ImGui::Checkbox("Spectate vehicles", NFSC::spectate::enabled))
@@ -1289,7 +1302,7 @@ void GUI::Render()
 			}
 
 			/* ===== PLAYER ===== */
-			if (ImGui::BulbToys_Menu("Player", &menu[id++]))
+			if (ImGui::BulbToys_Menu("Player"))
 			{
 				// Vehicle name
 				static char vehicle[32];
@@ -1416,7 +1429,7 @@ void GUI::Render()
 			}
 
 			/* ===== CREW/WINGMAN ===== */
-			if (ImGui::BulbToys_Menu("Crew/Wingman", &menu[id++]))
+			if (ImGui::BulbToys_Menu("Crew/Wingman"))
 			{
 				ImGui::Text("Add to crew:");
 
@@ -1467,7 +1480,7 @@ void GUI::Render()
 			}
 
 			/* ===== AI/WORLD ===== */
-			if (ImGui::BulbToys_Menu("AI/World", &menu[id++]))
+			if (ImGui::BulbToys_Menu("AI/World"))
 			{
 				// Vehicle name
 				ImGui::Checkbox("Next encounter vehicle:", &g::encounter::overridden);
@@ -1584,7 +1597,7 @@ void GUI::Render()
 			}
 
 			/* ===== SPAWNING ===== */
-			if (ImGui::BulbToys_Menu("Spawning", &menu[id++]))
+			if (ImGui::BulbToys_Menu("Spawning"))
 			{
 				// Vehicle name
 				static char vehicle[32];
@@ -1657,7 +1670,7 @@ void GUI::Render()
 			}
 
 			/* ===== TESTING ===== */
-			if (ImGui::BulbToys_Menu("TESTING", &menu[id++]))
+			if (ImGui::BulbToys_Menu("TESTING"))
 			{
 				struct eight_cars {
 					uintptr_t car[8] = { 0 };
@@ -1975,7 +1988,7 @@ void GUI::Render()
 			{
 				sprintf_s(list_name, 32, "%s: %u/%u", list_names[i], lists[i]->size, lists[i]->capacity);
 
-				if (ImGui::BulbToys_Menu(list_name, &menu[id++]))
+				if (ImGui::BulbToys_Menu(list_names[i], list_name))
 				{
 					ImGui::BulbToys_AddyLabel(reinterpret_cast<uintptr_t>(lists[i]), "Address");
 
@@ -2049,7 +2062,7 @@ void GUI::Render()
 			{
 				sprintf_s(list_name, 32, "%s: %u/%u", NFSC::vehicle_lists[i], NFSC::VehicleList[i]->size, NFSC::VehicleList[i]->capacity);
 
-				if (ImGui::BulbToys_Menu(list_name, &menu[id++]))
+				if (ImGui::BulbToys_Menu(NFSC::vehicle_lists[i], list_name))
 				{
 					ImGui::BulbToys_AddyLabel(reinterpret_cast<uintptr_t>(NFSC::VehicleList[i]), "Address");
 
