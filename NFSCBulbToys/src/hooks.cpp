@@ -1789,9 +1789,6 @@ void __stdcall Hooks::cFEngRender_RenderTerritoryBorder_(uintptr_t object)
 
 	uintptr_t territory = Read<uintptr_t>(0xA977F8);
 
-	// mask
-	reinterpret_cast<void(__thiscall*)(uintptr_t, uintptr_t, uintptr_t)>(0x7408C0)(g::world_map::flm, g::world_map::mask, territory + 0x50);
-
 	// FatLineMesh::RenderFE(wm_flm, FEWorldMapTerritory::sInstance->views, &FEWorldMapTerritory::sInstance->matrix)
 	reinterpret_cast<void(__thiscall*)(uintptr_t, uintptr_t, uintptr_t)>(0x74F0B0)(g::world_map::flm, Read<uintptr_t>(territory + 0xA0), territory + 0x50);
 }

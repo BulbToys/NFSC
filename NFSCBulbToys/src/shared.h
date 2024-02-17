@@ -136,8 +136,6 @@ namespace g
 		// FLM
 		inline uintptr_t flm = 0;
 
-		inline uint32_t mask = 0;
-
 		inline std::vector<NFSC::Vector2> test;
 	}
 

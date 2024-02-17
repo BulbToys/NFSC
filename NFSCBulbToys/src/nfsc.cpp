@@ -1068,8 +1068,6 @@ void NFSC::BulbToys_WorldMap_UpdateFLM()
 		// mask bbox
 		reinterpret_cast<void(__thiscall*)(uintptr_t, NFSC::Vector2*, NFSC::Vector2*)>(0x740940)(g::world_map::flm, &min, &max);
 
-		g::world_map::mask = NFSC::GetTextureInfo(NFSC::bStringHash("MINIMAP_MASK"), 1, 0);
-
 		// tuned fx
 		reinterpret_cast<void(__thiscall*)(uintptr_t, const char*)>(0x74B140)(g::world_map::flm, "mini_map_route");
 	}
