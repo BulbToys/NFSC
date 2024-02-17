@@ -46,6 +46,12 @@ void Patches::Do()
 
 	// map open test thingy
 	Patch<uint32_t>(0x673F9F, 0x90909090);
+
+	/*
+	// login test thingy
+	PatchJMP(0x72015F, reinterpret_cast<void*>(0x7202F1));
+	*/
+	//Patch<uintptr_t>(0x9E94D0, 0x59AED0);
 }
 
 void Patches::Undo()

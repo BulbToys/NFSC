@@ -200,6 +200,10 @@ bool Hooks::SetupPart2(uintptr_t device)
 	// In drift races, give the player racer a default "Player" name if they create a nameless alias, exactly as other races do it
 	CREATE_HOOK(DriftScoring_AddRacer);
 
+	// login screen tests
+	//CREATE_VTABLE_PATCH(0x9E8E4C, FEOnlineLoginStateManager_Start);
+	//CREATE_HOOK(FEPCOnlineLogin_Setup);
+
 	// Increment cop counter by 1 per roadblock vehicle
 	// TODO: if re-enabling this, make sure roadblock cops that get attached don't increment again
 	//WriteJmp(0x445A9D, CreateRoadBlockHook, 6);
@@ -1780,19 +1784,13 @@ void __fastcall Hooks::FatLineMesh_AddBezier_(uintptr_t flm, uintptr_t edx, void
 
 void __stdcall Hooks::cFEngRender_RenderTerritoryBorder_(uintptr_t object)
 {
-	/*
-	// If we don't have a FLM, let the map render its territory borders normally
-	if (!g::world_map::flm)
+	if (g::world_map::flm)
 	{
-		Hooks::cFEngRender_RenderTerritoryBorder(object);
-		return;
+		uintptr_t territory = Read<uintptr_t>(0xA977F8);
+
+		// FatLineMesh::RenderFE(wm_flm, FEWorldMapTerritory::sInstance->views, &FEWorldMapTerritory::sInstance->matrix)
+		reinterpret_cast<void(__thiscall*)(uintptr_t, uintptr_t, uintptr_t)>(0x74F0B0)(g::world_map::flm, Read<uintptr_t>(territory + 0xA0), territory + 0x50);
 	}
-	*/
-
-	uintptr_t territory = Read<uintptr_t>(0xA977F8);
-
-	// FatLineMesh::RenderFE(wm_flm, FEWorldMapTerritory::sInstance->views, &FEWorldMapTerritory::sInstance->matrix)
-	reinterpret_cast<void(__thiscall*)(uintptr_t, uintptr_t, uintptr_t)>(0x74F0B0)(g::world_map::flm, Read<uintptr_t>(territory + 0xA0), territory + 0x50);
 
 	Hooks::cFEngRender_RenderTerritoryBorder(object);
 }
@@ -1865,6 +1863,59 @@ void __fastcall Hooks::DriftScoring_AddRacer_(uintptr_t drift_scoring, uintptr_t
 	}
 
 	Hooks::DriftScoring_AddRacer(drift_scoring, edx, unk1, player_name, unk2);
+}
+
+void __fastcall Hooks::FEOnlineLoginStateManager_Start_(uintptr_t state_manager)
+{
+	NFSC::FEStateManager_Push(state_manager, reinterpret_cast<const char*>(0x9CFAE4), 7);
+}
+
+void __fastcall Hooks::FEPCOnlineLogin_Setup_(uintptr_t fepc_online_login)
+{
+	int items = 3;
+	reinterpret_cast<void(__thiscall*)(uintptr_t, int*)>(0x5766B0)(Read<uintptr_t>(fepc_online_login + 0x28), &items);
+
+	uintptr_t widget = reinterpret_cast<uintptr_t(__thiscall*)(uintptr_t, int, const char*, int, char, int)>(0x71F770)
+		(NFSC::malloc(0x1B8), 111025044, "", 0, 1, 31);
+	Write<uintptr_t>(fepc_online_login + 0x164, widget);
+	sprintf_s(reinterpret_cast<char*>(widget + 0x6C), 319, "haiiiii");
+
+	/*
+	uint32_t what = 0x5ACA06;
+	widget = reinterpret_cast<uintptr_t(__thiscall*)(uintptr_t, uint32_t*, uint32_t, const char*, int, bool, uint32_t)>(0x587F90)
+		(NFSC::malloc(0x1B8), &what, 31, "", 2, 1, 0);
+	Write<uintptr_t>(widget, 0x9E9018);
+	Write<uintptr_t>(fepc_online_login + 0x168, widget);
+	sprintf_s(reinterpret_cast<char*>(widget + 0x6C), 319, "meow");
+	*/
+
+	uint32_t what = 0x5ACA06;
+	widget = reinterpret_cast<uintptr_t(__thiscall*)(uintptr_t, int, const char*, int, char, int)>(0x71F770)
+		(NFSC::malloc(0x1B8), 0x5ACA06, "", 0, 1, 31);
+	//Write<uintptr_t>(widget, 0x9E9018);
+	Write<uintptr_t>(fepc_online_login + 0x168, widget);
+	sprintf_s(reinterpret_cast<char*>(widget + 0x6C), 319, "meow");
+
+	what = 80365510;
+	widget = reinterpret_cast<uintptr_t(__thiscall*)(uintptr_t, uint32_t*, bool, uint32_t)>(0x587CA0)(NFSC::malloc(0x78), &what, true, 0);
+	Write<char>(widget + 0x74, 0);
+	Write<uintptr_t>(widget, 0x9E90FC);
+	Write<uintptr_t>(fepc_online_login + 0x16C, widget);
+
+	widget = reinterpret_cast<uintptr_t(__thiscall*)(uintptr_t, uint32_t, uintptr_t)>(0x586B70)
+		(NFSC::malloc(0x50), NFSC::bStringHash("OPTION_1"), Read<uintptr_t>(fepc_online_login + 0x164));
+	reinterpret_cast<void(__thiscall*)(uintptr_t, uintptr_t)>(0x5B2320)(fepc_online_login, widget);
+
+	widget = reinterpret_cast<uintptr_t(__thiscall*)(uintptr_t, uint32_t, uintptr_t)>(0x586B70)
+		(NFSC::malloc(0x50), NFSC::bStringHash("OPTION_2"), Read<uintptr_t>(fepc_online_login + 0x168));
+	reinterpret_cast<void(__thiscall*)(uintptr_t, uintptr_t)>(0x5B2320)(fepc_online_login, widget);
+
+	widget = reinterpret_cast<uintptr_t(__thiscall*)(uintptr_t, uint32_t, uintptr_t)>(0x586B70)
+		(NFSC::malloc(0x50), NFSC::bStringHash("OPTION_3"), Read<uintptr_t>(fepc_online_login + 0x16C));
+	reinterpret_cast<void(__thiscall*)(uintptr_t, uintptr_t)>(0x5B2320)(fepc_online_login, widget);
+
+	reinterpret_cast<void(__thiscall*)(uintptr_t)>(Virtual<0x1C / 4>(fepc_online_login))(fepc_online_login);
+	reinterpret_cast<void(__thiscall*)(uintptr_t)>(Virtual<0x20 / 4>(fepc_online_login))(fepc_online_login);
 }
 
 uintptr_t IVehicle_temp;
