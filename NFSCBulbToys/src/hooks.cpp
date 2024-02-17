@@ -180,8 +180,10 @@ bool Hooks::SetupPart2(uintptr_t device)
 	//CreateHook(0x5D23E0, &UpdateRaceRouteHook, &UpdateRaceRoute);
 
 	//CreateHook(0x5E5050, &MinimapDestructorHook, &MinimapDestructor);
+	//CREATE_HOOK(Minimap_dtor);
 
 	//CreateHook(0x7598E0, &FLMMoveMaybeHook, &FLMMoveMaybe);
+	//CREATE_HOOK(FatLineMesh_AddBezier);
 
 	// Override the chosen roadblock with our own when manually spawning roadblocks
 	// TODO: uncomment when i've unfucked roadblock creation (might even be useless)
@@ -1675,8 +1677,6 @@ bool __fastcall Hooks::DALWorldMap_GetBool_(uintptr_t dal_world_map, uintptr_t e
 	return true;
 }
 
-// World Map Fat Line Mesh
-uintptr_t wm_flm = 0;
 /*
 void __fastcall Hooks::UpdateRaceRouteHook(uintptr_t minimap)
 {
@@ -1703,32 +1703,32 @@ void __fastcall Hooks::UpdateRaceRouteHook(uintptr_t minimap)
 }
 */
 
-/*
-void __fastcall Hooks::MinimapDestructorHook(uintptr_t minimap)
+
+void __fastcall Hooks::Minimap_dtor_(uintptr_t minimap)
 {
-	if (wm_flm)
+	if (g::world_map::flm)
 	{
 		// dtor
-		reinterpret_cast<void(__thiscall*)(uintptr_t)>(0x7597C0)(wm_flm);
-		NFSC::free(wm_flm);
+		reinterpret_cast<void(__thiscall*)(uintptr_t)>(0x7597C0)(g::world_map::flm);
+		NFSC::free(g::world_map::flm);
 	}
 
 	uintptr_t flm = Read<uintptr_t>(minimap + 0x158);
-	wm_flm = flm;
+	g::world_map::flm = flm;
 	Write<void*>(minimap + 0x158, nullptr);
 
-	MinimapDestructor(minimap);
+	Hooks::Minimap_dtor(minimap);
 }
-*/
 
-/*
-void __fastcall Hooks::FLMMoveMaybeHook(uintptr_t flm, uintptr_t edx, void* vec2_a, void* vec2_b, void* vec2_c, void* vec2_d, float f)
+
+void __fastcall Hooks::FatLineMesh_AddBezier_(uintptr_t flm, uintptr_t edx, void* vec2_a, void* vec2_b, void* vec2_c, void* vec2_d, float f)
 {
 	auto a = (NFSC::Vector2*)vec2_a;
 	auto b = (NFSC::Vector2*)vec2_b;
 	auto c = (NFSC::Vector2*)vec2_c;
 	auto d = (NFSC::Vector2*)vec2_d;
 
+	/*
 	//Error("A: { %.2f, %.2f }\nB: { %.2f, %.2f }\nC: { %.2f, %.2f }\nC: { %.2f, %.2f }", a->x, a->y, b->x, b->y, c->x, c->y, d->x, d->y);
 
 	float x = g::flm::x;
@@ -1768,39 +1768,32 @@ void __fastcall Hooks::FLMMoveMaybeHook(uintptr_t flm, uintptr_t edx, void* vec2
 	c->y *= scale;
 	d->x *= scale;
 	d->y *= scale;
+	*/
 
-	FLMMoveMaybe(flm, edx, vec2_a, vec2_b, vec2_c, vec2_d, f);
+	g::world_map::test.push_back(*a);
+	g::world_map::test.push_back(*b);
+	g::world_map::test.push_back(*c);
+	g::world_map::test.push_back(*d);
+
+	Hooks::FatLineMesh_AddBezier(flm, edx, vec2_a, vec2_b, vec2_c, vec2_d, f);
 }
-*/
 
 void __stdcall Hooks::cFEngRender_RenderTerritoryBorder_(uintptr_t object)
 {
-	if (NFSC::BulbToys_GetGameFlowState() == NFSC::GFS::IN_FRONTEND)
-	{
-		if (wm_flm)
-		{
-			// dtor
-			reinterpret_cast<void(__thiscall*)(uintptr_t)>(0x7597C0)(wm_flm);
-			NFSC::free(wm_flm);
-		}
-	}
-
-	if (!wm_flm)
+	// If we don't have a FLM, let the map render its territory borders normally
+	if (!g::world_map::flm)
 	{
 		Hooks::cFEngRender_RenderTerritoryBorder(object);
 		return;
 	}
 
-	NFSC::Vector2 min = { -100000, -100000 };
-	NFSC::Vector2 max = { +100000, +100000 };
-
-	// FatLineMesh::SetMaskBoundingBox
-	reinterpret_cast<void(__thiscall*)(uintptr_t, NFSC::Vector2*, NFSC::Vector2*)>(0x740940)(wm_flm, &min, &max);
-
 	uintptr_t territory = Read<uintptr_t>(0xA977F8);
 
+	// mask
+	reinterpret_cast<void(__thiscall*)(uintptr_t, uintptr_t, uintptr_t)>(0x7408C0)(g::world_map::flm, g::world_map::mask, territory + 0x50);
+
 	// FatLineMesh::RenderFE(wm_flm, FEWorldMapTerritory::sInstance->views, &FEWorldMapTerritory::sInstance->matrix)
-	reinterpret_cast<void(__thiscall*)(uintptr_t, uintptr_t, uintptr_t)>(0x74F0B0)(wm_flm, Read<uintptr_t>(territory + 0xA0), territory + 0x50);
+	reinterpret_cast<void(__thiscall*)(uintptr_t, uintptr_t, uintptr_t)>(0x74F0B0)(g::world_map::flm, Read<uintptr_t>(territory + 0xA0), territory + 0x50);
 }
 
 void __fastcall Hooks::FEPhotoModeStateManager_Start_(uintptr_t state_manager)

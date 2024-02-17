@@ -187,6 +187,29 @@ namespace NFSC
 		};
 	}
 
+	namespace WRoadSegmentFlags
+	{
+		enum : uint16_t
+		{
+			IS_DECISION = 0x1,
+			TRAFFIC_NOT_ALLOWED = 0x2,
+			RACE_ROUTE_FORWARD = 0x4,
+			UNKNOWN_0x08 = 0x8,
+			IS_ENTRANCE = 0x10,
+			COPS_XOR_TRAFFIC = 0x20,
+			IS_ONE_WAY = 0x40,
+			IS_SHORTCUT = 0x80,
+			IS_CURVA_PATH = 0x100,
+			IS_END_INVERTED = 0x200,
+			IS_START_INVERTED = 0x400,
+			IS_SIDE_ROUTE = 0x800,
+			CROSSES_BARRIER = 0x1000,
+			CROSSES_DRIVE_THRU_BARRIER = 0x2000,
+			UNKNOWN_0x4000 = 0x4000,
+			IS_IN_RACE = 0x8000,
+		};
+	}
+
 	/* ===== GAME OBJECTS ===== */
 
 	// B, G, R, A (stored as ints, but they're actually chars in practice)
@@ -425,7 +448,38 @@ namespace NFSC
 
 	};
 
+	struct WRoadSegment
+	{
+		uint16_t fNodeIndex[2];
+
+		uint8_t pad0[0x6];
+
+		// WRoadSegmentFlags
+		uint16_t fFlags;
+
+		uint8_t pad1[0xA];
+	};
+
+	struct WRoadNode
+	{
+		Vector3 fPosition;
+
+		uint8_t pad0[0x4];
+
+		char fNumSegments;
+		uint16_t fSegmentIndex[7];
+	};
+
 	/* ===== GAME CONSTANTS ===== */
+
+	namespace WRoadNetwork
+	{
+		constexpr uintptr_t fNumSegments = 0xB77E84;
+
+		constexpr uintptr_t fSegments = 0xB77ECC;
+
+		constexpr uintptr_t fNodes = 0xB77EC8;
+	}
 
 	// Globals
 	constexpr uintptr_t Direct3DDevice9 = 0xAB0ABC;
@@ -437,6 +491,7 @@ namespace NFSC
 
 	// Global OBJECTS!!
 	constexpr uintptr_t FastMem = 0xA99720;
+	constexpr uintptr_t DALManager = 0xA8AD30;
 
 	// Interfaces
 	constexpr uintptr_t IVehicle = 0x403D30;
@@ -475,7 +530,7 @@ namespace NFSC
 	
 	/* ===== HASHING FUNCTIONS AND MAPS ===== */
 
-	// "BIN Memory" Hash
+	// "BIN Memory" Hash, FEHash
 	constexpr uint32_t bStringHash(const char* string)
 	{
 		uint32_t result = -1;
@@ -622,6 +677,8 @@ namespace NFSC
 	FUNC(0x4A0890, char, __stdcall, DALCareer_GetPodiumVehicle, uint32_t* index);
 
 	FUNC(0x4D1DE0, bool, __stdcall, DALFeVehicle_AddCarToMyCarsDB, uint32_t index);
+
+	FUNC(0x4A0490, bool, __thiscall, DALManager_GetInt, uintptr_t dal_manager, int id, int* retval, int param_0, int param_1, int param_2);
 
 	FUNC(0x6F7790, float, __thiscall, DamageVehicle_GetHealth, uintptr_t damage_vehicle);
 
@@ -960,6 +1017,8 @@ namespace NFSC
 	}
 
 	void BulbToys_UpdateWorldMapCursor(uintptr_t fe_state_manager);
+
+	void BulbToys_WorldMap_UpdateFLM();
 
 	/* ===== AI PLAYER ===== */
 	struct AIPlayer

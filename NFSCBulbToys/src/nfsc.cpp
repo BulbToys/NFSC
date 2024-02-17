@@ -911,6 +911,170 @@ void NFSC::BulbToys_UpdateWorldMapCursor(uintptr_t fe_state_manager)
 	}
 }
 
+void NFSC::BulbToys_WorldMap_UpdateFLM()
+{
+	if (g::world_map::flm)
+	{
+		// dtor
+		reinterpret_cast<void(__thiscall*)(uintptr_t)>(0x7597C0)(g::world_map::flm);
+		NFSC::free(g::world_map::flm);
+		g::world_map::flm = 0;
+	}
+
+	int event_type = -1;
+	int event_hash = -1;
+
+	// don't make FLM if we're not in a race or if it's an encounter race
+	if (!NFSC::DALManager_GetInt(DALManager, 3021, &event_hash, -1, -1, -1) || (NFSC::DALManager_GetInt(DALManager, 3011, &event_type, -1, -1, -1) && event_type == 0xC))
+	{
+		return;
+	}
+	
+	// almost everything below this point is a recreation of Minimap::UpdateRaceRoute
+	// how does it work? no idea! it came to me in a dream. glhf
+
+	/*
+	// TEMP: we need the minimap
+	auto minimap = Read<uintptr_t>(0xA97DE4);
+	if (!minimap)
+	{
+		return;
+	}
+	*/
+
+	float track_map_size_x = 128.0f;//Read<float>(minimap + 0xA0);
+
+	for (int i = 0; i < Read<uint32_t>(NFSC::WRoadNetwork::fNumSegments); i++)
+	{
+		auto road_segment = Read<NFSC::WRoadSegment*>(NFSC::WRoadNetwork::fSegments) + i;
+
+		if (road_segment && ((road_segment->fFlags & WRoadSegmentFlags::IS_IN_RACE) != 0) && ((road_segment->fFlags & WRoadSegmentFlags::IS_SIDE_ROUTE) == 0))
+		{
+			bool new_segment = true;
+
+			if ((road_segment->fFlags & WRoadSegmentFlags::IS_DECISION) != 0)
+			{
+				for (int k = 0; k < 2; k++)
+				{
+					auto road_node = Read<NFSC::WRoadNode*>(NFSC::WRoadNetwork::fNodes) + road_segment->fNodeIndex[k];
+
+					for (int j = 0; j < road_node->fNumSegments; j++)
+					{
+						uint16_t segment_index = road_node->fSegmentIndex[j];
+
+						if (segment_index != i)
+						{
+							auto other_segment = Read<NFSC::WRoadSegment*>(NFSC::WRoadNetwork::fSegments) + segment_index;
+							if (((other_segment->fFlags & WRoadSegmentFlags::IS_IN_RACE) != 0) && ((other_segment->fFlags & WRoadSegmentFlags::IS_SIDE_ROUTE) != 0))
+							{
+								new_segment = false;
+								break;
+							}
+						}
+					}
+				}
+			}
+
+			if (new_segment)
+			{
+				NFSC::Vector2 points[4] { {0, 0}, {0, 0}, {0, 0}, {0, 0} };
+				NFSC::Vector3 controls[2] { {0, 0, 0}, {0, 0, 0} };
+				NFSC::WRoadNode* nodes[2] {
+					Read<NFSC::WRoadNode*>(NFSC::WRoadNetwork::fNodes) + road_segment->fNodeIndex[0],
+					Read<NFSC::WRoadNode*>(NFSC::WRoadNetwork::fNodes) + road_segment->fNodeIndex[1]
+				};
+
+				// get start/end control
+				reinterpret_cast<void(__thiscall*)(NFSC::WRoadSegment*, NFSC::Vector3*)>(0x404D80)(road_segment, &controls[0]);
+				reinterpret_cast<void(__thiscall*)(NFSC::WRoadSegment*, NFSC::Vector3*)>(0x5D1CA0)(road_segment, &controls[1]);
+
+				points[0].y = -nodes[0]->fPosition.x;
+				points[0].x = nodes[0]->fPosition.z;
+				points[1].y = -(controls[0].x + nodes[0]->fPosition.x);
+				points[1].x = controls[0].z + nodes[0]->fPosition.z;
+				points[2].y = -(controls[1].x + nodes[1]->fPosition.x);
+				points[2].x = controls[1].z + nodes[1]->fPosition.z;
+				points[3].y = -nodes[1]->fPosition.x;
+				points[3].x = nodes[1]->fPosition.z;
+
+				float scaled[2] { track_map_size_x * 16.0f, track_map_size_x * -0.5f };
+
+				for (int j = 0; j < 4; j++)
+				{
+					points[j].x = (points[j].x - -7300.0f) * 0.000062500003f;
+					points[j].y = (-2000.0f - points[j].y) * 0.000062500003f + 1.0f;
+
+					points[j].x = scaled[0] * points[j].x + scaled[1];
+					points[j].y = scaled[0] * points[j].y + scaled[1];
+
+					// account for world map scale
+					if (NFSC::BulbToys_IsGameNFSCO())
+					{
+						points[j].x -= 1247.f;
+					}
+					else
+					{
+						points[j].x -= 951.f;
+					}
+					points[j].y = points[j].y - 1411.f;
+
+					points[j].x *= 1.27f;
+					points[j].y *= 1.27f;
+				}
+
+				if (!g::world_map::flm)
+				{
+					// ctor
+					g::world_map::flm = reinterpret_cast<uintptr_t(__thiscall*)(uintptr_t, bool)>(0x759690)(NFSC::malloc(0x160), false);
+				}
+
+				/*
+				Error("A: { %.2f, %.2f }\nB: { %.2f, %.2f }\nC: { %.2f, %.2f }\nC: { %.2f, %.2f }", 
+					points[0].x, points[0].y, points[1].x, points[1].y, points[2].x, points[2].y, points[3].x, points[3].y);
+				*/
+
+				// add bezier
+				reinterpret_cast<void(__thiscall*)(uintptr_t, NFSC::Vector2*, NFSC::Vector2*, NFSC::Vector2*, NFSC::Vector2*, float)>(0x7598E0)
+					(g::world_map::flm, &points[0], &points[1], &points[2], &points[3], 0.25);
+			}
+		}
+	}
+
+	if (g::world_map::flm)
+	{
+		// generate
+		reinterpret_cast<void(__thiscall*)(uintptr_t, float)>(0x75BA60)(g::world_map::flm, 6.25f);
+
+		// optimize
+		reinterpret_cast<void(__thiscall*)(uintptr_t)>(0x74ADC0)(g::world_map::flm);
+
+		// TODO: are the next 5 functions even necessary?
+		// center and edge color (0xC0 - 75% opacity)
+		reinterpret_cast<void(__thiscall*)(uintptr_t, uint32_t)>(0x740B00)(g::world_map::flm, 0xC02DC2FF);
+		reinterpret_cast<void(__thiscall*)(uintptr_t, uint32_t)>(0x740B20)(g::world_map::flm, 0xC0030B0D);
+
+		// alpha scale
+		reinterpret_cast<void(__thiscall*)(uintptr_t, float)>(0x740BD0)(g::world_map::flm, 1.0f);
+
+		// width
+		reinterpret_cast<void(__thiscall*)(uintptr_t, float)>(0x740A70)(g::world_map::flm, 6.25f);
+
+		// sharpness
+		reinterpret_cast<void(__thiscall*)(uintptr_t, float)>(0x740AD0)(g::world_map::flm, 0.0f);
+
+		NFSC::Vector2 min = { -100000, -100000 };
+		NFSC::Vector2 max = { +100000, +100000 };
+
+		// mask bbox
+		reinterpret_cast<void(__thiscall*)(uintptr_t, NFSC::Vector2*, NFSC::Vector2*)>(0x740940)(g::world_map::flm, &min, &max);
+
+		g::world_map::mask = NFSC::GetTextureInfo(NFSC::bStringHash("MINIMAP_MASK"), 1, 0);
+
+		// tuned fx
+		reinterpret_cast<void(__thiscall*)(uintptr_t, const char*)>(0x74B140)(g::world_map::flm, "mini_map_route");
+	}
+}
+
 /* ===== AIPLAYER ===== */
 
 // Most of this shit is probably useless garbage the compiler spit out due to inheritance but i'm replicating it for consistency

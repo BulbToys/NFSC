@@ -1907,6 +1907,60 @@ void GUI::Render()
 						reinterpret_cast<HRESULT(__stdcall*)(const char*, int, IDirect3DSurface9*, PALETTEENTRY*, RECT*)>(0x86B2C0)(name, 1, rt.D3DTarget, 0, 0);
 					}
 				}
+
+				ImGui::Separator();
+
+				ImGui::BulbToys_AddyLabel(g::world_map::flm, "World Map FLM");
+
+				if (ImGui::Button("Update FLM"))
+				{
+					NFSC::BulbToys_WorldMap_UpdateFLM();
+				}
+				if (g::world_map::flm)
+				{
+					ImGui::SameLine();
+					if (ImGui::Button("Destroy FLM"))
+					{
+						// dtor
+						reinterpret_cast<void(__thiscall*)(uintptr_t)>(0x7597C0)(g::world_map::flm);
+						NFSC::free(g::world_map::flm);
+						g::world_map::flm = 0;
+					}
+				}
+
+				ImGui::Text("%d Beziers", g::world_map::test.size() / 4);
+				if (ImGui::Button("Save Beziers"))
+				{
+					FILE* file = nullptr;
+					fopen_s(&file, "beziers.txt", "w");
+					if (!file)
+					{
+						char error[64];
+						strerror_s(error, errno);
+						Error("Error saving file.\n\nError code %d: %s", errno, error);
+					}
+					else
+					{
+						auto iter = g::world_map::test.begin();
+						while (iter != g::world_map::test.end())
+						{
+							for (int i = 0; i < 4; i++)
+							{
+								auto vec2 = *iter;
+
+								char buf[64];
+								sprintf_s(buf, 64, "(%f, %f) ", vec2.x, vec2.y);
+								fwrite(buf, 1, strlen(buf) + 1, file);
+
+								g::world_map::test.erase(iter);
+							}
+
+							fwrite("\n", 1, 2, file);
+						}
+
+						fclose(file);
+					}
+				}
 			}
 
 			/* ===== LISTS ===== */

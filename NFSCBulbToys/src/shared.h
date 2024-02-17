@@ -110,6 +110,7 @@ namespace g
 		inline bool overridden = false;
 	}
 
+	/*
 	// World Map Fat Line Mesh
 	namespace flm
 	{
@@ -120,16 +121,24 @@ namespace g
 
 		inline bool processing = false;
 	}
-
-	// GPS only
+	*/
+	
 	namespace world_map
 	{
+		// GPS only
 		constexpr uint32_t gps_color = 0xFFFFFFFF;
 
 		inline bool gps_only = false;
 		inline bool shift_held = false;
 
 		inline NFSC::Vector3 location = { 0, 0, 0 };
+
+		// FLM
+		inline uintptr_t flm = 0;
+
+		inline uint32_t mask = 0;
+
+		inline std::vector<NFSC::Vector2> test;
 	}
 
 	// Health icon render

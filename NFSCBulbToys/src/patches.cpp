@@ -44,7 +44,7 @@ void Patches::Do()
 	});
 	*/
 
-	// ?????
+	// map open test thingy
 	Patch<uint32_t>(0x673F9F, 0x90909090);
 }
 
