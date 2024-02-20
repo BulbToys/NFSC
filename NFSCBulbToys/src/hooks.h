@@ -6,6 +6,8 @@
 
 #define VIRTUAL 0x0
 
+#define STR(str) (str? str : "(null)")
+
 // todo fuck me
 namespace NFSC
 {
@@ -138,6 +140,8 @@ namespace Hooks
 	HOOK(VIRTUAL, void, __fastcall, FEOnlineLoginStateManager_Start, uintptr_t state_manager);
 
 	HOOK(0x71FE70, void, __fastcall, FEPCOnlineLogin_Setup, uintptr_t fepc_online_login);
+
+	HOOK(0x650DB0, void, , NIS_Play, uintptr_t g_runtime_instance, char* anim_name, char* anim_type, int camera_track, char* pre_movie, char* post_movie);
 
 	//void CreateRoadBlockHook();
 	void UpdateCopElementsHook1();

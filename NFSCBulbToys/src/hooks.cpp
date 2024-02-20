@@ -204,6 +204,9 @@ bool Hooks::SetupPart2(uintptr_t device)
 	//CREATE_VTABLE_PATCH(0x9E8E4C, FEOnlineLoginStateManager_Start);
 	//CREATE_HOOK(FEPCOnlineLogin_Setup);
 
+	// Don't play the NIS for Pursuit Tag
+	//CREATE_HOOK(NIS_Play);
+
 	// Increment cop counter by 1 per roadblock vehicle
 	// TODO: if re-enabling this, make sure roadblock cops that get attached don't increment again
 	//WriteJmp(0x445A9D, CreateRoadBlockHook, 6);
@@ -1916,6 +1919,37 @@ void __fastcall Hooks::FEPCOnlineLogin_Setup_(uintptr_t fepc_online_login)
 
 	reinterpret_cast<void(__thiscall*)(uintptr_t)>(Virtual<0x1C / 4>(fepc_online_login))(fepc_online_login);
 	reinterpret_cast<void(__thiscall*)(uintptr_t)>(Virtual<0x20 / 4>(fepc_online_login))(fepc_online_login);
+}
+
+void Hooks::NIS_Play_(uintptr_t g_runtime_instance, char* anim_name, char* anim_type, int camera_track, char* pre_movie, char* post_movie)
+{
+	/*
+	if (NFSC::BulbToys_GetRaceType() == NFSC::GRaceType::PURSUIT_TAG)
+	{
+		Write<uint8_t>(0x650F1B, 0);
+	}
+	else
+	{
+		Write<uint8_t>(0x650F1B, 36);
+	}
+
+	Hooks::NIS_Play(g_runtime_instance, anim_name, anim_type, camera_track, pre_movie, post_movie);
+	*/
+
+	/*
+	if (NFSC::BulbToys_GetRaceType() == NFSC::GRaceType::PURSUIT_TAG && !strcmp("Intro", anim_type))
+	{
+		Hooks::NIS_Play(g_runtime_instance, nullptr, const_cast<char*>("Countdown"), camera_track, pre_movie, post_movie);
+		return;
+	}
+	*/
+
+	/*
+	Error("GRI: %08X\nName: %s\nAnim: %s\nCam Track: %d\nPre: %s\nPost: %s",
+		g_runtime_instance, STR(anim_name), STR(anim_type), camera_track, STR(pre_movie), STR(post_movie));
+	*/
+
+	Hooks::NIS_Play(g_runtime_instance, anim_name, anim_type, camera_track, pre_movie, post_movie);
 }
 
 uintptr_t IVehicle_temp;

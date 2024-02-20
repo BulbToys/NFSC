@@ -218,7 +218,7 @@ namespace ImGui
 	inline bool BulbToys_ListBox(const char* text, const char* id, int* current_item, const char* const* items, int items_count, int height_in_items);
 	inline bool BulbToys_SliderFloat(const char* text, const char* id, float* v, float v_min, float v_max, const char* format);
 	inline bool BulbToys_SliderInt(const char* text, const char* id, int* v, int v_min, int v_max, const char* format);
-	inline bool BulbToys_Menu(const char* menu_name, const char* menu_label = nullptr);
+	inline bool BulbToys_Menu(const char* menu_name, const char* menu_label);
 	inline bool BulbToys_InputInt(const char* text, const char* id, int* i, int min, int max);
 	inline void BulbToys_AddyLabel(uintptr_t addy, const char* fmt, ...);
 	inline void BulbToys_GameDistanceBar(float distance);

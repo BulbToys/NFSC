@@ -357,24 +357,19 @@ int NFSC::BulbToys_GetRaceType()
 
 int NFSC::BulbToys_GetRacerIndex(uintptr_t racer_info)
 {
-	uintptr_t g_race_status = Read<uintptr_t>(GRaceStatus);
+	uintptr_t g_race_status = Read<uintptr_t>(NFSC::GRaceStatus);
 	if (!g_race_status)
 	{
 		return -1;
 	}
 
-	// just iterate GRacerInfo[30] in GRaceStatus until the addresses match lol
-	g_race_status += 0x18;
-	for (int i = 0; i < 30; i++)
+	constexpr int max_offset = 0x384 * 29;
+	int offset = racer_info - (g_race_status + 0x18);
+	if (offset > max_offset)
 	{
-		if (racer_info == g_race_status)
-		{
-			return i;
-		}
-		g_race_status += 0x384;
+		return -1;
 	}
-
-	return -1;
+	return offset / 0x384;
 }
 
 // Returns false if we're not in Debug Cam
