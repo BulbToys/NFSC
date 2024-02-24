@@ -207,7 +207,7 @@ void ImGui::BulbToys_GameDriverColor(int dc, ImVec4& color)
 		case NFSC::DriverClass::REMOTE:       color = ImVec4(0, .75f, 0, 1); break;       // darker green
 		case NFSC::DriverClass::REMOTE_RACER: color = ImVec4(0, 1, 0, 1); break;          // green
 		case NFSC::DriverClass::GHOST:        color = ImVec4(.75f, .75f, .75f, 1); break; // gray
-		default: /* hub */                     color = ImVec4(1, 0, 1, 1); break;          // magenta
+		default: /* NFSC::DriverClass::HUB */ color = ImVec4(1, 0, 1, 1); break;          // magenta
 	}
 }
 
@@ -1781,8 +1781,6 @@ void GUI::Render()
 					reinterpret_cast<void(*)(uintptr_t, float)>(0x6515D0)(my_simable, 5.0f);
 				}
 
-				ImGui::Separator();
-
 				/*
 				// Save Scenery
 				if (ImGui::Button("Save Scenery"))
@@ -1812,34 +1810,6 @@ void GUI::Render()
 				}
 
 				ImGui::Separator();
-
-				// Override FLM
-				/*
-				ImGui::Checkbox("Override FLM", &g::flm::custom);
-				ImGui::BulbToys_SliderFloat("X", "##FLMX", &g::flm::x, -10000, 10000);
-				ImGui::BulbToys_SliderFloat("Y", "##FLMY", &g::flm::y, -10000, 10000);
-				ImGui::BulbToys_SliderFloat("Scale", "##FLMScale", &g::flm::scale, 0.1, 2);
-				
-
-				if (uintptr_t territory = Read<uintptr_t>(0xA977F8))
-				{
-					auto mat = reinterpret_cast<NFSC::Matrix4*>(territory + 0x50);
-
-					float matrix[4][4] = {
-						{mat->v0.x, mat->v0.y, mat->v0.z, mat->v0.w},
-						{mat->v1.x, mat->v1.y, mat->v1.z, mat->v1.w},
-						{mat->v2.x, mat->v2.y, mat->v2.z, mat->v2.w},
-						{mat->v3.x, mat->v3.y, mat->v3.z, mat->v3.w}
-					};
-
-					ImGui::InputFloat4("Vector0", matrix[0]);
-					ImGui::InputFloat4("Vector1", matrix[1]);
-					ImGui::InputFloat4("Vector2", matrix[2]);
-					ImGui::InputFloat4("Vector3", matrix[3]);
-				}
-
-				ImGui::Separator();
-				*/
 
 				// Screenshot Everything
 				if (ImGui::Button("Screenshot Everything"))

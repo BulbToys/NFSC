@@ -147,7 +147,7 @@ bool Hooks::SetupPart2(uintptr_t device)
 	// Prevent "encounter bleeding" - spawning encounters into the void endlessly
 	CREATE_HOOK(AITrafficManager_SpawnEncounter);
 
-	// Custom SMS test 1 - DAL getters
+	// Custom SMS part 1 - DAL getters
 	CREATE_HOOK(DALCareer_GetSMSHandle);
 	CREATE_HOOK(DALCareer_GetSMSIsAvailable);
 	CREATE_HOOK(DALCareer_GetSMSWasRead);
@@ -161,7 +161,7 @@ bool Hooks::SetupPart2(uintptr_t device)
 	CREATE_HOOK(DALCareer_SetSMSIsAvailable);
 	CREATE_HOOK(DALCareer_SetSMSHandle);
 
-	// Custom SMS test 2 - FE rendering
+	// Custom SMS part 2 - FE rendering
 	CREATE_HOOK(FESMSMessage_RefreshHeader);
 	CREATE_HOOK(CTextScroller_SetTextHash);
 	CREATE_HOOK(SMSSlot_Update);
