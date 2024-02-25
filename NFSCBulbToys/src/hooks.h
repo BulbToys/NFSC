@@ -121,14 +121,6 @@ namespace Hooks
 	//void __fastcall UpdateRaceRouteHook(uintptr_t minimap);
 	//static inline decltype (&UpdateRaceRouteHook) UpdateRaceRoute;
 
-	//void __fastcall MinimapDestructorHook(uintptr_t minimap);
-	//static inline decltype (&MinimapDestructorHook) MinimapDestructor;
-	HOOK(0x5E5050, void, __fastcall, Minimap_dtor, uintptr_t minimap);
-
-	//void __fastcall FLMMoveMaybeHook(uintptr_t flm, uintptr_t edx, void* vec2_a, void* vec2_b, void* vec2_c, void* vec2_d, float f);
-	//static inline decltype (&FLMMoveMaybeHook) FLMMoveMaybe;
-	HOOK(0x7598E0, void, __fastcall, FatLineMesh_AddBezier, uintptr_t flm, uintptr_t edx, void* vec2_a, void* vec2_b, void* vec2_c, void* vec2_d, float f);
-
 	HOOK(VIRTUAL, void, __fastcall, FEPhotoModeStateManager_Start, uintptr_t state_manager);
 	HOOK(VIRTUAL, void, __fastcall, FEPhotoModeStateManager_HandlePadAccept, uintptr_t state_manager);
 	HOOK(VIRTUAL, void, __fastcall, FEPhotoModeStateManager_HandleChildFlowDone, uintptr_t state_manager, uintptr_t edx, int unk);

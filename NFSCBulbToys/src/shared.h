@@ -94,6 +94,8 @@ struct VTable
 
 namespace g
 {
+	inline bool shift_held = false;
+
 	// See Patches::AIPlayer() for more info about these vtables
 	namespace ai_player
 	{
@@ -110,33 +112,22 @@ namespace g
 		inline bool overridden = false;
 	}
 
-	/*
-	// World Map Fat Line Mesh
-	namespace flm
+	namespace gps_only
 	{
-		inline bool custom = false;
-		inline float x = -9.f;
-		inline float y = 451.f;
-		inline float scale = 1.27f;
-
-		inline bool processing = false;
+		inline bool enabled = false;
 	}
-	*/
 	
-	namespace world_map
+	namespace click_tp
 	{
-		// GPS only
 		constexpr uint32_t gps_color = 0xFFFFFFFF;
 
-		inline bool gps_only = false;
-		inline bool shift_held = false;
-
 		inline NFSC::Vector3 location = { 0, 0, 0 };
+	}
 
-		// FLM
+	// World Map related data
+	namespace world_map
+	{
 		inline uintptr_t flm = 0;
-
-		inline std::vector<NFSC::Vector2> test;
 	}
 
 	// Health icon render
@@ -190,6 +181,7 @@ namespace g
 		inline NFSC::Vector3 target = { 0, 0, 0 };
 	}
 
+	// Custom SMS Message
 	namespace custom_sms
 	{
 		// 26-29 and 63-149 inclusive are all unused by the game
@@ -220,8 +212,8 @@ namespace g
 	}
 	
 	// Wrong warp fix
-	namespace wrong_warp_fix
+	namespace wrong_warp
 	{
-		inline bool enabled = false;
+		inline bool fixed = false;
 	}
 }

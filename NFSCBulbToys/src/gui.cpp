@@ -1075,12 +1075,12 @@ void GUI::Render()
 				ImGui::Checkbox("ShowAllPresetsInFE", reinterpret_cast<bool*>(0xA9E6C3));
 
 				// Wrong warp fix
-				ImGui::Checkbox("Wrong warp fix", &g::wrong_warp_fix::enabled);
+				ImGui::Checkbox("Wrong warp fix", &g::wrong_warp::fixed);
 
 				// World map GPS only
-				if (ImGui::Checkbox("GPS only", &g::world_map::gps_only))
+				if (ImGui::Checkbox("GPS only", &g::gps_only::enabled))
 				{
-					if (g::world_map::gps_only)
+					if (g::gps_only::enabled)
 					{
 						// Remove the "Jump to Safehouse" button from the pause menu
 						Patch<uint8_t>(0x5D59F4, 0xEB);
@@ -1910,40 +1910,6 @@ void GUI::Render()
 						g::world_map::flm = 0;
 					}
 				}
-
-				ImGui::Text("%d Beziers", g::world_map::test.size() / 4);
-				if (ImGui::Button("Save Beziers"))
-				{
-					FILE* file = nullptr;
-					fopen_s(&file, "beziers.txt", "w");
-					if (!file)
-					{
-						char error[64];
-						strerror_s(error, errno);
-						Error("Error saving file.\n\nError code %d: %s", errno, error);
-					}
-					else
-					{
-						auto iter = g::world_map::test.begin();
-						while (iter != g::world_map::test.end())
-						{
-							for (int i = 0; i < 4; i++)
-							{
-								auto vec2 = *iter;
-
-								char buf[64];
-								sprintf_s(buf, 64, "(%f, %f) ", vec2.x, vec2.y);
-								fwrite(buf, 1, strlen(buf) + 1, file);
-
-								g::world_map::test.erase(iter);
-							}
-
-							fwrite("\n", 1, 2, file);
-						}
-
-						fclose(file);
-					}
-				}
 			}
 
 			/* ===== LISTS ===== */
@@ -2353,7 +2319,7 @@ LRESULT CALLBACK WindowProcess(HWND window, UINT message, WPARAM wideParam, LPAR
 
 		else if (wideParam == VK_SHIFT)
 		{
-			g::world_map::shift_held = true;
+			g::shift_held = true;
 			//NFSC::BulbToys_UpdateWorldMapCursor();
 
 			g::move_vinyl::step_size = 10;
@@ -2364,7 +2330,7 @@ LRESULT CALLBACK WindowProcess(HWND window, UINT message, WPARAM wideParam, LPAR
 	{
 		if (wideParam == VK_SHIFT)
 		{
-			g::world_map::shift_held = false;
+			g::shift_held = false;
 			//NFSC::BulbToys_UpdateWorldMapCursor();
 
 			g::move_vinyl::step_size = 1;

@@ -831,7 +831,7 @@ void NFSC::BulbToys_UpdateWorldMapCursor(uintptr_t fe_state_manager)
 		// WorldMap->mEventIconGlow
 		uintptr_t cursor = Read<uintptr_t>(world_map + 0x28);
 
-		if (g::world_map::shift_held)
+		if (g::shift_held)
 		{
 			// Only change the color for the "normal" mode of the world map (not quick list, etc...)
 			if (Read<int>(fe_state_manager + 4) == FESM::WorldMap::NORMAL)
@@ -883,9 +883,9 @@ void NFSC::BulbToys_UpdateWorldMapCursor(uintptr_t fe_state_manager)
 				y = y - calibration_offset_y - calibration_width;
 
 				// Inverse GetVehicleVectors to get position from world coordinates
-				g::world_map::location.x = -y;
-				g::world_map::location.y = 0; // z
-				g::world_map::location.z = x;
+				g::click_tp::location.x = -y;
+				g::click_tp::location.y = 0; // z
+				g::click_tp::location.z = x;
 
 				// Attempt to get world height at given position
 				WCollisionMgr mgr;
@@ -893,12 +893,12 @@ void NFSC::BulbToys_UpdateWorldMapCursor(uintptr_t fe_state_manager)
 				mgr.fPrimitiveMask = 3;
 
 				float height = NAN;
-				if (WCollisionMgr_GetWorldHeightAtPointRigorous(mgr, &g::world_map::location, &height, nullptr))
+				if (WCollisionMgr_GetWorldHeightAtPointRigorous(mgr, &g::click_tp::location, &height, nullptr))
 				{
 					// Successful
 					color = { 0, 255, 0, 255 }; // green
 				}
-				g::world_map::location.y = height;
+				g::click_tp::location.y = height;
 			}
 		}
 

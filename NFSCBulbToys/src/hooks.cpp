@@ -1401,7 +1401,7 @@ void __fastcall Hooks::FEWorldMapStateManager_HandlePadAccept_(uintptr_t fe_stat
 	// mCurrentState
 	auto state = Read<int>(fe_state_manager + 4);
 
-	if (g::world_map::shift_held && state == NFSC::FESM::WorldMap::NORMAL)
+	if (g::shift_held && state == NFSC::FESM::WorldMap::NORMAL)
 	{
 		// sub_00582D90 (seems legit???)
 		reinterpret_cast<void(__thiscall*)(uintptr_t, bool)>(0x582D90)(Read<uintptr_t>(NFSC::WorldMap), true);
@@ -1431,7 +1431,7 @@ void __fastcall Hooks::FEWorldMapStateManager_HandleButtonPressed_(uintptr_t fe_
 	if (state == NFSC::FESM::WorldMap::CLICK_TP)
 	{
 		// We are not in FE and we clicked on a valid road
-		if (gfs == NFSC::GFS::RACING && !isnan(g::world_map::location.y))
+		if (gfs == NFSC::GFS::RACING && !isnan(g::click_tp::location.y))
 		{
 			// First button - Jump to Location
 			if (unk == button_hashes[0])
@@ -1462,14 +1462,12 @@ void __fastcall Hooks::FEWorldMapStateManager_HandleButtonPressed_(uintptr_t fe_
 	}
 
 	// Only offer GPS if the option is enabled and we're not in FE
-	if (g::world_map::gps_only && gfs == NFSC::GFS::RACING)
+	if (g::gps_only::enabled && gfs == NFSC::GFS::RACING)
 	{
 		if (state == NFSC::FESM::WorldMap::RACE_EVENT || state == NFSC::FESM::WorldMap::CAR_LOT || state == NFSC::FESM::WorldMap::SAFEHOUSE)
 		{
 			// For these types of dialogs, use the button hashes of the GPS to safehouse prompt during pursuits
 			//Write<int>(fe_state_manager + 4, 18);
-
-			// ???
 
 			// First button - Activate GPS
 			if (unk == button_hashes[0])
@@ -1511,9 +1509,9 @@ void __fastcall Hooks::FEWorldMapStateManager_HandleStateChange_(uintptr_t fe_st
 
 		NFSC::Vector3 dimensions;
 		NFSC::RigidBody_GetDimension(rigid_body, &dimensions);
-		g::world_map::location.y += dimensions.y + 0.5f;
+		g::click_tp::location.y += dimensions.y + 0.5f;
 
-		NFSC::PVehicle_SetVehicleOnGround(vehicle, &g::world_map::location, &fwd_vec);
+		NFSC::PVehicle_SetVehicleOnGround(vehicle, &g::click_tp::location, &fwd_vec);
 
 		// this->mNextManager = this->mParentManager;
 		Write<uintptr_t>(fe_state_manager + 0xB4, Read<uintptr_t>(fe_state_manager + 0xAC));
@@ -1531,9 +1529,9 @@ void __fastcall Hooks::FEWorldMapStateManager_HandleStateChange_(uintptr_t fe_st
 	}
 	else if (state == NFSC::FESM::WorldMap::CLICK_TP_GPS)
 	{
-		if (NFSC::GPS_Engage(&g::world_map::location, 0.0, false))
+		if (NFSC::GPS_Engage(&g::click_tp::location, 0.0, false))
 		{
-			NFSC::Vector3 position = { g::world_map::location.z, -g::world_map::location.x, g::world_map::location.y };
+			NFSC::Vector3 position = { g::click_tp::location.z, -g::click_tp::location.x, g::click_tp::location.y };
 			auto icon = NFSC::GManager_AllocIcon(Read<uintptr_t>(NFSC::GManagerBase), 0x15, &position, 0, false);
 
 			// Set flag to ShowOnSpawn
@@ -1543,7 +1541,7 @@ void __fastcall Hooks::FEWorldMapStateManager_HandleStateChange_(uintptr_t fe_st
 			Write<uint8_t>(icon + 0x1, 3);
 
 			// Set color to white
-			Write<uint32_t>(icon + 0x20, g::world_map::gps_color);
+			Write<uint32_t>(icon + 0x20, g::click_tp::gps_color);
 
 			// Set tex hash
 			Write<uint32_t>(icon + 0x24, NFSC::bStringHash("MINIMAP_ICON_EVENT"));
@@ -1584,7 +1582,7 @@ void __fastcall Hooks::FEWorldMapStateManager_HandleScreenTick_(uintptr_t fe_sta
 void __fastcall Hooks::FEWorldMapStateManager_HandlePadButton4_(uintptr_t fe_state_manager)
 {
 	// Correctly set FEManager's event key if we press the "Select wingman" button when interacting with an event's engagement ring
-	if (g::wrong_warp_fix::enabled && Read<int>(fe_state_manager + 4) == NFSC::FESM::WorldMap::ENGAGE_EVENT)
+	if (g::wrong_warp::fixed && Read<int>(fe_state_manager + 4) == NFSC::FESM::WorldMap::ENGAGE_EVENT)
 	{
 		// FEManager::mInstance->mEventKey = WorldMap::GetEventHash(WorldMap::mInstance);
 		Write<uint32_t>(Read<uintptr_t>(NFSC::FEManager) + 0xEC,
@@ -1610,15 +1608,15 @@ void __fastcall Hooks::FEWorldMapStateManager_HandleShowDialog_(uintptr_t fe_sta
 		Write<bool>(HideCursor, false);
 
 		char title[64];
-		if (isnan(g::world_map::location.y))
+		if (isnan(g::click_tp::location.y))
 		{
-			sprintf_s(title, 64, "Selected coordinates: (%.2f, N/A, %.2f)", g::world_map::location.x, g::world_map::location.z);
+			sprintf_s(title, 64, "Selected coordinates: (%.2f, N/A, %.2f)", g::click_tp::location.x, g::click_tp::location.z);
 
 			NFSC::FEDialogScreen_ShowDialog(title, COMMON_OK, nullptr, nullptr);
 		}
 		else
 		{
-			sprintf_s(title, 64, "Selected coordinates: (%.2f, %.2f, %.2f)", g::world_map::location.x, g::world_map::location.y, g::world_map::location.z);
+			sprintf_s(title, 64, "Selected coordinates: (%.2f, %.2f, %.2f)", g::click_tp::location.x, g::click_tp::location.y, g::click_tp::location.z);
 
 			NFSC::FEDialogScreen_ShowDialog(title, "Jump to Location", DIALOG_MSG_ACTIVATE_GPS, COMMON_CANCEL);
 		}
@@ -1627,7 +1625,7 @@ void __fastcall Hooks::FEWorldMapStateManager_HandleShowDialog_(uintptr_t fe_sta
 	}
 
 	// Only offer GPS if the option is enabled and we're not in FE
-	if (g::world_map::gps_only && NFSC::BulbToys_GetGameFlowState() == NFSC::GFS::RACING)
+	if (g::gps_only::enabled && NFSC::BulbToys_GetGameFlowState() == NFSC::GFS::RACING)
 	{
 		if (type == NFSC::FESM::WorldMap::RACE_EVENT)
 		{
@@ -1709,81 +1707,6 @@ void __fastcall Hooks::UpdateRaceRouteHook(uintptr_t minimap)
 //////////////////
 }
 */
-
-
-void __fastcall Hooks::Minimap_dtor_(uintptr_t minimap)
-{
-	if (g::world_map::flm)
-	{
-		// dtor
-		reinterpret_cast<void(__thiscall*)(uintptr_t)>(0x7597C0)(g::world_map::flm);
-		NFSC::free(g::world_map::flm);
-	}
-
-	uintptr_t flm = Read<uintptr_t>(minimap + 0x158);
-	g::world_map::flm = flm;
-	Write<void*>(minimap + 0x158, nullptr);
-
-	Hooks::Minimap_dtor(minimap);
-}
-
-
-void __fastcall Hooks::FatLineMesh_AddBezier_(uintptr_t flm, uintptr_t edx, void* vec2_a, void* vec2_b, void* vec2_c, void* vec2_d, float f)
-{
-	auto a = (NFSC::Vector2*)vec2_a;
-	auto b = (NFSC::Vector2*)vec2_b;
-	auto c = (NFSC::Vector2*)vec2_c;
-	auto d = (NFSC::Vector2*)vec2_d;
-
-	/*
-	//Error("A: { %.2f, %.2f }\nB: { %.2f, %.2f }\nC: { %.2f, %.2f }\nC: { %.2f, %.2f }", a->x, a->y, b->x, b->y, c->x, c->y, d->x, d->y);
-
-	float x = g::flm::x;
-	float y = g::flm::y;
-	float scale = g::flm::scale;
-
-	if (!g::flm::custom)
-	{
-		if (NFSC::BulbToys_IsGameNFSCO())
-		{
-			x = 287.f;
-		}
-		else
-		{
-			x = -9.f;
-		}
-
-		y = 451.f;
-		scale = 1.27f;
-	}
-
-
-	a->x -= x;
-	a->y -= y;
-	b->x -= x;
-	b->y -= y;
-	c->x -= x;
-	c->y -= y;
-	d->x -= x;
-	d->y -= y;
-
-	a->x *= scale;
-	a->y *= scale;
-	b->x *= scale;
-	b->y *= scale;
-	c->x *= scale;
-	c->y *= scale;
-	d->x *= scale;
-	d->y *= scale;
-	*/
-
-	g::world_map::test.push_back(*a);
-	g::world_map::test.push_back(*b);
-	g::world_map::test.push_back(*c);
-	g::world_map::test.push_back(*d);
-
-	Hooks::FatLineMesh_AddBezier(flm, edx, vec2_a, vec2_b, vec2_c, vec2_d, f);
-}
 
 void __stdcall Hooks::cFEngRender_RenderTerritoryBorder_(uintptr_t object)
 {
